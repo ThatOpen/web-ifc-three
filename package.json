@@ -1,0 +1,26 @@
+{
+  "name": "web-ifc-three",
+  "version": "1.0.0",
+  "description": "This library is the implementation of [web-ifc](https://github.com/tomvandig/web-ifc) for [THREE.js](https://github.com/mrdoob/three.js/). This allows to parse and generate the geometry of IFC models in JavaScript, both in the browser and on a Node server.",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "build": "tsc"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/tomvandig/web-ifc-three.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/tomvandig/web-ifc-three/issues"
+  },
+  "homepage": "https://github.com/tomvandig/web-ifc-three#readme",
+  "dependencies": {
+    "three": "^0.126.0",
+    "web-ifc": "0.0.13"
+  },
+  "devDependencies": {}
+}
