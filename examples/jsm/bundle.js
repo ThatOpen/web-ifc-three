@@ -58635,6 +58635,8 @@ var import_web_ifc = __toModule(require_web_ifc_api());
 var IFCLoader = function(manager) {
   Loader.call(this, manager);
 };
+var ifcAPI = new import_web_ifc.IfcAPI();
+ifcAPI.Init();
 IFCLoader.prototype = Object.assign(Object.create(Loader.prototype), {
   varructor: IFCLoader,
   load: function(url, onLoad, onProgress, onError) {
@@ -58658,10 +58660,8 @@ IFCLoader.prototype = Object.assign(Object.create(Loader.prototype), {
     }, onProgress, onError);
   },
   parse: function() {
-    return async function(buffer) {
-      var ifcAPI = new import_web_ifc.IfcAPI();
-      await ifcAPI.Init();
-      var modelID = ifcAPI.OpenModel("example.ifc", buffer);
+    return function(buffer) {
+      var modelID = ifcAPI.OpenModel("rac_basic_example_project.ifc", buffer);
       return loadAllGeometry(modelID);
       function loadAllGeometry(modelID2) {
         var flatMeshes = getFlatMeshes(modelID2);
