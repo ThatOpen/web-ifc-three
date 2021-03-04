@@ -5,7 +5,7 @@
   "main": "index.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
-    "build": "tsc"
+    "build": "esbuild examples/jsm/web-ifc-viewer.js --bundle --platform=node --outfile=./examples/jsm/bundle.js"
   },
   "repository": {
     "type": "git",
@@ -22,5 +22,7 @@
     "three": "^0.126.0",
     "web-ifc": "0.0.13"
   },
-  "devDependencies": {}
+  "devDependencies": {
+    "esbuild": "^0.8.55"
+  }
 }
