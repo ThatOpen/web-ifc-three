@@ -5,7 +5,7 @@
   "main": "index.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
-    "build": "esbuild examples/jsm/web-ifc-viewer.js --bundle --platform=node --outfile=./examples/jsm/bundle.js"
+    "build": "esbuild example/web-ifc-scene.js --bundle --platform=node --outfile=./example/bundle.js"
   },
   "repository": {
     "type": "git",
@@ -23,6 +23,16 @@
     "web-ifc": "0.0.13"
   },
   "devDependencies": {
-    "esbuild": "^0.8.55"
+    "@babel/core": "^7.13.8",
+    "@babel/preset-env": "^7.13.9",
+    "@rollup/plugin-babel": "^5.3.0",
+    "@rollup/plugin-node-resolve": "^11.2.0",
+    "@rollup/plugin-typescript": "^8.2.0",
+    "esbuild": "^0.8.55",
+    "rollup": "^2.40.0",
+    "rollup-plugin-dts": "^2.0.1",
+    "rollup-plugin-terser": "^7.0.2",
+    "tslib": "^2.1.0",
+    "typescript": "^4.2.3"
   }
 }

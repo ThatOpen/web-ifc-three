@@ -54,7 +54,8 @@ IFCLoader.prototype = Object.assign(Object.create(Loader.prototype), {
 
   parse: (function () {
     return function (buffer) {
-      var modelID = ifcAPI.OpenModel('example.ifc', buffer);
+      var data = new Uint8Array(buffer);
+      var modelID = ifcAPI.OpenModel('example.ifc', data);
       return loadAllGeometry(modelID);
 
       function loadAllGeometry(modelID) {
