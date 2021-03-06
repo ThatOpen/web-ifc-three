@@ -5,7 +5,7 @@
   "main": "index.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
-    "build": "esbuild example/web-ifc-scene.js --bundle --platform=node --outfile=./example/bundle.js"
+    "build": "rollup -c"
   },
   "repository": {
     "type": "git",

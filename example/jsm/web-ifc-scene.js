@@ -1,4 +1,4 @@
-import { IFCLoader } from '../src/jsm/IfcLoader';
+import { IFCLoader } from '../../src/jsm/IfcLoader';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 import {
   Scene,
@@ -52,7 +52,7 @@ window.addEventListener("resize", () => {
 
 //Load IFC
 const ifcLoader = new IFCLoader();
-ifcLoader.load('./ifc/rac_advanced_sample_project.ifc', (geometry) => scene.add(geometry));
+ifcLoader.load('../ifc/rac_advanced_sample_project.ifc', (geometry) => scene.add(geometry));
 
 //Animation
 function AnimationLoop() {
