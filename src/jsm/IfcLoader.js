@@ -1,4 +1,4 @@
-import { IfcAPI } from '../../lib/jsm/web-ifc-api';
+import { IfcAPI } from '../lib/jsm/web-ifc-api';
 import {
   FileLoader,
   Loader,

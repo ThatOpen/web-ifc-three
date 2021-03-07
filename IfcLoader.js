@@ -1,5 +1,3 @@
-import "../lib/js/web-ifc-api"
-
 THREE.IfcLoader = function (manager) {
   THREE.Loader.call(this, manager);
 };

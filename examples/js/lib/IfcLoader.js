@@ -1,3 +1,5 @@
+'use strict';
+
 (() => {
   var __create = Object.create;
   var __defProp = Object.defineProperty;
@@ -48,7 +50,6 @@
             moduleOverrides[key] = Module[key];
           }
         }
-        var arguments_ = [];
         var thisProgram = "./this.program";
         var quit_ = function(status, toThrow) {
           throw toThrow;
@@ -68,7 +69,7 @@
           }
           return scriptDirectory + path;
         }
-        var read_, readAsync, readBinary, setWindowTitle;
+        var read_, readAsync, readBinary;
         var nodeFS;
         var nodePath;
         if (ENVIRONMENT_IS_NODE) {
@@ -96,7 +97,7 @@
           if (process["argv"].length > 1) {
             thisProgram = process["argv"][1].replace(/\\/g, "/");
           }
-          arguments_ = process["argv"].slice(2);
+          process["argv"].slice(2);
           process["on"]("uncaughtException", function(ex) {
             if (!(ex instanceof ExitStatus)) {
               throw ex;
@@ -125,9 +126,7 @@
             return data;
           };
           if (typeof scriptArgs != "undefined") {
-            arguments_ = scriptArgs;
-          } else if (typeof arguments != "undefined") {
-            arguments_ = arguments;
+            scriptArgs;
           }
           if (typeof quit === "function") {
             quit_ = function(status) {
@@ -185,11 +184,7 @@
               xhr.send(null);
             };
           }
-          setWindowTitle = function(title) {
-            document.title = title;
-          };
-        } else {
-        }
+        } else ;
         var out = Module["print"] || console.log.bind(console);
         var err = Module["printErr"] || console.warn.bind(console);
         for (key in moduleOverrides) {
@@ -199,7 +194,7 @@
         }
         moduleOverrides = null;
         if (Module["arguments"])
-          arguments_ = Module["arguments"];
+          Module["arguments"];
         if (Module["thisProgram"])
           thisProgram = Module["thisProgram"];
         if (Module["quit"])
@@ -210,10 +205,6 @@
             factor = STACK_ALIGN;
           return Math.ceil(size / factor) * factor;
         }
-        var tempRet0 = 0;
-        var setTempRet0 = function(value) {
-          tempRet0 = value;
-        };
         var wasmBinary;
         if (Module["wasmBinary"])
           wasmBinary = Module["wasmBinary"];
@@ -225,7 +216,6 @@
         }
         var wasmMemory;
         var ABORT = false;
-        var EXITSTATUS;
         function assert(condition, text) {
           if (!condition) {
             abort("Assertion failed: " + text);
@@ -447,14 +437,12 @@
           Module["HEAPF32"] = HEAPF32 = new Float32Array(buf);
           Module["HEAPF64"] = HEAPF64 = new Float64Array(buf);
         }
-        var INITIAL_MEMORY = Module["INITIAL_MEMORY"] || 16777216;
+        Module["INITIAL_MEMORY"] || 16777216;
         var wasmTable;
         var __ATPRERUN__ = [];
         var __ATINIT__ = [];
         var __ATMAIN__ = [];
         var __ATPOSTRUN__ = [];
-        var runtimeInitialized = false;
-        var runtimeExited = false;
         __ATINIT__.push({func: function() {
           ___wasm_call_ctors();
         }});
@@ -469,7 +457,6 @@
           callRuntimeCallbacks(__ATPRERUN__);
         }
         function initRuntime() {
-          runtimeInitialized = true;
           if (!Module["noFSInit"] && !FS.init.initialized)
             FS.init();
           TTY.init();
@@ -478,9 +465,6 @@
         function preMain() {
           FS.ignorePermissions = false;
           callRuntimeCallbacks(__ATMAIN__);
-        }
-        function exitRuntime() {
-          runtimeExited = true;
         }
         function postRun() {
           if (Module["postRun"]) {
@@ -499,11 +483,7 @@
           __ATPOSTRUN__.unshift(cb);
         }
         var runDependencies = 0;
-        var runDependencyWatcher = null;
         var dependenciesFulfilled = null;
-        function getUniqueRunDependency(id) {
-          return id;
-        }
         function addRunDependency(id) {
           runDependencies++;
           if (Module["monitorRunDependencies"]) {
@@ -516,10 +496,6 @@
             Module["monitorRunDependencies"](runDependencies);
           }
           if (runDependencies == 0) {
-            if (runDependencyWatcher !== null) {
-              clearInterval(runDependencyWatcher);
-              runDependencyWatcher = null;
-            }
             if (dependenciesFulfilled) {
               var callback = dependenciesFulfilled;
               dependenciesFulfilled = null;
@@ -536,7 +512,6 @@
           what += "";
           err(what);
           ABORT = true;
-          EXITSTATUS = 1;
           what = "abort(" + what + "). Build with -s ASSERTIONS=1 for more info.";
           var e = new WebAssembly.RuntimeError(what);
           readyPromiseReject(e);
@@ -604,9 +579,9 @@
             wasmMemory = Module["asm"]["K"];
             updateGlobalBufferAndViews(wasmMemory.buffer);
             wasmTable = Module["asm"]["S"];
-            removeRunDependency("wasm-instantiate");
+            removeRunDependency();
           }
-          addRunDependency("wasm-instantiate");
+          addRunDependency();
           function receiveInstantiatedSource(output) {
             receiveInstance(output["instance"]);
           }
@@ -1171,7 +1146,7 @@
           if (mmapFlags & 2) {
             return 0;
           }
-          var bytesWritten = MEMFS.stream_ops.write(stream, buffer2, 0, length, offset, false);
+          MEMFS.stream_ops.write(stream, buffer2, 0, length, offset, false);
           return 0;
         }}};
         var FS = {root: null, mounts: [], devices: {}, streams: [], nextInode: 1, nameTable: null, currentPath: "/", initialized: false, ignorePermissions: true, trackingDelegate: {}, tracking: {openFlags: {READ: 1, WRITE: 2}}, ErrnoError: null, genericErrors: {}, filesystems: null, syncFSRequests: 0, lookupPath: function(path, opts) {
@@ -2138,9 +2113,9 @@
           } else {
             FS.symlink("/dev/tty1", "/dev/stderr");
           }
-          var stdin = FS.open("/dev/stdin", 0);
-          var stdout = FS.open("/dev/stdout", 1);
-          var stderr = FS.open("/dev/stderr", 1);
+          FS.open("/dev/stdin", 0);
+          FS.open("/dev/stdout", 1);
+          FS.open("/dev/stderr", 1);
         }, ensureErrnoError: function() {
           if (FS.ErrnoError)
             return;
@@ -2455,7 +2430,6 @@
         }, createPreloadedFile: function(parent, name, url, canRead, canWrite, onload, onerror, dontCreateFile, canOwn, preFinish) {
           Browser.init();
           var fullname = name ? PATH_FS.resolve(PATH.join2(parent, name)) : parent;
-          var dep = getUniqueRunDependency("cp " + fullname);
           function processData(byteArray) {
             function finish(byteArray2) {
               if (preFinish)
@@ -2465,7 +2439,7 @@
               }
               if (onload)
                 onload();
-              removeRunDependency(dep);
+              removeRunDependency();
             }
             var handled = false;
             Module["preloadPlugins"].forEach(function(plugin) {
@@ -2475,7 +2449,7 @@
                 plugin["handle"](byteArray, fullname, finish, function() {
                   if (onerror)
                     onerror();
-                  removeRunDependency(dep);
+                  removeRunDependency();
                 });
                 handled = true;
               }
@@ -2483,7 +2457,7 @@
             if (!handled)
               finish(byteArray);
           }
-          addRunDependency(dep);
+          addRunDependency();
           if (typeof url == "string") {
             Browser.asyncLoad(url, function(byteArray) {
               processData(byteArray);
@@ -3752,7 +3726,6 @@
           }
           if (returns) {
             invokerFnBody += "var ret = retType.fromWireType(rv);\nreturn ret;\n";
-          } else {
           }
           invokerFnBody += "}\n";
           args1.push(invokerFnBody);
@@ -4314,7 +4287,6 @@
           }
         }
         function _setTempRet0($i) {
-          setTempRet0($i | 0);
         }
         function __isLeapYear(year) {
           return year % 4 === 0 && (year % 100 !== 0 || year % 400 === 0);
@@ -4590,18 +4562,18 @@
           return u8array;
         }
         var asmLibraryArg = {r: ___assert_fail, D: ___sys_ioctl, E: ___sys_open, s: __embind_finalize_value_array, i: __embind_finalize_value_object, G: __embind_register_bool, l: __embind_register_class, k: __embind_register_class_constructor, c: __embind_register_class_function, F: __embind_register_emval, o: __embind_register_float, h: __embind_register_function, e: __embind_register_integer, d: __embind_register_memory_view, p: __embind_register_std_string, m: __embind_register_std_wstring, t: __embind_register_value_array, b: __embind_register_value_array_element, j: __embind_register_value_object, f: __embind_register_value_object_field, H: __embind_register_void, I: __emval_decref, J: __emval_incref, q: __emval_take_value, a: _abort, A: _clock_gettime, w: _emscripten_memcpy_big, g: _emscripten_resize_heap, y: _environ_get, z: _environ_sizes_get, n: _fd_close, C: _fd_read, u: _fd_seek, B: _fd_write, v: _setTempRet0, x: _strftime_l};
-        var asm = createWasm();
+        createWasm();
         var ___wasm_call_ctors = Module["___wasm_call_ctors"] = function() {
           return (___wasm_call_ctors = Module["___wasm_call_ctors"] = Module["asm"]["L"]).apply(null, arguments);
         };
-        var _main = Module["_main"] = function() {
-          return (_main = Module["_main"] = Module["asm"]["M"]).apply(null, arguments);
+        Module["_main"] = function() {
+          return (Module["_main"] = Module["asm"]["M"]).apply(null, arguments);
         };
         var ___getTypeName = Module["___getTypeName"] = function() {
           return (___getTypeName = Module["___getTypeName"] = Module["asm"]["N"]).apply(null, arguments);
         };
-        var ___embind_register_native_and_builtin_types = Module["___embind_register_native_and_builtin_types"] = function() {
-          return (___embind_register_native_and_builtin_types = Module["___embind_register_native_and_builtin_types"] = Module["asm"]["O"]).apply(null, arguments);
+        Module["___embind_register_native_and_builtin_types"] = function() {
+          return (Module["___embind_register_native_and_builtin_types"] = Module["asm"]["O"]).apply(null, arguments);
         };
         var ___errno_location = Module["___errno_location"] = function() {
           return (___errno_location = Module["___errno_location"] = Module["asm"]["P"]).apply(null, arguments);
@@ -4612,20 +4584,20 @@
         var _malloc = Module["_malloc"] = function() {
           return (_malloc = Module["_malloc"] = Module["asm"]["R"]).apply(null, arguments);
         };
-        var dynCall_jiji = Module["dynCall_jiji"] = function() {
-          return (dynCall_jiji = Module["dynCall_jiji"] = Module["asm"]["T"]).apply(null, arguments);
+        Module["dynCall_jiji"] = function() {
+          return (Module["dynCall_jiji"] = Module["asm"]["T"]).apply(null, arguments);
         };
-        var dynCall_viijii = Module["dynCall_viijii"] = function() {
-          return (dynCall_viijii = Module["dynCall_viijii"] = Module["asm"]["U"]).apply(null, arguments);
+        Module["dynCall_viijii"] = function() {
+          return (Module["dynCall_viijii"] = Module["asm"]["U"]).apply(null, arguments);
         };
-        var dynCall_iiiiiijj = Module["dynCall_iiiiiijj"] = function() {
-          return (dynCall_iiiiiijj = Module["dynCall_iiiiiijj"] = Module["asm"]["V"]).apply(null, arguments);
+        Module["dynCall_iiiiiijj"] = function() {
+          return (Module["dynCall_iiiiiijj"] = Module["asm"]["V"]).apply(null, arguments);
         };
-        var dynCall_iiiiij = Module["dynCall_iiiiij"] = function() {
-          return (dynCall_iiiiij = Module["dynCall_iiiiij"] = Module["asm"]["W"]).apply(null, arguments);
+        Module["dynCall_iiiiij"] = function() {
+          return (Module["dynCall_iiiiij"] = Module["asm"]["W"]).apply(null, arguments);
         };
-        var dynCall_iiiiijj = Module["dynCall_iiiiijj"] = function() {
-          return (dynCall_iiiiijj = Module["dynCall_iiiiijj"] = Module["asm"]["X"]).apply(null, arguments);
+        Module["dynCall_iiiiijj"] = function() {
+          return (Module["dynCall_iiiiijj"] = Module["asm"]["X"]).apply(null, arguments);
         };
         Module["addRunDependency"] = addRunDependency;
         Module["removeRunDependency"] = removeRunDependency;
@@ -4641,7 +4613,6 @@
           this.message = "Program terminated with exit(" + status + ")";
           this.status = status;
         }
-        var calledMain = false;
         dependenciesFulfilled = function runCaller() {
           if (!calledRun)
             run();
@@ -4670,11 +4641,9 @@
               quit_(1, e);
             }
           } finally {
-            calledMain = true;
           }
         }
         function run(args) {
-          args = args || arguments_;
           if (runDependencies > 0) {
             return;
           }
@@ -4695,7 +4664,7 @@
             if (Module["onRuntimeInitialized"])
               Module["onRuntimeInitialized"]();
             if (shouldRunNow)
-              callMain(args);
+              callMain();
             postRun();
           }
           if (Module["setStatus"]) {
@@ -4715,10 +4684,7 @@
           if (implicit && noExitRuntime && status === 0) {
             return;
           }
-          if (noExitRuntime) {
-          } else {
-            EXITSTATUS = status;
-            exitRuntime();
+          if (noExitRuntime) ; else {
             if (Module["onExit"])
               Module["onExit"](status);
             ABORT = true;
@@ -4752,10 +4718,7 @@
 
   // lib/web-ifc-api.ts
   var import_web_ifc = __toModule(require_web_ifc());
-  function ms() {
-    return new Date().getTime();
-  }
-  var IfcAPI = class {
+  window.IfcAPI = class { //TODO: IfcAPI must be a global object in web-ifc repo for this build
     constructor() {
       this.wasmModule = void 0;
     }
@@ -4803,3 +4766,110 @@
     }
   };
 })();
+
+THREE.IfcLoader = function (manager) {
+  THREE.Loader.call(this, manager);
+};
+
+var ifcAPI = new IfcAPI();
+
+THREE.IfcLoader.prototype = Object.assign(Object.create(THREE.Loader.prototype), {
+  constructor: THREE.IfcLoader,
+
+  load: async function (url, onLoad, onProgress, onError) {
+    var scope = this;
+
+    await ifcAPI.Init();
+
+    var loader = new THREE.FileLoader(scope.manager);
+    loader.setPath(scope.path);
+    loader.setResponseType('arraybuffer');
+    loader.setRequestHeader(scope.requestHeader);
+    loader.setWithCredentials(scope.withCredentials);
+    loader.load(
+      url,
+      function (buffer) {
+        try {
+          onLoad(scope.parse(buffer));
+        } catch (e) {
+          if (onError) {
+            onError(e);
+          } else {
+            console.error(e);
+          }
+
+          scope.manager.itemError(url);
+        }
+      },
+      onProgress,
+      onError
+    );
+  },
+
+  parse: (function () {
+    return function (buffer) {
+      var data = new Uint8Array(buffer);
+      var modelID = ifcAPI.OpenModel('example.ifc', data);
+      return loadAllGeometry(modelID);
+
+      function loadAllGeometry(modelID) {
+        var flatMeshes = getFlatMeshes(modelID);
+        var mainObject = new THREE.Object3D();
+        for (var i = 0; i < flatMeshes.size(); i++) {
+          var placedGeometries = flatMeshes.get(i).geometries;
+          for (var j = 0; j < placedGeometries.size(); j++)
+            mainObject.add(getPlacedGeometry(modelID, placedGeometries.get(j)));
+        }
+        return mainObject;
+      }
+
+      function getFlatMeshes(modelID) {
+        var flatMeshes = ifcAPI.LoadAllGeometry(modelID);
+        return flatMeshes;
+      }
+
+      function getPlacedGeometry(modelID, placedGeometry) {
+        var geometry = getBufferGeometry(modelID, placedGeometry);
+        var material = getMeshMaterial(placedGeometry.color);
+        var mesh = new THREE.Mesh(geometry, material);
+        mesh.matrix = getMeshMatrix(placedGeometry.flatTransformation);
+        mesh.matrixAutoUpdate = false;
+        return mesh;
+      }
+
+      function getBufferGeometry(modelID, placedGeometry) {
+        var geometry = ifcAPI.GetGeometry(modelID, placedGeometry.geometryExpressID);
+        var verts = ifcAPI.GetVertexArray(geometry.GetVertexData(), geometry.GetVertexDataSize());
+        var indices = ifcAPI.GetIndexArray(geometry.GetIndexData(), geometry.GetIndexDataSize());
+        var bufferGeometry = ifcGeometryToBuffer(verts, indices);
+        return bufferGeometry;
+      }
+
+      function getMeshMaterial(color) {
+        var col = new THREE.Color(color.x, color.y, color.z);
+        var material = new THREE.MeshPhongMaterial({ color: col, side: THREE.DoubleSide });
+        material.transparent = color.w !== 1;
+        if (material.transparent) material.opacity = color.w;
+        return material;
+      }
+
+      function getMeshMatrix(matrix) {
+        var mat = new THREE.Matrix4();
+        mat.fromArray(matrix);
+        // mat.elements[15 - 3] *= 0.001;
+        // mat.elements[15 - 2] *= 0.001;
+        // mat.elements[15 - 1] *= 0.001;
+        return mat;
+      }
+
+      function ifcGeometryToBuffer(vertexData, indexData) {
+        var geometry = new THREE.BufferGeometry();
+        var buffer32 = new THREE.InterleavedBuffer(vertexData, 6);
+        geometry.setAttribute('position', new THREE.InterleavedBufferAttribute(buffer32, 3, 0));
+        geometry.setAttribute('normal', new THREE.InterleavedBufferAttribute(buffer32, 3, 3));
+        geometry.setIndex(new THREE.BufferAttribute(indexData, 1));
+        return geometry;
+      }
+    };
+  })()
+});

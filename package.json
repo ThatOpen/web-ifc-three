@@ -5,7 +5,9 @@
   "main": "index.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
-    "build": "rollup -c"
+    "build": "npm run build-cjs && npm run build-jsm-example",
+    "build-cjs": "rollup --config src/js/rollup.config.js",
+    "build-jsm-example": "rollup --config examples/jsm/rollup.config.js"
   },
   "repository": {
     "type": "git",

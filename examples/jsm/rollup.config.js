@@ -2,12 +2,12 @@ import resolve from '@rollup/plugin-node-resolve'; // locate and bundle dependen
 // import { terser } from "rollup-plugin-terser"; // code minification (optional)
 
 export default {
-  input: 'example/jsm/web-ifc-scene.js',
+  input: 'examples/jsm/web-ifc-scene.js',
   output: [
     {
-      format: 'cjs', // commonJS
-      file: 'example/jsm/bundle.js'
-    }
+      format: 'cjs',
+      file: 'examples/jsm/bundle.js'
+    },
   ],
   plugins: [
     resolve()
