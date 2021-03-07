@@ -37833,6 +37833,20 @@ IFCLoader.prototype = Object.assign(Object.create(Loader.prototype), {
   })()
 });
 
+function readIfcFile(scene) {
+  const input = document.querySelector('input[type="file"]');
+  if (!input) return;
+  input.addEventListener(
+    'change',
+    (changed) => {
+      var ifcURL = URL.createObjectURL(changed.target.files[0]);
+      const ifcLoader = new IFCLoader();
+      ifcLoader.load(ifcURL, (geometry) => scene.add(geometry));
+    },
+    false
+  );
+}
+
 // This set of controls performs orbiting, dollying (zooming), and panning.
 // Unlike TrackballControls, it maintains the "up" direction object.up (+Y by default).
 //
@@ -39073,9 +39087,8 @@ window.addEventListener("resize", () => {
   renderer.setSize(window.innerWidth, window.innerHeight);
 });
 
-//Load IFC
-const ifcLoader = new IFCLoader();
-ifcLoader.load('../ifc/rac_advanced_sample_project.ifc', (geometry) => scene.add(geometry));
+//Setup IFC Loader
+readIfcFile(scene);
 
 //Animation
 function AnimationLoop() {

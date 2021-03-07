@@ -36,10 +36,6 @@ window.addEventListener("resize", () => {
   renderer.setSize(window.innerWidth, window.innerHeight);
 })
 
-//Load IFC
-const ifcLoader = new THREE.IfcLoader();
-ifcLoader.load('../ifc/rac_advanced_sample_project.ifc', (geometry) => scene.add(geometry));
-
 //Animation
 function AnimationLoop() {
   requestAnimationFrame(AnimationLoop);
@@ -48,3 +44,18 @@ function AnimationLoop() {
 }
 
 AnimationLoop();
+
+//Setup IFC Loader
+(function readIfcFile() {
+  const input = document.querySelector('input[type="file"]');
+  if (!input) return;
+  input.addEventListener(
+    'change',
+    (changed) => {
+      var ifcURL = URL.createObjectURL(changed.target.files[0]);
+      const ifcLoader = new THREE.IfcLoader();
+      ifcLoader.load(ifcURL, (geometry) => scene.add(geometry));
+    },
+    false
+  );
+})();

@@ -13,3 +13,10 @@ html, body {
     left: 0;
     outline: none;
 }
+
+#openFileDialog {
+    z-index: 1;
+    position: fixed;
+    top: 10px;
+    left: 10px;
+}
