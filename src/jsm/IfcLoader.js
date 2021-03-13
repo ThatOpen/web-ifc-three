@@ -1,4 +1,4 @@
-import { IfcAPI } from '../lib/jsm/web-ifc-api';
+import { IfcAPI } from 'web-ifc/web-ifc-api';
 import {
   FileLoader,
   Loader,
@@ -14,15 +14,15 @@ import {
   BufferAttribute
 } from 'three/build/three.module';
 
-var IFCLoader = function (manager) {
+var IfcLoader = function (manager) {
   Loader.call(this, manager);
 };
 
 var ifcAPI = new IfcAPI();
 ifcAPI.Init();
 
-IFCLoader.prototype = Object.assign(Object.create(Loader.prototype), {
-  varructor: IFCLoader,
+IfcLoader.prototype = Object.assign(Object.create(Loader.prototype), {
+  varructor: IfcLoader,
 
   load: function (url, onLoad, onProgress, onError) {
     var scope = this;
@@ -120,4 +120,4 @@ IFCLoader.prototype = Object.assign(Object.create(Loader.prototype), {
   })()
 });
 
-export { IFCLoader };
+export { IfcLoader };

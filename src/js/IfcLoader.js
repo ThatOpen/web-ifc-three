@@ -1,10 +1,10 @@
-import "../lib/js/web-ifc-api"
+import * as WEBIFC from "web-ifc/web-ifc-api"
 
 THREE.IfcLoader = function (manager) {
   THREE.Loader.call(this, manager);
 };
 
-var ifcAPI = new IfcAPI();
+var ifcAPI = new WEBIFC.IfcAPI();
 
 THREE.IfcLoader.prototype = Object.assign(Object.create(THREE.Loader.prototype), {
   constructor: THREE.IfcLoader,
