@@ -21,6 +21,8 @@ var IfcLoader = function (manager) {
 var ifcAPI = new IfcAPI();
 ifcAPI.Init();
 
+var materials = {};
+
 IfcLoader.prototype = Object.assign(Object.create(Loader.prototype), {
   varructor: IfcLoader,
 
@@ -76,7 +78,7 @@ IfcLoader.prototype = Object.assign(Object.create(Loader.prototype), {
 
       function getPlacedGeometry(modelID, placedGeometry) {
         var geometry = getBufferGeometry(modelID, placedGeometry);
-        var material = getMeshMaterial(placedGeometry.color);
+        var material = getMaterial(placedGeometry.color);
         var mesh = new Mesh(geometry, material);
         mesh.matrix = getMeshMatrix(placedGeometry.flatTransformation);
         mesh.matrixAutoUpdate = false;
@@ -91,20 +93,9 @@ IfcLoader.prototype = Object.assign(Object.create(Loader.prototype), {
         return bufferGeometry;
       }
 
-      function getMeshMaterial(color) {
-        var col = new Color(color.x, color.y, color.z);
-        var material = new MeshPhongMaterial({ color: col, side: DoubleSide });
-        material.transparent = color.w !== 1;
-        if (material.transparent) material.opacity = color.w;
-        return material;
-      }
-
       function getMeshMatrix(matrix) {
         var mat = new Matrix4();
         mat.fromArray(matrix);
-        // mat.elements[15 - 3] *= 0.001;
-        // mat.elements[15 - 2] *= 0.001;
-        // mat.elements[15 - 1] *= 0.001;
         return mat;
       }
 
@@ -115,6 +106,18 @@ IfcLoader.prototype = Object.assign(Object.create(Loader.prototype), {
         geometry.setAttribute('normal', new InterleavedBufferAttribute(buffer32, 3, 3));
         geometry.setIndex(new BufferAttribute(indexData, 1));
         return geometry;
+      }
+
+      function getMaterial(color) {
+        var id = `${color.x}${color.y}${color.z}${color.w}`;
+        if(!materials[id]) {
+          var col = new Color(color.x, color.y, color.z);
+          var newMaterial = new MeshPhongMaterial({ color: col, side: DoubleSide });
+          newMaterial.transparent = color.w !== 1;
+          if (newMaterial.transparent) newMaterial.opacity = color.w;
+          materials[id] = newMaterial;
+        }
+        return materials[id];
       }
     };
   })()
