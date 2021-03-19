@@ -536,7 +536,7 @@ var require_web_ifc = __commonJS((exports, module) => {
         function receiveInstance(instance, module2) {
           var exports3 = instance.exports;
           Module["asm"] = exports3;
-          wasmTable = Module["asm"]["L"];
+          wasmTable = Module["asm"]["P"];
           removeRunDependency();
         }
         addRunDependency();
@@ -4069,6 +4069,36 @@ var require_web_ifc = __commonJS((exports, module) => {
           emval_handle_array[handle].refcount += 1;
         }
       }
+      function __emval_new_array() {
+        return __emval_register([]);
+      }
+      var emval_symbols = {};
+      function getStringOrSymbol(address) {
+        var symbol = emval_symbols[address];
+        if (symbol === void 0) {
+          return readLatin1String(address);
+        } else {
+          return symbol;
+        }
+      }
+      function __emval_new_cstring(v) {
+        return __emval_register(getStringOrSymbol(v));
+      }
+      function __emval_new_object() {
+        return __emval_register({});
+      }
+      function requireHandle(handle) {
+        if (!handle) {
+          throwBindingError("Cannot use deleted val. handle = " + handle);
+        }
+        return emval_handle_array[handle].value;
+      }
+      function __emval_set_property(handle, key2, value) {
+        handle = requireHandle(handle);
+        key2 = requireHandle(key2);
+        value = requireHandle(value);
+        handle[key2] = value;
+      }
       function requireRegisteredType(rawType, humanName) {
         var impl = registeredTypes[rawType];
         if (impl === void 0) {
@@ -4532,43 +4562,43 @@ var require_web_ifc = __commonJS((exports, module) => {
       __ATINIT__.push({func: function() {
         ___wasm_call_ctors();
       }});
-      var asmLibraryArg = {t: ___assert_fail, E: ___sys_ioctl, F: ___sys_open, u: __embind_finalize_value_array, j: __embind_finalize_value_object, H: __embind_register_bool, m: __embind_register_class, l: __embind_register_class_constructor, d: __embind_register_class_function, G: __embind_register_emval, q: __embind_register_float, i: __embind_register_function, f: __embind_register_integer, e: __embind_register_memory_view, r: __embind_register_std_string, n: __embind_register_std_wstring, v: __embind_register_value_array, c: __embind_register_value_array_element, k: __embind_register_value_object, g: __embind_register_value_object_field, I: __embind_register_void, J: __emval_decref, K: __emval_incref, s: __emval_take_value, b: _abort, C: _clock_gettime, y: _emscripten_memcpy_big, h: _emscripten_resize_heap, A: _environ_get, B: _environ_sizes_get, p: _fd_close, D: _fd_read, w: _fd_seek, o: _fd_write, a: wasmMemory, x: _setTempRet0, z: _strftime_l};
+      var asmLibraryArg = {t: ___assert_fail, I: ___sys_ioctl, J: ___sys_open, N: __embind_finalize_value_array, r: __embind_finalize_value_object, L: __embind_register_bool, n: __embind_register_class, o: __embind_register_class_constructor, d: __embind_register_class_function, K: __embind_register_emval, w: __embind_register_float, l: __embind_register_function, h: __embind_register_integer, g: __embind_register_memory_view, x: __embind_register_std_string, q: __embind_register_std_wstring, O: __embind_register_value_array, e: __embind_register_value_array_element, s: __embind_register_value_object, i: __embind_register_value_object_field, M: __embind_register_void, c: __emval_decref, k: __emval_incref, y: __emval_new_array, p: __emval_new_cstring, z: __emval_new_object, j: __emval_set_property, f: __emval_take_value, b: _abort, G: _clock_gettime, C: _emscripten_memcpy_big, m: _emscripten_resize_heap, E: _environ_get, F: _environ_sizes_get, v: _fd_close, H: _fd_read, A: _fd_seek, u: _fd_write, a: wasmMemory, B: _setTempRet0, D: _strftime_l};
       createWasm();
       var ___wasm_call_ctors = Module["___wasm_call_ctors"] = function() {
-        return (___wasm_call_ctors = Module["___wasm_call_ctors"] = Module["asm"]["M"]).apply(null, arguments);
+        return (___wasm_call_ctors = Module["___wasm_call_ctors"] = Module["asm"]["Q"]).apply(null, arguments);
       };
       Module["_main"] = function() {
-        return (Module["_main"] = Module["asm"]["N"]).apply(null, arguments);
-      };
-      var ___getTypeName = Module["___getTypeName"] = function() {
-        return (___getTypeName = Module["___getTypeName"] = Module["asm"]["O"]).apply(null, arguments);
-      };
-      Module["___embind_register_native_and_builtin_types"] = function() {
-        return (Module["___embind_register_native_and_builtin_types"] = Module["asm"]["P"]).apply(null, arguments);
-      };
-      var ___errno_location = Module["___errno_location"] = function() {
-        return (___errno_location = Module["___errno_location"] = Module["asm"]["Q"]).apply(null, arguments);
-      };
-      var _free = Module["_free"] = function() {
-        return (_free = Module["_free"] = Module["asm"]["R"]).apply(null, arguments);
+        return (Module["_main"] = Module["asm"]["R"]).apply(null, arguments);
       };
       var _malloc = Module["_malloc"] = function() {
         return (_malloc = Module["_malloc"] = Module["asm"]["S"]).apply(null, arguments);
       };
+      var ___getTypeName = Module["___getTypeName"] = function() {
+        return (___getTypeName = Module["___getTypeName"] = Module["asm"]["T"]).apply(null, arguments);
+      };
+      Module["___embind_register_native_and_builtin_types"] = function() {
+        return (Module["___embind_register_native_and_builtin_types"] = Module["asm"]["U"]).apply(null, arguments);
+      };
+      var ___errno_location = Module["___errno_location"] = function() {
+        return (___errno_location = Module["___errno_location"] = Module["asm"]["V"]).apply(null, arguments);
+      };
+      var _free = Module["_free"] = function() {
+        return (_free = Module["_free"] = Module["asm"]["W"]).apply(null, arguments);
+      };
       Module["dynCall_jiji"] = function() {
-        return (Module["dynCall_jiji"] = Module["asm"]["T"]).apply(null, arguments);
+        return (Module["dynCall_jiji"] = Module["asm"]["X"]).apply(null, arguments);
       };
       Module["dynCall_viijii"] = function() {
-        return (Module["dynCall_viijii"] = Module["asm"]["U"]).apply(null, arguments);
+        return (Module["dynCall_viijii"] = Module["asm"]["Y"]).apply(null, arguments);
       };
       Module["dynCall_iiiiiijj"] = function() {
-        return (Module["dynCall_iiiiiijj"] = Module["asm"]["V"]).apply(null, arguments);
+        return (Module["dynCall_iiiiiijj"] = Module["asm"]["Z"]).apply(null, arguments);
       };
       Module["dynCall_iiiiij"] = function() {
-        return (Module["dynCall_iiiiij"] = Module["asm"]["W"]).apply(null, arguments);
+        return (Module["dynCall_iiiiij"] = Module["asm"]["_"]).apply(null, arguments);
       };
       Module["dynCall_iiiiijj"] = function() {
-        return (Module["dynCall_iiiiijj"] = Module["asm"]["X"]).apply(null, arguments);
+        return (Module["dynCall_iiiiijj"] = Module["asm"]["$"]).apply(null, arguments);
       };
       Module["addRunDependency"] = addRunDependency;
       Module["removeRunDependency"] = removeRunDependency;
@@ -4708,6 +4738,12 @@ var IfcAPI = class {
   }
   GetGeometry(modelID, geometryExpressID) {
     return this.wasmModule.GetGeometry(modelID, geometryExpressID);
+  }
+  GetLine(modelID, expressID) {
+    return this.wasmModule.GetLine(modelID, expressID);
+  }
+  GetLineIDsWithType(modelID, type) {
+    return this.wasmModule.GetLineIDsWithType(modelID, type);
   }
   SetGeometryTransformation(modelID, transformationMatrix) {
     if (transformationMatrix.length != 16) {

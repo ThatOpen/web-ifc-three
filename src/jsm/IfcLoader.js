@@ -65,9 +65,13 @@ IfcLoader.prototype = Object.assign(Object.create(Loader.prototype), {
         var mainObject = new Object3D();
         for (var i = 0; i < flatMeshes.size(); i++) {
           var placedGeometries = flatMeshes.get(i).geometries;
-          for (var j = 0; j < placedGeometries.size(); j++)
-            mainObject.add(getPlacedGeometry(modelID, placedGeometries.get(j)));
+          for (var j = 0; j < placedGeometries.size(); j++){
+            const mesh = getPlacedGeometry(modelID, placedGeometries.get(j))
+            mesh.expressID = flatMeshes.get(i).expressID;
+            mainObject.add(mesh);
+          }
         }
+        console.log(mainObject);
         return mainObject;
       }
 
@@ -80,6 +84,7 @@ IfcLoader.prototype = Object.assign(Object.create(Loader.prototype), {
         var geometry = getBufferGeometry(modelID, placedGeometry);
         var material = getMaterial(placedGeometry.color);
         var mesh = new Mesh(geometry, material);
+        mesh.expressID = placedGeometry.expressID;
         mesh.matrix = getMeshMatrix(placedGeometry.flatTransformation);
         mesh.matrixAutoUpdate = false;
         return mesh;
@@ -120,6 +125,7 @@ IfcLoader.prototype = Object.assign(Object.create(Loader.prototype), {
         return materials[id];
       }
     };
+    materials = {};
   })()
 });
 

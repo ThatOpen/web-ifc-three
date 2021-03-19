@@ -24,7 +24,7 @@
   "homepage": "https://github.com/tomvandig/web-ifc-three#readme",
   "dependencies": {
     "three": "^0.126.0",
-    "web-ifc": "0.0.15"
+    "web-ifc": "0.0.17"
   },
   "devDependencies": {
     "@babel/core": "^7.13.8",
