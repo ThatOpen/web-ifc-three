@@ -50,8 +50,11 @@ THREE.IfcLoader.prototype = Object.assign(Object.create(THREE.Loader.prototype),
         var mainObject = new THREE.Object3D();
         for (var i = 0; i < flatMeshes.size(); i++) {
           var placedGeometries = flatMeshes.get(i).geometries;
-          for (var j = 0; j < placedGeometries.size(); j++)
-            mainObject.add(getPlacedGeometry(modelID, placedGeometries.get(j)));
+          for (var j = 0; j < placedGeometries.size(); j++){
+            const mesh = getPlacedGeometry(modelID, placedGeometries.get(j))
+            mesh.expressID = flatMeshes.get(i).expressID;
+            mainObject.add(mesh);
+          }
         }
         return mainObject;
       }
