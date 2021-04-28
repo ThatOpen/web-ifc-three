@@ -1,16 +1,14 @@
 import { IfcAPI } from 'web-ifc/web-ifc-api';
+import { BufferGeometryUtils } from 'three/examples/jsm/utils/BufferGeometryUtils';
 import {
   FileLoader,
   Loader,
-  Object3D,
   Mesh,
   Color,
   MeshPhongMaterial,
   DoubleSide,
   Matrix4,
   BufferGeometry,
-  InterleavedBuffer,
-  InterleavedBufferAttribute,
   BufferAttribute
 } from 'three/build/three.module';
 
@@ -56,11 +54,11 @@ IfcLoader.prototype = Object.assign(Object.create(Loader.prototype), {
     );
   },
 
-  getIfcItemInformation: function(expressID){
+  getIfcItemInformation: function (expressID) {
     return ifcAPI.GetLine(modelID, expressID);
   },
 
-  setWasmPath(path){
+  setWasmPath(path) {
     ifcAPI.SetWasmPath(path);
   },
 
@@ -72,17 +70,19 @@ IfcLoader.prototype = Object.assign(Object.create(Loader.prototype), {
 
       function loadAllGeometry(modelID) {
         var flatMeshes = getFlatMeshes(modelID);
-        var mainObject = new Object3D();
+        var geometries = [], allMaterials = [];
         for (var i = 0; i < flatMeshes.size(); i++) {
           var placedGeometries = flatMeshes.get(i).geometries;
-          for (var j = 0; j < placedGeometries.size(); j++){
-            const mesh = getPlacedGeometry(modelID, placedGeometries.get(j))
-            mesh.expressID = flatMeshes.get(i).expressID;
-            mainObject.add(mesh);
+          for (var j = 0; j < placedGeometries.size(); j++) {
+            var { geometry, material } = getPlacedGeometry(modelID, placedGeometries.get(j));
+            geometries.push(geometry);
+            allMaterials.push(material);
           }
         }
-        console.log(mainObject);
-        return mainObject;
+        var merged = BufferGeometryUtils.mergeBufferGeometries(geometries, true);
+        var mesh = new Mesh(merged, allMaterials);
+        console.log(allMaterials);
+        return mesh;
       }
 
       function getFlatMeshes(modelID) {
@@ -92,12 +92,11 @@ IfcLoader.prototype = Object.assign(Object.create(Loader.prototype), {
 
       function getPlacedGeometry(modelID, placedGeometry) {
         var geometry = getBufferGeometry(modelID, placedGeometry);
+        geometry.computeVertexNormals();
         var material = getMaterial(placedGeometry.color);
-        var mesh = new Mesh(geometry, material);
-        mesh.expressID = placedGeometry.expressID;
-        mesh.matrix = getMeshMatrix(placedGeometry.flatTransformation);
-        mesh.matrixAutoUpdate = false;
-        return mesh;
+        var matrix = getMeshMatrix(placedGeometry.flatTransformation);
+        geometry.applyMatrix4(matrix);
+        return { geometry, material };
       }
 
       function getBufferGeometry(modelID, placedGeometry) {
@@ -116,16 +115,29 @@ IfcLoader.prototype = Object.assign(Object.create(Loader.prototype), {
 
       function ifcGeometryToBuffer(vertexData, indexData) {
         var geometry = new BufferGeometry();
-        var buffer32 = new InterleavedBuffer(vertexData, 6);
-        geometry.setAttribute('position', new InterleavedBufferAttribute(buffer32, 3, 0));
-        geometry.setAttribute('normal', new InterleavedBufferAttribute(buffer32, 3, 3));
+
+        var { vertices, normals } = spliceVertexData(vertexData, false);
+        geometry.setAttribute('position', new BufferAttribute(new Float32Array(vertices), 3));
+        geometry.setAttribute('normal', new BufferAttribute(new Float32Array(normals), 3));
         geometry.setIndex(new BufferAttribute(indexData, 1));
+
         return geometry;
+      }
+
+      function spliceVertexData(vertexData) {
+        var vertices = [],
+          normals = [];
+        var isNormalData = false;
+        for (var i = 0; i < vertexData.length; i++) {
+          isNormalData ? normals.push(vertexData[i]) : vertices.push(vertexData[i]);
+          if ((i + 1) % 3 == 0) isNormalData = !isNormalData;
+        }
+        return { vertices, normals };
       }
 
       function getMaterial(color) {
         var id = `${color.x}${color.y}${color.z}${color.w}`;
-        if(!materials[id]) {
+        if (!materials[id]) {
           var col = new Color(color.x, color.y, color.z);
           var newMaterial = new MeshPhongMaterial({ color: col, side: DoubleSide });
           newMaterial.transparent = color.w !== 1;
