@@ -4,12 +4,10 @@
   "description": "This library is the implementation of [web-ifc](https://github.com/tomvandig/web-ifc) for [THREE.js](https://github.com/mrdoob/three.js/). This allows to parse and generate the geometry of IFC models in JavaScript, both in the browser and on a Node server.",
   "main": "index.js",
   "scripts": {
-    "build": "npm run build-iife-example && npm run build-jsm-example && npm run copy-wasm",
-    "build-iife-example": "rollup --config src/js/rollup.config.js && cpy src/js/build/IfcLoader.js examples/js/lib",
-    "build-jsm-example": "rollup --config examples/jsm/rollup.config.js",
-    "copy-wasm": "npm run copy-wasm-js && npm run copy-wasm-jsm",
-    "copy-wasm-js": "cpy node_modules/web-ifc/web-ifc.wasm examples/js/lib",
-    "copy-wasm-jsm": "cpy node_modules/web-ifc/web-ifc.wasm examples/jsm"
+    "watch": "npm run copy-wasm && rollup --config example/rollup.config.js -w",
+    "build": "npm run build-example && npm run copy-wasm",
+    "build-example": "rollup --config example/rollup.config.js",
+    "copy-wasm": "cpy node_modules/web-ifc/web-ifc.wasm example"
   },
   "repository": {
     "type": "git",

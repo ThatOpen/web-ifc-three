@@ -37783,10 +37783,12 @@ var IfcLoader = function (manager) {
 var ifcAPI = new IfcAPI();
 ifcAPI.Init();
 
+var modelID;
+
 var materials = {};
 
 IfcLoader.prototype = Object.assign(Object.create(Loader.prototype), {
-  varructor: IfcLoader,
+  constructor: IfcLoader,
 
   load: function (url, onLoad, onProgress, onError) {
     var scope = this;
@@ -37816,10 +37818,18 @@ IfcLoader.prototype = Object.assign(Object.create(Loader.prototype), {
     );
   },
 
+  getIfcItemInformation: function(expressID){
+    return ifcAPI.GetLine(modelID, expressID);
+  },
+
+  setWasmPath(path){
+    ifcAPI.SetWasmPath(path);
+  },
+
   parse: (function () {
     return function (buffer) {
       var data = new Uint8Array(buffer);
-      var modelID = ifcAPI.OpenModel('example.ifc', data);
+      modelID = ifcAPI.OpenModel('example.ifc', data);
       return loadAllGeometry(modelID);
 
       function loadAllGeometry(modelID) {

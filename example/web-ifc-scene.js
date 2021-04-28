@@ -1,32 +1,46 @@
+import { IfcLoader } from '../src/IfcLoader';
+import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
+import {
+  Scene,
+  Color,
+  WebGLRenderer,
+  PerspectiveCamera,
+  BoxGeometry,
+  MeshPhongMaterial,
+  Mesh,
+  DirectionalLight,
+  AmbientLight
+} from 'three';
+
 //Scene
-const scene = new THREE.Scene();
-scene.background = new THREE.Color(0x8cc7de);
+const scene = new Scene();
+scene.background = new Color(0x8cc7de);
 
 //Renderer
 const threeCanvas = document.getElementById("threeCanvas");
-const renderer = new THREE.WebGLRenderer({ antialias: true, canvas: threeCanvas });
+const renderer = new WebGLRenderer({ antialias: true, canvas: threeCanvas });
 renderer.setSize(window.innerWidth, window.innerHeight);
 renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
 
 //Camera
-const camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 1000);
+const camera = new PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 1000);
 camera.position.z = 5;
-let controls = new THREE.OrbitControls(camera, renderer.domElement);
+let controls = new OrbitControls(camera, renderer.domElement);
 
 //Initial cube
-const geometry = new THREE.BoxGeometry();
-const material = new THREE.MeshPhongMaterial({ color: 0xffffff });
-const cube = new THREE.Mesh(geometry, material);
+const geometry = new BoxGeometry();
+const material = new MeshPhongMaterial({ color: 0xffffff });
+const cube = new Mesh(geometry, material);
 scene.add(cube);
 
 //Lights
-const directionalLight1 = new THREE.DirectionalLight(0xffeeff, 0.8);
+const directionalLight1 = new DirectionalLight(0xffeeff, 0.8);
 directionalLight1.position.set(1, 1, 1);
 scene.add(directionalLight1);
-const directionalLight2 = new THREE.DirectionalLight(0xffffff, 0.8);
+const directionalLight2 = new DirectionalLight(0xffffff, 0.8);
 directionalLight2.position.set(-1, 0.5, -1);
 scene.add(directionalLight2);
-const ambientLight = new THREE.AmbientLight(0xffffee, 0.25);
+const ambientLight = new AmbientLight(0xffffee, 0.25);
 scene.add(ambientLight);
 
 //Window resize support
@@ -53,7 +67,7 @@ AnimationLoop();
     'change',
     (changed) => {
       var ifcURL = URL.createObjectURL(changed.target.files[0]);
-      const ifcLoader = new THREE.IfcLoader();
+      const ifcLoader = new IfcLoader();
       ifcLoader.load(ifcURL, (geometry) => scene.add(geometry));
     },
     false
