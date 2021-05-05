@@ -32118,6 +32118,129 @@ class MeshPhongMaterial extends Material {
 MeshPhongMaterial.prototype.isMeshPhongMaterial = true;
 
 /**
+ * parameters = {
+ *  color: <hex>,
+ *  opacity: <float>,
+ *
+ *  map: new THREE.Texture( <Image> ),
+ *
+ *  lightMap: new THREE.Texture( <Image> ),
+ *  lightMapIntensity: <float>
+ *
+ *  aoMap: new THREE.Texture( <Image> ),
+ *  aoMapIntensity: <float>
+ *
+ *  emissive: <hex>,
+ *  emissiveIntensity: <float>
+ *  emissiveMap: new THREE.Texture( <Image> ),
+ *
+ *  specularMap: new THREE.Texture( <Image> ),
+ *
+ *  alphaMap: new THREE.Texture( <Image> ),
+ *
+ *  envMap: new THREE.CubeTexture( [posx, negx, posy, negy, posz, negz] ),
+ *  combine: THREE.Multiply,
+ *  reflectivity: <float>,
+ *  refractionRatio: <float>,
+ *
+ *  wireframe: <boolean>,
+ *  wireframeLinewidth: <float>,
+ *
+ *  skinning: <bool>,
+ *  morphTargets: <bool>,
+ *  morphNormals: <bool>
+ * }
+ */
+
+class MeshLambertMaterial extends Material {
+
+	constructor( parameters ) {
+
+		super();
+
+		this.type = 'MeshLambertMaterial';
+
+		this.color = new Color( 0xffffff ); // diffuse
+
+		this.map = null;
+
+		this.lightMap = null;
+		this.lightMapIntensity = 1.0;
+
+		this.aoMap = null;
+		this.aoMapIntensity = 1.0;
+
+		this.emissive = new Color( 0x000000 );
+		this.emissiveIntensity = 1.0;
+		this.emissiveMap = null;
+
+		this.specularMap = null;
+
+		this.alphaMap = null;
+
+		this.envMap = null;
+		this.combine = MultiplyOperation;
+		this.reflectivity = 1;
+		this.refractionRatio = 0.98;
+
+		this.wireframe = false;
+		this.wireframeLinewidth = 1;
+		this.wireframeLinecap = 'round';
+		this.wireframeLinejoin = 'round';
+
+		this.skinning = false;
+		this.morphTargets = false;
+		this.morphNormals = false;
+
+		this.setValues( parameters );
+
+	}
+
+	copy( source ) {
+
+		super.copy( source );
+
+		this.color.copy( source.color );
+
+		this.map = source.map;
+
+		this.lightMap = source.lightMap;
+		this.lightMapIntensity = source.lightMapIntensity;
+
+		this.aoMap = source.aoMap;
+		this.aoMapIntensity = source.aoMapIntensity;
+
+		this.emissive.copy( source.emissive );
+		this.emissiveMap = source.emissiveMap;
+		this.emissiveIntensity = source.emissiveIntensity;
+
+		this.specularMap = source.specularMap;
+
+		this.alphaMap = source.alphaMap;
+
+		this.envMap = source.envMap;
+		this.combine = source.combine;
+		this.reflectivity = source.reflectivity;
+		this.refractionRatio = source.refractionRatio;
+
+		this.wireframe = source.wireframe;
+		this.wireframeLinewidth = source.wireframeLinewidth;
+		this.wireframeLinecap = source.wireframeLinecap;
+		this.wireframeLinejoin = source.wireframeLinejoin;
+
+		this.skinning = source.skinning;
+		this.morphTargets = source.morphTargets;
+		this.morphNormals = source.morphNormals;
+
+		return this;
+
+	}
+
+}
+
+MeshLambertMaterial.prototype.isMeshLambertMaterial = true;
+
+/**
  * Abstract base class of interpolants over parametric samples.
  *
  * The parameter domain is one dimensional, typically the time or a path
@@ -38708,8 +38831,7 @@ var ifcAPI = new IfcAPI();
 ifcAPI.Init();
 
 var modelID;
-
-var materials = {};
+var geometryByMaterials = {};
 
 IfcLoader.prototype = Object.assign(Object.create(Loader.prototype), {
   constructor: IfcLoader,
@@ -38750,6 +38872,21 @@ IfcLoader.prototype = Object.assign(Object.create(Loader.prototype), {
     ifcAPI.SetWasmPath(path);
   },
 
+  getObjectGUID(mesh, materialIndex, faceIndex){
+    var materialID = mesh.material[materialIndex]._ifcID;
+    var currentIndex = (faceIndex * 3) - mesh.geometry.groups[materialIndex].start;
+    var indices  = Object.keys(geometryByMaterials[materialID]);
+    if(currentIndex < 0 || currentIndex > indices[indices.length - 1]) return -1;
+    if(currentIndex <= indices[0]) return geometryByMaterials[materialID][indices[0]];
+    for (var i = 0; i < indices.length; i++) 
+      if(indices[i] <= currentIndex && indices[i+1] > currentIndex) return geometryByMaterials[materialID][indices[i+1]];
+    return -1;
+  },
+
+  setObjectMaterial(mesh, faceIndex, newMaterial){
+    return -1;
+  },
+
   parse: (function () {
     return function (buffer) {
       var data = new Uint8Array(buffer);
@@ -38758,19 +38895,8 @@ IfcLoader.prototype = Object.assign(Object.create(Loader.prototype), {
 
       function loadAllGeometry(modelID) {
         var flatMeshes = getFlatMeshes(modelID);
-        var geometries = [], allMaterials = [];
-        for (var i = 0; i < flatMeshes.size(); i++) {
-          var placedGeometries = flatMeshes.get(i).geometries;
-          for (var j = 0; j < placedGeometries.size(); j++) {
-            var { geometry, material } = getPlacedGeometry(modelID, placedGeometries.get(j));
-            geometries.push(geometry);
-            allMaterials.push(material);
-          }
-        }
-        var merged = BufferGeometryUtils.mergeBufferGeometries(geometries, true);
-        var mesh = new Mesh(merged, allMaterials);
-        console.log(allMaterials);
-        return mesh;
+        saveAllPlacedGeometriesByMaterial(modelID, flatMeshes);
+        return generateAllGeometriesByMaterial();
       }
 
       function getFlatMeshes(modelID) {
@@ -38778,13 +38904,38 @@ IfcLoader.prototype = Object.assign(Object.create(Loader.prototype), {
         return flatMeshes;
       }
 
-      function getPlacedGeometry(modelID, placedGeometry) {
+      function generateAllGeometriesByMaterial() {
+        var materials = [];
+        var geometries = [];
+
+        for (var i in geometryByMaterials) {
+          materials.push(geometryByMaterials[i].material);
+          var currentGeometries = geometryByMaterials[i].geometry;
+          geometries.push(BufferGeometryUtils.mergeBufferGeometries(currentGeometries));
+          geometryByMaterials[i] = geometryByMaterials[i].indices;
+        }
+        var geometry = BufferGeometryUtils.mergeBufferGeometries(geometries, true);
+        var mesh = new Mesh(geometry, materials);
+        console.log(geometryByMaterials);
+        console.log(mesh);
+        return mesh;
+      }
+
+      function saveAllPlacedGeometriesByMaterial(modelID, flatMeshes) {
+        for (var i = 0; i < flatMeshes.size(); i++) {
+          var placedGeometries = flatMeshes.get(i).geometries;
+          for (var j = 0; j < placedGeometries.size(); j++) {
+            savePlacedGeometryByMaterial(modelID, placedGeometries.get(j));
+          }
+        }
+      }
+
+      function savePlacedGeometryByMaterial(modelID, placedGeometry) {
         var geometry = getBufferGeometry(modelID, placedGeometry);
         geometry.computeVertexNormals();
-        var material = getMaterial(placedGeometry.color);
         var matrix = getMeshMatrix(placedGeometry.flatTransformation);
         geometry.applyMatrix4(matrix);
-        return { geometry, material };
+        saveGeometryByMaterial(geometry, placedGeometry);
       }
 
       function getBufferGeometry(modelID, placedGeometry) {
@@ -38804,7 +38955,7 @@ IfcLoader.prototype = Object.assign(Object.create(Loader.prototype), {
       function ifcGeometryToBuffer(vertexData, indexData) {
         var geometry = new BufferGeometry();
 
-        var { vertices, normals } = spliceVertexData(vertexData);
+        var { vertices, normals } = extractVertexData(vertexData);
         geometry.setAttribute('position', new BufferAttribute(new Float32Array(vertices), 3));
         geometry.setAttribute('normal', new BufferAttribute(new Float32Array(normals), 3));
         geometry.setIndex(new BufferAttribute(indexData, 1));
@@ -38812,7 +38963,7 @@ IfcLoader.prototype = Object.assign(Object.create(Loader.prototype), {
         return geometry;
       }
 
-      function spliceVertexData(vertexData) {
+      function extractVertexData(vertexData) {
         var vertices = [],
           normals = [];
         var isNormalData = false;
@@ -38823,16 +38974,29 @@ IfcLoader.prototype = Object.assign(Object.create(Loader.prototype), {
         return { vertices, normals };
       }
 
-      function getMaterial(color) {
+      function saveGeometryByMaterial(geometry, placedGeometry) {
+        var color = placedGeometry.color;
         var id = `${color.x}${color.y}${color.z}${color.w}`;
-        if (!materials[id]) {
-          var col = new Color(color.x, color.y, color.z);
-          var newMaterial = new MeshPhongMaterial({ color: col, side: DoubleSide });
-          newMaterial.transparent = color.w !== 1;
-          if (newMaterial.transparent) newMaterial.opacity = color.w;
-          materials[id] = newMaterial;
-        }
-        return materials[id];
+        if (!geometryByMaterials[id]) createMaterial(id, color);
+        geometryByMaterials[id].geometry.push(geometry);
+
+        geometryByMaterials[id].lastIndex += geometry.attributes.position.count;
+        var lastIndex = geometryByMaterials[id].lastIndex;
+        geometryByMaterials[id].indices[lastIndex] = placedGeometry.geometryExpressID;
+      }
+
+      function createMaterial(id, color) {
+        var col = new Color(color.x, color.y, color.z);
+        var newMaterial = new MeshLambertMaterial({ color: col, side: DoubleSide });
+        newMaterial._ifcID = id;
+        newMaterial.transparent = color.w !== 1;
+        if (newMaterial.transparent) newMaterial.opacity = color.w;
+        geometryByMaterials[id] = {
+          material: newMaterial,
+          geometry: [],
+          indices: {},
+          lastIndex: 0
+        };
       }
     };
   })()
@@ -40040,6 +40204,176 @@ var MapControls = function ( object, domElement ) {
 MapControls.prototype = Object.create( EventDispatcher.prototype );
 MapControls.prototype.constructor = MapControls;
 
+/**
+ * @author mrdoob / http://mrdoob.com/
+ */
+
+var Stats = function () {
+
+	var mode = 0;
+
+	var container = document.createElement( 'div' );
+	container.style.cssText = 'position:fixed;top:0;left:0;cursor:pointer;opacity:0.9;z-index:10000';
+	container.addEventListener( 'click', function ( event ) {
+
+		event.preventDefault();
+		showPanel( ++ mode % container.children.length );
+
+	}, false );
+
+	//
+
+	function addPanel( panel ) {
+
+		container.appendChild( panel.dom );
+		return panel;
+
+	}
+
+	function showPanel( id ) {
+
+		for ( var i = 0; i < container.children.length; i ++ ) {
+
+			container.children[ i ].style.display = i === id ? 'block' : 'none';
+
+		}
+
+		mode = id;
+
+	}
+
+	//
+
+	var beginTime = ( performance || Date ).now(), prevTime = beginTime, frames = 0;
+
+	var fpsPanel = addPanel( new Stats.Panel( 'FPS', '#0ff', '#002' ) );
+	var msPanel = addPanel( new Stats.Panel( 'MS', '#0f0', '#020' ) );
+
+	if ( self.performance && self.performance.memory ) {
+
+		var memPanel = addPanel( new Stats.Panel( 'MB', '#f08', '#201' ) );
+
+	}
+
+	showPanel( 0 );
+
+	return {
+
+		REVISION: 16,
+
+		dom: container,
+
+		addPanel: addPanel,
+		showPanel: showPanel,
+
+		begin: function () {
+
+			beginTime = ( performance || Date ).now();
+
+		},
+
+		end: function () {
+
+			frames ++;
+
+			var time = ( performance || Date ).now();
+
+			msPanel.update( time - beginTime, 200 );
+
+			if ( time > prevTime + 1000 ) {
+
+				fpsPanel.update( ( frames * 1000 ) / ( time - prevTime ), 100 );
+
+				prevTime = time;
+				frames = 0;
+
+				if ( memPanel ) {
+
+					var memory = performance.memory;
+					memPanel.update( memory.usedJSHeapSize / 1048576, memory.jsHeapSizeLimit / 1048576 );
+
+				}
+
+			}
+
+			return time;
+
+		},
+
+		update: function () {
+
+			beginTime = this.end();
+
+		},
+
+		// Backwards Compatibility
+
+		domElement: container,
+		setMode: showPanel
+
+	};
+
+};
+
+Stats.Panel = function ( name, fg, bg ) {
+
+	var min = Infinity, max = 0, round = Math.round;
+	var PR = round( window.devicePixelRatio || 1 );
+
+	var WIDTH = 80 * PR, HEIGHT = 48 * PR,
+			TEXT_X = 3 * PR, TEXT_Y = 2 * PR,
+			GRAPH_X = 3 * PR, GRAPH_Y = 15 * PR,
+			GRAPH_WIDTH = 74 * PR, GRAPH_HEIGHT = 30 * PR;
+
+	var canvas = document.createElement( 'canvas' );
+	canvas.width = WIDTH;
+	canvas.height = HEIGHT;
+	canvas.style.cssText = 'width:80px;height:48px';
+
+	var context = canvas.getContext( '2d' );
+	context.font = 'bold ' + ( 9 * PR ) + 'px Helvetica,Arial,sans-serif';
+	context.textBaseline = 'top';
+
+	context.fillStyle = bg;
+	context.fillRect( 0, 0, WIDTH, HEIGHT );
+
+	context.fillStyle = fg;
+	context.fillText( name, TEXT_X, TEXT_Y );
+	context.fillRect( GRAPH_X, GRAPH_Y, GRAPH_WIDTH, GRAPH_HEIGHT );
+
+	context.fillStyle = bg;
+	context.globalAlpha = 0.9;
+	context.fillRect( GRAPH_X, GRAPH_Y, GRAPH_WIDTH, GRAPH_HEIGHT );
+
+	return {
+
+		dom: canvas,
+
+		update: function ( value, maxValue ) {
+
+			min = Math.min( min, value );
+			max = Math.max( max, value );
+
+			context.fillStyle = bg;
+			context.globalAlpha = 1;
+			context.fillRect( 0, 0, WIDTH, GRAPH_Y );
+			context.fillStyle = fg;
+			context.fillText( round( value ) + ' ' + name + ' (' + round( min ) + '-' + round( max ) + ')', TEXT_X, TEXT_Y );
+
+			context.drawImage( canvas, GRAPH_X + PR, GRAPH_Y, GRAPH_WIDTH - PR, GRAPH_HEIGHT, GRAPH_X, GRAPH_Y, GRAPH_WIDTH - PR, GRAPH_HEIGHT );
+
+			context.fillRect( GRAPH_X + GRAPH_WIDTH - PR, GRAPH_Y, PR, GRAPH_HEIGHT );
+
+			context.fillStyle = bg;
+			context.globalAlpha = 0.9;
+			context.fillRect( GRAPH_X + GRAPH_WIDTH - PR, GRAPH_Y, PR, round( ( 1 - ( value / maxValue ) ) * GRAPH_HEIGHT ) );
+
+		}
+
+	};
+
+};
+
 //Scene
 const scene = new Scene();
 scene.background = new Color(0x8cc7de);
@@ -40078,11 +40412,21 @@ window.addEventListener("resize", () => {
   renderer.setSize(window.innerWidth, window.innerHeight);
 });
 
+//Monitoring
+const stats = new Stats();
+stats.showPanel(0);
+stats.domElement.style.position = "fixed";
+stats.domElement.style.bottom = "0";
+document.body.appendChild(stats.dom);
+
+
 //Animation
 function AnimationLoop() {
-  requestAnimationFrame(AnimationLoop);
+  stats.begin();
   controls.update();
   renderer.render(scene, camera);
+  stats.end();
+  requestAnimationFrame(AnimationLoop);
 }
 
 AnimationLoop();
@@ -40096,7 +40440,11 @@ AnimationLoop();
     (changed) => {
       var ifcURL = URL.createObjectURL(changed.target.files[0]);
       const ifcLoader = new IfcLoader();
-      ifcLoader.load(ifcURL, (geometry) => scene.add(geometry));
+      ifcLoader.load(ifcURL, (geometry) =>{
+        scene.add(geometry);
+        // console.log(ifcLoader.getObjectGUID(geometry, 14, 175425));
+        console.log(renderer.info);
+      });
     },
     false
   );

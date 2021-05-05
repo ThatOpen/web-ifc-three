@@ -1,5 +1,6 @@
 import { IfcLoader } from '../src/IfcLoader';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
+import Stats from "../node_modules/stats.js/src/Stats"
 import {
   Scene,
   Color,
@@ -50,11 +51,19 @@ window.addEventListener("resize", () => {
   renderer.setSize(window.innerWidth, window.innerHeight);
 })
 
+//Monitoring
+const stats = new Stats();
+stats.showPanel(0);
+document.body.appendChild(stats.dom);
+
+
 //Animation
 function AnimationLoop() {
-  requestAnimationFrame(AnimationLoop);
+  stats.begin();
   controls.update();
   renderer.render(scene, camera);
+  stats.end();
+  requestAnimationFrame(AnimationLoop);
 }
 
 AnimationLoop();
@@ -68,8 +77,13 @@ AnimationLoop();
     (changed) => {
       var ifcURL = URL.createObjectURL(changed.target.files[0]);
       const ifcLoader = new IfcLoader();
-      ifcLoader.load(ifcURL, (geometry) => scene.add(geometry));
+      ifcLoader.load(ifcURL, (geometry) =>{
+        scene.add(geometry);
+        // console.log(ifcLoader.getObjectGUID(geometry, 14, 175425));
+        console.log(renderer.info)
+      })
     },
     false
   );
 })();
+

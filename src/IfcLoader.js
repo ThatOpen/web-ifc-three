@@ -5,7 +5,7 @@ import {
   Loader,
   Mesh,
   Color,
-  MeshPhongMaterial,
+  MeshLambertMaterial,
   DoubleSide,
   Matrix4,
   BufferGeometry,
@@ -20,8 +20,7 @@ var ifcAPI = new IfcAPI();
 ifcAPI.Init();
 
 var modelID;
-
-var materials = {};
+var geometryByMaterials = {};
 
 IfcLoader.prototype = Object.assign(Object.create(Loader.prototype), {
   constructor: IfcLoader,
@@ -62,6 +61,21 @@ IfcLoader.prototype = Object.assign(Object.create(Loader.prototype), {
     ifcAPI.SetWasmPath(path);
   },
 
+  getObjectGUID(mesh, materialIndex, faceIndex){
+    var materialID = mesh.material[materialIndex]._ifcID;
+    var currentIndex = (faceIndex * 3) - mesh.geometry.groups[materialIndex].start;
+    var indices  = Object.keys(geometryByMaterials[materialID]);
+    if(currentIndex < 0 || currentIndex > indices[indices.length - 1]) return -1;
+    if(currentIndex <= indices[0]) return geometryByMaterials[materialID][indices[0]];
+    for (var i = 0; i < indices.length; i++) 
+      if(indices[i] <= currentIndex && indices[i+1] > currentIndex) return geometryByMaterials[materialID][indices[i+1]];
+    return -1;
+  },
+
+  setObjectMaterial(mesh, faceIndex, newMaterial){
+    return -1;
+  },
+
   parse: (function () {
     return function (buffer) {
       var data = new Uint8Array(buffer);
@@ -70,19 +84,8 @@ IfcLoader.prototype = Object.assign(Object.create(Loader.prototype), {
 
       function loadAllGeometry(modelID) {
         var flatMeshes = getFlatMeshes(modelID);
-        var geometries = [], allMaterials = [];
-        for (var i = 0; i < flatMeshes.size(); i++) {
-          var placedGeometries = flatMeshes.get(i).geometries;
-          for (var j = 0; j < placedGeometries.size(); j++) {
-            var { geometry, material } = getPlacedGeometry(modelID, placedGeometries.get(j));
-            geometries.push(geometry);
-            allMaterials.push(material);
-          }
-        }
-        var merged = BufferGeometryUtils.mergeBufferGeometries(geometries, true);
-        var mesh = new Mesh(merged, allMaterials);
-        console.log(allMaterials);
-        return mesh;
+        saveAllPlacedGeometriesByMaterial(modelID, flatMeshes);
+        return generateAllGeometriesByMaterial();
       }
 
       function getFlatMeshes(modelID) {
@@ -90,13 +93,38 @@ IfcLoader.prototype = Object.assign(Object.create(Loader.prototype), {
         return flatMeshes;
       }
 
-      function getPlacedGeometry(modelID, placedGeometry) {
+      function generateAllGeometriesByMaterial() {
+        var materials = [];
+        var geometries = [];
+
+        for (var i in geometryByMaterials) {
+          materials.push(geometryByMaterials[i].material);
+          var currentGeometries = geometryByMaterials[i].geometry;
+          geometries.push(BufferGeometryUtils.mergeBufferGeometries(currentGeometries));
+          geometryByMaterials[i] = geometryByMaterials[i].indices;
+        }
+        var geometry = BufferGeometryUtils.mergeBufferGeometries(geometries, true);
+        var mesh = new Mesh(geometry, materials);
+        console.log(geometryByMaterials);
+        console.log(mesh);
+        return mesh;
+      }
+
+      function saveAllPlacedGeometriesByMaterial(modelID, flatMeshes) {
+        for (var i = 0; i < flatMeshes.size(); i++) {
+          var placedGeometries = flatMeshes.get(i).geometries;
+          for (var j = 0; j < placedGeometries.size(); j++) {
+            savePlacedGeometryByMaterial(modelID, placedGeometries.get(j));
+          }
+        }
+      }
+
+      function savePlacedGeometryByMaterial(modelID, placedGeometry) {
         var geometry = getBufferGeometry(modelID, placedGeometry);
         geometry.computeVertexNormals();
-        var material = getMaterial(placedGeometry.color);
         var matrix = getMeshMatrix(placedGeometry.flatTransformation);
         geometry.applyMatrix4(matrix);
-        return { geometry, material };
+        saveGeometryByMaterial(geometry, placedGeometry);
       }
 
       function getBufferGeometry(modelID, placedGeometry) {
@@ -116,7 +144,7 @@ IfcLoader.prototype = Object.assign(Object.create(Loader.prototype), {
       function ifcGeometryToBuffer(vertexData, indexData) {
         var geometry = new BufferGeometry();
 
-        var { vertices, normals } = spliceVertexData(vertexData, false);
+        var { vertices, normals } = extractVertexData(vertexData);
         geometry.setAttribute('position', new BufferAttribute(new Float32Array(vertices), 3));
         geometry.setAttribute('normal', new BufferAttribute(new Float32Array(normals), 3));
         geometry.setIndex(new BufferAttribute(indexData, 1));
@@ -124,7 +152,7 @@ IfcLoader.prototype = Object.assign(Object.create(Loader.prototype), {
         return geometry;
       }
 
-      function spliceVertexData(vertexData) {
+      function extractVertexData(vertexData) {
         var vertices = [],
           normals = [];
         var isNormalData = false;
@@ -135,19 +163,31 @@ IfcLoader.prototype = Object.assign(Object.create(Loader.prototype), {
         return { vertices, normals };
       }
 
-      function getMaterial(color) {
+      function saveGeometryByMaterial(geometry, placedGeometry) {
+        var color = placedGeometry.color;
         var id = `${color.x}${color.y}${color.z}${color.w}`;
-        if (!materials[id]) {
-          var col = new Color(color.x, color.y, color.z);
-          var newMaterial = new MeshPhongMaterial({ color: col, side: DoubleSide });
-          newMaterial.transparent = color.w !== 1;
-          if (newMaterial.transparent) newMaterial.opacity = color.w;
-          materials[id] = newMaterial;
-        }
-        return materials[id];
+        if (!geometryByMaterials[id]) createMaterial(id, color);
+        geometryByMaterials[id].geometry.push(geometry);
+
+        geometryByMaterials[id].lastIndex += geometry.attributes.position.count;
+        var lastIndex = geometryByMaterials[id].lastIndex;
+        geometryByMaterials[id].indices[lastIndex] = placedGeometry.geometryExpressID;
+      }
+
+      function createMaterial(id, color) {
+        var col = new Color(color.x, color.y, color.z);
+        var newMaterial = new MeshLambertMaterial({ color: col, side: DoubleSide });
+        newMaterial._ifcID = id;
+        newMaterial.transparent = color.w !== 1;
+        if (newMaterial.transparent) newMaterial.opacity = color.w;
+        geometryByMaterials[id] = {
+          material: newMaterial,
+          geometry: [],
+          indices: {},
+          lastIndex: 0
+        };
       }
     };
-    materials = {};
   })()
 });
 

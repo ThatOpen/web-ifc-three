@@ -21,6 +21,7 @@
   },
   "homepage": "https://github.com/tomvandig/web-ifc-three#readme",
   "dependencies": {
+    "stats.js": "^0.17.0",
     "three": "^0.126.0",
     "web-ifc": "0.0.17"
   },
