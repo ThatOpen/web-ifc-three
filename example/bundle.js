@@ -38872,18 +38872,19 @@ IfcLoader.prototype = Object.assign(Object.create(Loader.prototype), {
     ifcAPI.SetWasmPath(path);
   },
 
-  getObjectGUID(mesh, materialIndex, faceIndex){
+  getObjectGUID(mesh, materialIndex, faceIndex) {
     var materialID = mesh.material[materialIndex]._ifcID;
-    var currentIndex = (faceIndex * 3) - mesh.geometry.groups[materialIndex].start;
-    var indices  = Object.keys(geometryByMaterials[materialID]);
-    if(currentIndex < 0 || currentIndex > indices[indices.length - 1]) return -1;
-    if(currentIndex <= indices[0]) return geometryByMaterials[materialID][indices[0]];
-    for (var i = 0; i < indices.length; i++) 
-      if(indices[i] <= currentIndex && indices[i+1] > currentIndex) return geometryByMaterials[materialID][indices[i+1]];
+    var currentIndex = faceIndex * 3 - mesh.geometry.groups[materialIndex].start;
+    var indices = Object.keys(geometryByMaterials[materialID]);
+    if (currentIndex < 0 || currentIndex > indices[indices.length - 1]) return -1;
+    if (currentIndex <= indices[0]) return geometryByMaterials[materialID][indices[0]];
+    for (var i = 0; i < indices.length; i++)
+      if (indices[i] <= currentIndex && indices[i + 1] > currentIndex)
+        return geometryByMaterials[materialID][indices[i + 1]];
     return -1;
   },
 
-  setObjectMaterial(mesh, faceIndex, newMaterial){
+  setObjectMaterial(mesh, faceIndex, newMaterial) {
     return -1;
   },
 
@@ -38905,20 +38906,24 @@ IfcLoader.prototype = Object.assign(Object.create(Loader.prototype), {
       }
 
       function generateAllGeometriesByMaterial() {
+        var { materials, geometries } = getMaterialsAndGeometries();
+        var geometry = BufferGeometryUtils.mergeBufferGeometries(geometries, true);
+        var mesh = new Mesh(geometry, materials);
+        console.log(geometryByMaterials);
+        console.log(mesh);
+        return mesh;
+      }
+
+      function getMaterialsAndGeometries() {
         var materials = [];
         var geometries = [];
-
         for (var i in geometryByMaterials) {
           materials.push(geometryByMaterials[i].material);
           var currentGeometries = geometryByMaterials[i].geometry;
           geometries.push(BufferGeometryUtils.mergeBufferGeometries(currentGeometries));
           geometryByMaterials[i] = geometryByMaterials[i].indices;
         }
-        var geometry = BufferGeometryUtils.mergeBufferGeometries(geometries, true);
-        var mesh = new Mesh(geometry, materials);
-        console.log(geometryByMaterials);
-        console.log(mesh);
-        return mesh;
+        return { materials, geometries };
       }
 
       function saveAllPlacedGeometriesByMaterial(modelID, flatMeshes) {
@@ -38954,12 +38959,10 @@ IfcLoader.prototype = Object.assign(Object.create(Loader.prototype), {
 
       function ifcGeometryToBuffer(vertexData, indexData) {
         var geometry = new BufferGeometry();
-
         var { vertices, normals } = extractVertexData(vertexData);
         geometry.setAttribute('position', new BufferAttribute(new Float32Array(vertices), 3));
         geometry.setAttribute('normal', new BufferAttribute(new Float32Array(normals), 3));
         geometry.setIndex(new BufferAttribute(indexData, 1));
-
         return geometry;
       }
 
@@ -38979,7 +38982,6 @@ IfcLoader.prototype = Object.assign(Object.create(Loader.prototype), {
         var id = `${color.x}${color.y}${color.z}${color.w}`;
         if (!geometryByMaterials[id]) createMaterial(id, color);
         geometryByMaterials[id].geometry.push(geometry);
-
         geometryByMaterials[id].lastIndex += geometry.attributes.position.count;
         var lastIndex = geometryByMaterials[id].lastIndex;
         geometryByMaterials[id].indices[lastIndex] = placedGeometry.geometryExpressID;
@@ -38991,7 +38993,11 @@ IfcLoader.prototype = Object.assign(Object.create(Loader.prototype), {
         newMaterial._ifcID = id;
         newMaterial.transparent = color.w !== 1;
         if (newMaterial.transparent) newMaterial.opacity = color.w;
-        geometryByMaterials[id] = {
+        geometryByMaterials[id] = initializeTempObject(newMaterial);
+      }
+
+      function initializeTempObject(newMaterial) {
+        return {
           material: newMaterial,
           geometry: [],
           indices: {},
@@ -40415,8 +40421,6 @@ window.addEventListener("resize", () => {
 //Monitoring
 const stats = new Stats();
 stats.showPanel(0);
-stats.domElement.style.position = "fixed";
-stats.domElement.style.bottom = "0";
 document.body.appendChild(stats.dom);
 
 
