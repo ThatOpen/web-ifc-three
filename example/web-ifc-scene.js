@@ -1,6 +1,6 @@
 import { IfcLoader } from '../src/IfcLoader';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
-import Stats from "../node_modules/stats.js/src/Stats"
+import Stats from '../node_modules/stats.js/src/Stats';
 import {
   Scene,
   Color,
@@ -10,7 +10,10 @@ import {
   MeshPhongMaterial,
   Mesh,
   DirectionalLight,
-  AmbientLight
+  AmbientLight,
+  Raycaster,
+  Vector3,
+  Vector2
 } from 'three';
 
 //Scene
@@ -18,7 +21,7 @@ const scene = new Scene();
 scene.background = new Color(0x8cc7de);
 
 //Renderer
-const threeCanvas = document.getElementById("threeCanvas");
+const threeCanvas = document.getElementById('threeCanvas');
 const renderer = new WebGLRenderer({ antialias: true, canvas: threeCanvas });
 renderer.setSize(window.innerWidth, window.innerHeight);
 renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
@@ -29,10 +32,10 @@ camera.position.z = 5;
 let controls = new OrbitControls(camera, renderer.domElement);
 
 //Initial cube
-const geometry = new BoxGeometry();
-const material = new MeshPhongMaterial({ color: 0xffffff });
-const cube = new Mesh(geometry, material);
-scene.add(cube);
+// const geometry = new BoxGeometry();
+// const material = new MeshPhongMaterial({ color: 0xffffff });
+// const cube = new Mesh(geometry, material);
+// scene.add(cube);
 
 //Lights
 const directionalLight1 = new DirectionalLight(0xffeeff, 0.8);
@@ -45,11 +48,11 @@ const ambientLight = new AmbientLight(0xffffee, 0.25);
 scene.add(ambientLight);
 
 //Window resize support
-window.addEventListener("resize", () => {
+window.addEventListener('resize', () => {
   camera.aspect = window.innerWidth / window.innerHeight;
   camera.updateProjectionMatrix();
   renderer.setSize(window.innerWidth, window.innerHeight);
-})
+});
 
 //Monitoring
 const stats = new Stats();
@@ -66,6 +69,8 @@ function AnimationLoop() {
   requestAnimationFrame(AnimationLoop);
 }
 
+const ifcLoader = new IfcLoader();
+
 AnimationLoop();
 
 //Setup IFC Loader
@@ -76,14 +81,33 @@ AnimationLoop();
     'change',
     (changed) => {
       var ifcURL = URL.createObjectURL(changed.target.files[0]);
-      const ifcLoader = new IfcLoader();
-      ifcLoader.load(ifcURL, (geometry) =>{
+      ifcLoader.load(ifcURL, (geometry) => {
         scene.add(geometry);
         // console.log(ifcLoader.getObjectGUID(geometry, 14, 175425));
-        console.log(renderer.info)
-      })
+      });
     },
     false
   );
 })();
 
+//Setup object picking
+
+function selectObject(event) {
+  if (event.button != 0) return;
+
+  const mouse = new Vector2();
+  mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
+  mouse.y = -(event.clientY / window.innerHeight) * 2 + 1;
+
+  const raycaster = new Raycaster();
+  raycaster.setFromCamera(mouse, camera);
+
+  const intersected = raycaster.intersectObjects(scene.children);
+  if (intersected.length){
+    const faceIndex = intersected[0].faceIndex;
+    const id = ifcLoader.selectItem(faceIndex, scene);
+    console.log(id);
+  } 
+}
+
+threeCanvas.onpointerdown = selectObject;

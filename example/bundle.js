@@ -38832,6 +38832,14 @@ ifcAPI.Init();
 
 var modelID;
 var geometryByMaterials = {};
+var mapFaceindexID = {};
+var mapIDGeometry = {};
+var highlightMaterial = new MeshBasicMaterial({
+  color: 0xff0000,
+  depthTest: false,
+  side: DoubleSide
+});
+var selectedObject = undefined;
 
 IfcLoader.prototype = Object.assign(Object.create(Loader.prototype), {
   constructor: IfcLoader,
@@ -38872,20 +38880,25 @@ IfcLoader.prototype = Object.assign(Object.create(Loader.prototype), {
     ifcAPI.SetWasmPath(path);
   },
 
-  getObjectGUID(mesh, materialIndex, faceIndex) {
-    var materialID = mesh.material[materialIndex]._ifcID;
-    var currentIndex = faceIndex * 3 - mesh.geometry.groups[materialIndex].start;
-    var indices = Object.keys(geometryByMaterials[materialID]);
-    if (currentIndex < 0 || currentIndex > indices[indices.length - 1]) return -1;
-    if (currentIndex <= indices[0]) return geometryByMaterials[materialID][indices[0]];
-    for (var i = 0; i < indices.length; i++)
-      if (indices[i] <= currentIndex && indices[i + 1] > currentIndex)
-        return geometryByMaterials[materialID][indices[i + 1]];
+  getExpressId(faceIndex) {
+    for (var index in mapFaceindexID) {
+      if (parseInt(index) >= faceIndex) return mapFaceindexID[index];
+    }
     return -1;
   },
 
-  setObjectMaterial(mesh, faceIndex, newMaterial) {
-    return -1;
+  selectItem(faceIndex, scene) {
+    for (var index in mapFaceindexID) {
+      if (parseInt(index) >= faceIndex) {
+        var id = mapFaceindexID[index];
+        var mesh = new Mesh(mapIDGeometry[id], highlightMaterial);
+        mesh.renderOrder = 1;
+        scene.add(mesh);
+        if (selectedObject) scene.remove(selectedObject);
+        selectedObject = mesh;
+        return id;
+      }
+    }
   },
 
   parse: (function () {
@@ -38895,8 +38908,7 @@ IfcLoader.prototype = Object.assign(Object.create(Loader.prototype), {
       return loadAllGeometry(modelID);
 
       function loadAllGeometry(modelID) {
-        var flatMeshes = getFlatMeshes(modelID);
-        saveAllPlacedGeometriesByMaterial(modelID, flatMeshes);
+        saveAllPlacedGeometriesByMaterial(modelID);
         return generateAllGeometriesByMaterial();
       }
 
@@ -38907,40 +38919,58 @@ IfcLoader.prototype = Object.assign(Object.create(Loader.prototype), {
 
       function generateAllGeometriesByMaterial() {
         var { materials, geometries } = getMaterialsAndGeometries();
-        var geometry = BufferGeometryUtils.mergeBufferGeometries(geometries, true);
-        var mesh = new Mesh(geometry, materials);
-        console.log(geometryByMaterials);
-        console.log(mesh);
-        return mesh;
+        var allGeometry = BufferGeometryUtils.mergeBufferGeometries(geometries, true);
+        return new Mesh(allGeometry, materials);
       }
 
       function getMaterialsAndGeometries() {
         var materials = [];
         var geometries = [];
+        var totalFaceCount = 0;
+
         for (var i in geometryByMaterials) {
           materials.push(geometryByMaterials[i].material);
           var currentGeometries = geometryByMaterials[i].geometry;
           geometries.push(BufferGeometryUtils.mergeBufferGeometries(currentGeometries));
-          geometryByMaterials[i] = geometryByMaterials[i].indices;
+
+          for (var j in geometryByMaterials[i].indices) {
+            var globalIndex = parseInt(j, 10) + parseInt(totalFaceCount, 10);
+            mapFaceindexID[globalIndex] = geometryByMaterials[i].indices[j];
+          }
+          totalFaceCount += geometryByMaterials[i].lastIndex;
         }
+        geometryByMaterials = {};
         return { materials, geometries };
       }
 
-      function saveAllPlacedGeometriesByMaterial(modelID, flatMeshes) {
+      function saveAllPlacedGeometriesByMaterial(modelID) {
+        var flatMeshes = getFlatMeshes(modelID);
         for (var i = 0; i < flatMeshes.size(); i++) {
-          var placedGeometries = flatMeshes.get(i).geometries;
+          var flatMesh = flatMeshes.get(i);
+          var productId = flatMesh.expressID;
+          var placedGeometries = flatMesh.geometries;
           for (var j = 0; j < placedGeometries.size(); j++) {
-            savePlacedGeometryByMaterial(modelID, placedGeometries.get(j));
+            savePlacedGeometryByMaterial(modelID, placedGeometries.get(j), productId);
           }
         }
       }
 
-      function savePlacedGeometryByMaterial(modelID, placedGeometry) {
+      function savePlacedGeometryByMaterial(modelID, placedGeometry, productId) {
         var geometry = getBufferGeometry(modelID, placedGeometry);
         geometry.computeVertexNormals();
         var matrix = getMeshMatrix(placedGeometry.flatTransformation);
         geometry.applyMatrix4(matrix);
-        saveGeometryByMaterial(geometry, placedGeometry);
+        storeGeometryForHighlight(productId, geometry);
+        saveGeometryByMaterial(geometry, placedGeometry, productId);
+      }
+
+      function storeGeometryForHighlight(productId, geometry) {
+        if (!mapIDGeometry[productId]) {
+          mapIDGeometry[productId] = geometry;
+          return;
+        }
+        var geometries = [mapIDGeometry[productId], geometry];
+        mapIDGeometry[productId] = BufferGeometryUtils.mergeBufferGeometries(geometries, true);
       }
 
       function getBufferGeometry(modelID, placedGeometry) {
@@ -38977,17 +39007,18 @@ IfcLoader.prototype = Object.assign(Object.create(Loader.prototype), {
         return { vertices, normals };
       }
 
-      function saveGeometryByMaterial(geometry, placedGeometry) {
+      function saveGeometryByMaterial(geometry, placedGeometry, productId) {
         var color = placedGeometry.color;
         var id = `${color.x}${color.y}${color.z}${color.w}`;
-        if (!geometryByMaterials[id]) createMaterial(id, color);
-        geometryByMaterials[id].geometry.push(geometry);
-        geometryByMaterials[id].lastIndex += geometry.attributes.position.count;
-        var lastIndex = geometryByMaterials[id].lastIndex;
-        geometryByMaterials[id].indices[lastIndex] = placedGeometry.geometryExpressID;
+        createMaterial(id, color);
+        var currentGeometry = geometryByMaterials[id];
+        currentGeometry.geometry.push(geometry);
+        currentGeometry.lastIndex += geometry.index.count / 3;
+        currentGeometry.indices[currentGeometry.lastIndex] = productId;
       }
 
       function createMaterial(id, color) {
+        if (geometryByMaterials[id]) return;
         var col = new Color(color.x, color.y, color.z);
         var newMaterial = new MeshLambertMaterial({ color: col, side: DoubleSide });
         newMaterial._ifcID = id;
@@ -40385,7 +40416,7 @@ const scene = new Scene();
 scene.background = new Color(0x8cc7de);
 
 //Renderer
-const threeCanvas = document.getElementById("threeCanvas");
+const threeCanvas = document.getElementById('threeCanvas');
 const renderer = new WebGLRenderer({ antialias: true, canvas: threeCanvas });
 renderer.setSize(window.innerWidth, window.innerHeight);
 renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
@@ -40396,10 +40427,10 @@ camera.position.z = 5;
 let controls = new OrbitControls(camera, renderer.domElement);
 
 //Initial cube
-const geometry = new BoxGeometry();
-const material = new MeshPhongMaterial({ color: 0xffffff });
-const cube = new Mesh(geometry, material);
-scene.add(cube);
+// const geometry = new BoxGeometry();
+// const material = new MeshPhongMaterial({ color: 0xffffff });
+// const cube = new Mesh(geometry, material);
+// scene.add(cube);
 
 //Lights
 const directionalLight1 = new DirectionalLight(0xffeeff, 0.8);
@@ -40412,7 +40443,7 @@ const ambientLight = new AmbientLight(0xffffee, 0.25);
 scene.add(ambientLight);
 
 //Window resize support
-window.addEventListener("resize", () => {
+window.addEventListener('resize', () => {
   camera.aspect = window.innerWidth / window.innerHeight;
   camera.updateProjectionMatrix();
   renderer.setSize(window.innerWidth, window.innerHeight);
@@ -40433,6 +40464,8 @@ function AnimationLoop() {
   requestAnimationFrame(AnimationLoop);
 }
 
+const ifcLoader = new IfcLoader();
+
 AnimationLoop();
 
 //Setup IFC Loader
@@ -40443,13 +40476,33 @@ AnimationLoop();
     'change',
     (changed) => {
       var ifcURL = URL.createObjectURL(changed.target.files[0]);
-      const ifcLoader = new IfcLoader();
-      ifcLoader.load(ifcURL, (geometry) =>{
+      ifcLoader.load(ifcURL, (geometry) => {
         scene.add(geometry);
         // console.log(ifcLoader.getObjectGUID(geometry, 14, 175425));
-        console.log(renderer.info);
       });
     },
     false
   );
 })();
+
+//Setup object picking
+
+function selectObject(event) {
+  if (event.button != 0) return;
+
+  const mouse = new Vector2();
+  mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
+  mouse.y = -(event.clientY / window.innerHeight) * 2 + 1;
+
+  const raycaster = new Raycaster();
+  raycaster.setFromCamera(mouse, camera);
+
+  const intersected = raycaster.intersectObjects(scene.children);
+  if (intersected.length){
+    const faceIndex = intersected[0].faceIndex;
+    const id = ifcLoader.selectItem(faceIndex, scene);
+    console.log(id);
+  } 
+}
+
+threeCanvas.onpointerdown = selectObject;
