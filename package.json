@@ -23,7 +23,7 @@
   "dependencies": {
     "stats.js": "^0.17.0",
     "three": "^0.126.0",
-    "web-ifc": "0.0.17"
+    "web-ifc": "0.0.18"
   },
   "devDependencies": {
     "@babel/core": "^7.13.8",

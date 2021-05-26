@@ -1,4 +1,5 @@
-import { IfcAPI } from 'web-ifc/web-ifc-api';
+// import { IfcAPI } from 'web-ifc/web-ifc-api';
+import * as WebIFC from 'web-ifc/web-ifc-api';
 import { BufferGeometryUtils } from 'three/examples/jsm/utils/BufferGeometryUtils';
 import {
   FileLoader,
@@ -17,7 +18,7 @@ var IfcLoader = function (manager) {
   Loader.call(this, manager);
 };
 
-var ifcAPI = new IfcAPI();
+var ifcAPI = new WebIFC.IfcAPI();
 ifcAPI.Init();
 
 var modelID;
@@ -29,7 +30,14 @@ var highlightMaterial = new MeshBasicMaterial({
   depthTest: false,
   side: DoubleSide
 });
-var selectedObject = undefined;
+var selectedObjects = [];
+
+var ifcIndirectPropertyMap = {
+  [WebIFC.IFCRELDEFINESBYPROPERTIES]: 'RelatingPropertyDefinition',
+  [WebIFC.IFCRELDEFINESBYTYPE]: 'RelatingType',
+  [WebIFC.IFCRELAGGREGATES]: 'RelatedObjects',
+  [WebIFC.IFCRELCONTAINEDINSPATIALSTRUCTURE]: 'RelatedElements'
+};
 
 IfcLoader.prototype = Object.assign(Object.create(Loader.prototype), {
   constructor: IfcLoader,
@@ -62,33 +70,116 @@ IfcLoader.prototype = Object.assign(Object.create(Loader.prototype), {
     );
   },
 
-  getIfcItemInformation: function (expressID) {
-    return ifcAPI.GetLine(modelID, expressID);
-  },
-
-  setWasmPath(path) {
+  setWasmPath: function (path) {
     ifcAPI.SetWasmPath(path);
   },
 
-  getExpressId(faceIndex) {
+  getExpressId: function (faceIndex) {
     for (var index in mapFaceindexID) {
       if (parseInt(index) >= faceIndex) return mapFaceindexID[index];
     }
     return -1;
   },
 
-  selectItem(faceIndex, scene) {
-    for (var index in mapFaceindexID) {
-      if (parseInt(index) >= faceIndex) {
-        var id = mapFaceindexID[index];
-        var mesh = new Mesh(mapIDGeometry[id], highlightMaterial);
-        mesh.renderOrder = 1;
-        scene.add(mesh);
-        if (selectedObject) scene.remove(selectedObject);
-        selectedObject = mesh;
-        return id;
+  highlightItems: function (expressIds, scene, material = highlightMaterial) {
+    this.removePreviousSelection(scene);
+    expressIds.forEach((id) => {
+      if (!mapIDGeometry[id]) return;
+      var mesh = new Mesh(mapIDGeometry[id], material);
+      mesh.renderOrder = 1;
+      scene.add(mesh);
+      selectedObjects.push(mesh);
+      return;
+    });
+  },
+
+  removePreviousSelection: function (scene) {
+    if (selectedObjects.length > 0) selectedObjects.forEach((object) => scene.remove(object));
+  },
+
+  setItemsVisibility: function (expressIds, geometry, visible = false) {
+    this.setupVisibility(geometry);
+    var previous = 0;
+    for (var current in mapFaceindexID) {
+      if (expressIds.includes(mapFaceindexID[current])) {
+        for (var i = previous; i <= current; i++) this.setVertexVisibility(geometry, i, visible);
+      }
+      previous = current;
+    }
+    geometry.attributes.visibility.needsUpdate = true;
+  },
+
+  setVertexVisibility: function (geometry, index, visible) {
+    var isVisible = visible ? 0 : 1;
+    var geoIndex = geometry.index.array;
+    geometry.attributes.visibility.setX(geoIndex[3 * index], isVisible);
+    geometry.attributes.visibility.setX(geoIndex[3 * index + 1], isVisible);
+    geometry.attributes.visibility.setX(geoIndex[3 * index + 2], isVisible);
+  },
+
+  setupVisibility: function (geometry) {
+    if (!geometry.attributes.visibility) {
+      var visible = new Float32Array(geometry.getAttribute('position').count);
+      geometry.setAttribute('visibility', new BufferAttribute(visible, 1));
+    }
+  },
+
+  getItemProperties: function (elementID, all = false) {
+    var properties = ifcAPI.GetLine(modelID, elementID);
+
+    if (all) {
+      const propSetIds = this.getAllRelatedItemsOfType(elementID, WebIFC.IFCRELDEFINESBYPROPERTIES, "RelatedObjects");
+      properties.hasPropertySets = propSetIds.map((id) => ifcAPI.GetLine(modelID, id, true));
+
+      const typeId = this.getAllRelatedItemsOfType(elementID, WebIFC.IFCRELDEFINESBYTYPE, "RelatedObjects");
+      properties.hasType = typeId.map((id) => ifcAPI.GetLine(modelID, id, true));
+    }
+
+    // properties.type = properties.constructor.name;
+    return properties;
+  },
+
+  getSpatialStructure: function () {
+    let lines = ifcAPI.GetLineIDsWithType(modelID, WebIFC.IFCPROJECT);
+    let ifcProjectId = lines.get(0);
+    let ifcProject = ifcAPI.GetLine(modelID, ifcProjectId);
+    this.getAllSpatialChildren(ifcProject);
+    return ifcProject;
+  },
+
+  getAllSpatialChildren: function(spatialElement){
+    const id = spatialElement.expressID;
+    const spatialChildrenID = this.getAllRelatedItemsOfType(id, WebIFC.IFCRELAGGREGATES, "RelatingObject");
+    spatialElement.hasSpatialChildren = spatialChildrenID.map((id) => ifcAPI.GetLine(modelID, id, false));
+    spatialElement.hasChildren = this.getAllRelatedItemsOfType(id, WebIFC.IFCRELCONTAINEDINSPATIALSTRUCTURE, "RelatingStructure");
+    spatialElement.hasSpatialChildren.forEach(child => this.getAllSpatialChildren(child));
+  },
+
+  getAllRelatedItemsOfType: function (elementID, type, relation) {
+    let lines = ifcAPI.GetLineIDsWithType(modelID, type);
+
+    let IDs = [];
+    for (let i = 0; i < lines.size(); i++) {
+      let relID = lines.get(i);
+      let rel = ifcAPI.GetLine(modelID, relID);
+      let foundElement = false;
+      const relatedItems = rel[relation];
+
+      if (Array.isArray(relatedItems))
+        relatedItems.forEach((relID) => {
+          if (relID.value === elementID) {
+            foundElement = true;
+          }
+        });
+        else if (relatedItems.value === elementID) foundElement = true;
+
+      if (foundElement) {
+        var element = rel[ifcIndirectPropertyMap[type]];
+        if (!Array.isArray(element)) IDs.push(element.value);
+        else element.forEach(ele => IDs.push(ele.value))
       }
     }
+    return IDs;
   },
 
   parse: (function () {
@@ -211,7 +302,7 @@ IfcLoader.prototype = Object.assign(Object.create(Loader.prototype), {
         if (geometryByMaterials[id]) return;
         var col = new Color(color.x, color.y, color.z);
         var newMaterial = new MeshLambertMaterial({ color: col, side: DoubleSide });
-        newMaterial._ifcID = id;
+        newMaterial.onBeforeCompile = materialHider;
         newMaterial.transparent = color.w !== 1;
         if (newMaterial.transparent) newMaterial.opacity = color.w;
         geometryByMaterials[id] = initializeTempObject(newMaterial);
@@ -228,5 +319,26 @@ IfcLoader.prototype = Object.assign(Object.create(Loader.prototype), {
     };
   })()
 });
+
+function materialHider(shader) {
+  shader.vertexShader = `
+  attribute float sizes;
+  attribute float visibility;
+  varying float vVisible;
+${shader.vertexShader}`.replace(
+    `#include <fog_vertex>`,
+    `#include <fog_vertex>
+    vVisible = visibility;
+  `
+  );
+  shader.fragmentShader = `
+  varying float vVisible;
+${shader.fragmentShader}`.replace(
+    `#include <clipping_planes_fragment>`,
+    `
+    if (vVisible > 0.5) discard;
+  #include <clipping_planes_fragment>`
+  );
+}
 
 export { IfcLoader };

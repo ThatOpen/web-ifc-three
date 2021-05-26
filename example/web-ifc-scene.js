@@ -82,7 +82,8 @@ AnimationLoop();
     (changed) => {
       var ifcURL = URL.createObjectURL(changed.target.files[0]);
       ifcLoader.load(ifcURL, (geometry) => {
-        scene.add(geometry);
+        ifcMesh = geometry;
+        scene.add(ifcMesh);
         // console.log(ifcLoader.getObjectGUID(geometry, 14, 175425));
       });
     },
@@ -91,6 +92,8 @@ AnimationLoop();
 })();
 
 //Setup object picking
+
+let ifcMesh = {};
 
 function selectObject(event) {
   if (event.button != 0) return;
@@ -105,8 +108,11 @@ function selectObject(event) {
   const intersected = raycaster.intersectObjects(scene.children);
   if (intersected.length){
     const faceIndex = intersected[0].faceIndex;
-    const id = ifcLoader.selectItem(faceIndex, scene);
-    console.log(id);
+    const id = ifcLoader.getExpressId(faceIndex);
+
+    ifcLoader.highlightItems([id], scene);
+    const props = ifcLoader.getItemProperties(id, true);
+    console.log(props);
   } 
 }
 
