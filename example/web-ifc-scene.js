@@ -1,4 +1,4 @@
-import { IfcLoader } from '../src/IfcLoader';
+import { IFCLoader } from '../src/IFCLoader';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 import Stats from '../node_modules/stats.js/src/Stats';
 import {
@@ -69,7 +69,7 @@ function AnimationLoop() {
   requestAnimationFrame(AnimationLoop);
 }
 
-const ifcLoader = new IfcLoader();
+const ifcLoader = new IFCLoader();
 
 AnimationLoop();
 

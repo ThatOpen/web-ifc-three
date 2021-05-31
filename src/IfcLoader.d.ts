@@ -11,7 +11,7 @@ interface SpatialStructureElement {
 	hasSpatialChildren: SpatialStructureElement[];
 }
 
-export class IfcLoader extends Loader {
+export class IFCLoader extends Loader {
 
 	constructor( manager?: LoadingManager );
 	setWasmPath(path: string): void;
