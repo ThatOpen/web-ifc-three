@@ -17,7 +17,7 @@ export class IFCLoader extends Loader {
 	setWasmPath(path: string): void;
 
 	getExpressId(faceIndex: number): number;
-	getItemProperties(expressId: number, all: boolean): any;
+	getItemProperties(expressId: number, all: boolean, recursive: boolean): any;
 	highlightItems(expressIds: number[], scene: Scene, material: Material ): void;
 	setItemsVisibility(expressIds: number[], geometry: BufferGeometry, visible: boolean ): void;
 	getSpatialStructure(): SpatialStructureElement;

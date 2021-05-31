@@ -153,17 +153,17 @@ class IFCLoader extends Loader {
 
 	}
 
-	getItemProperties( elementID, all = false ) {
+	getItemProperties( elementID, all = false, recursive = false ) {
 
-		const properties = ifcAPI.GetLine(this.modelID, elementID);
+		const properties = ifcAPI.GetLine(this.modelID, elementID, recursive);
 	
 		if (all) {
 
 		  const propSetIds = this.getAllRelatedItemsOfType(elementID, WebIFC.IFCRELDEFINESBYPROPERTIES, "RelatedObjects", "RelatingPropertyDefinition");
-		  properties.hasPropertySets = propSetIds.map((id) => ifcAPI.GetLine(this.modelID, id, true));
+		  properties.hasPropertySets = propSetIds.map((id) => ifcAPI.GetLine(this.modelID, id, recursive));
 	
 		  const typeId = this.getAllRelatedItemsOfType(elementID, WebIFC.IFCRELDEFINESBYTYPE, "RelatedObjects", "RelatingType");
-		  properties.hasType = typeId.map((id) => ifcAPI.GetLine(this.modelID, id, true));
+		  properties.hasType = typeId.map((id) => ifcAPI.GetLine(this.modelID, id, recursive));
 		  
 		}
 	
