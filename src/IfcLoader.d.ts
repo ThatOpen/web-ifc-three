@@ -3,7 +3,8 @@ import {
 	Loader,
 	LoadingManager,
 	Scene,
-	Material
+	Material,
+	Intersection
 } from 'three';
 
 interface SpatialStructureElement {
@@ -21,6 +22,7 @@ export class IFCLoader extends Loader {
 	highlightItems(expressIds: number[], scene: Scene, material: Material ): void;
 	setItemsVisibility(expressIds: number[], geometry: BufferGeometry, visible: boolean ): void;
 	getSpatialStructure(): SpatialStructureElement;
+	pickItem(items: Intersection[], geometry: BufferGeometry): Intersection;
 
 	load( url: string, onLoad: ( geometry: BufferGeometry ) => void, onProgress?: ( event: ProgressEvent ) => void, onError?: ( event: ErrorEvent ) => void ): void;
 	parse( data: ArrayBuffer ): BufferGeometry;

@@ -70316,11 +70316,26 @@ class IFCLoader extends Loader {
 
 		for (let index in this.mapFaceindexID) {
 
-		  if (parseInt(index) >= faceIndex) return this.mapFaceindexID[index];
+		  if (parseInt(index) > faceIndex) return this.mapFaceindexID[index];
 
 		}
 
 		return -1;
+	}
+
+	pickItem( items, geometry ){
+
+		if (!geometry.attributes.visibility) return items[0];
+
+		for (let i = 0; i < items.length; i++) {
+			const index = items[i].faceIndex;
+			const trueIndex = geometry.index.array[index * 3];
+			const visible = geometry.getAttribute("visibility").array[trueIndex];
+			if(visible == 0) return items[i];
+		}
+
+		return null;
+
 	}
 
 	highlightItems( expressIds, scene, material = this.highlightMaterial ) {
@@ -70330,7 +70345,7 @@ class IFCLoader extends Loader {
 		expressIds.forEach((id) => {
 
 			if (!this.mapIDGeometry[id]) return;
-			var mesh = new Mesh(this.mapIDGeometry[id], material);
+			const mesh = new Mesh(this.mapIDGeometry[id], material);
 			mesh.renderOrder = 1;
 			scene.add(mesh);
 			this.selectedObjects.push(mesh);
@@ -70351,13 +70366,13 @@ class IFCLoader extends Loader {
 	setItemsVisibility( expressIds, geometry, visible = false ) {
 
 		this.setupVisibility(geometry);
-		var previous = 0;
+		const previous = 0;
 
-		for (var current in this.mapFaceindexID) {
+		for (let current in this.mapFaceindexID) {
 
 			if (expressIds.includes(this.mapFaceindexID[current])) {
 
-				for (var i = previous; i <= current; i++) this.setVertexVisibility(geometry, i, visible);
+				for (let i = previous; i < current; i++) this.setVertexVisibility(geometry, i, visible);
 
 			}
 
@@ -70371,8 +70386,8 @@ class IFCLoader extends Loader {
 
 	setVertexVisibility( geometry, index, visible ) {
 
-		var isVisible = visible ? 0 : 1;
-		var geoIndex = geometry.index.array;
+		const isVisible = visible ? 0 : 1;
+		const geoIndex = geometry.index.array;
 		geometry.attributes.visibility.setX(geoIndex[3 * index], isVisible);
 		geometry.attributes.visibility.setX(geoIndex[3 * index + 1], isVisible);
 		geometry.attributes.visibility.setX(geoIndex[3 * index + 2], isVisible);
@@ -70383,24 +70398,24 @@ class IFCLoader extends Loader {
 
 		if (!geometry.attributes.visibility) {
 
-		  var visible = new Float32Array(geometry.getAttribute('position').count);
+		  const visible = new Float32Array(geometry.getAttribute('position').count);
 		  geometry.setAttribute('visibility', new BufferAttribute(visible, 1));
 
 		}
 
 	}
 
-	getItemProperties( elementID, all = false ) {
+	getItemProperties( elementID, all = false, recursive = false ) {
 
-		const properties = ifcAPI.GetLine(this.modelID, elementID);
+		const properties = ifcAPI.GetLine(this.modelID, elementID, recursive);
 	
 		if (all) {
 
 		  const propSetIds = this.getAllRelatedItemsOfType(elementID, IFCRELDEFINESBYPROPERTIES, "RelatedObjects", "RelatingPropertyDefinition");
-		  properties.hasPropertySets = propSetIds.map((id) => ifcAPI.GetLine(this.modelID, id, true));
+		  properties.hasPropertySets = propSetIds.map((id) => ifcAPI.GetLine(this.modelID, id, recursive));
 	
 		  const typeId = this.getAllRelatedItemsOfType(elementID, IFCRELDEFINESBYTYPE, "RelatedObjects", "RelatingType");
-		  properties.hasType = typeId.map((id) => ifcAPI.GetLine(this.modelID, id, true));
+		  properties.hasType = typeId.map((id) => ifcAPI.GetLine(this.modelID, id, recursive));
 		  
 		}
 	
@@ -70453,7 +70468,7 @@ class IFCLoader extends Loader {
 	
 		  	if (foundElement) {
 
-				var element = rel[relatedProperty];
+				const element = rel[relatedProperty];
 				if (!Array.isArray(element)) IDs.push(element.value);
 				else element.forEach(ele => IDs.push(ele.value));
 			
@@ -72131,12 +72146,10 @@ function selectObject(event) {
 
   const intersected = raycaster.intersectObjects(scene.children);
   if (intersected.length){
-    const faceIndex = intersected[0].faceIndex;
-    const id = ifcLoader.getExpressId(faceIndex);
 
-    ifcLoader.highlightItems([id], scene);
-    const props = ifcLoader.getItemProperties(id, true);
-    console.log(props);
+    const picked = ifcLoader.pickItem(intersected, ifcMesh.geometry);
+    console.log(picked);
+    
   } 
 }
 
