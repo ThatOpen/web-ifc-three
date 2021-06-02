@@ -79,7 +79,7 @@ class IFCLoader extends Loader {
 
 		for (let index in this.mapFaceindexID) {
 
-		  if (parseInt(index) >= faceIndex) return this.mapFaceindexID[index];
+		  if (parseInt(index) > faceIndex) return this.mapFaceindexID[index];
 
 		}
 
@@ -120,7 +120,7 @@ class IFCLoader extends Loader {
 
 			if (expressIds.includes(this.mapFaceindexID[current])) {
 
-				for (var i = previous; i <= current; i++) this.setVertexVisibility(geometry, i, visible);
+				for (var i = previous; i < current; i++) this.setVertexVisibility(geometry, i, visible);
 
 			}
 
