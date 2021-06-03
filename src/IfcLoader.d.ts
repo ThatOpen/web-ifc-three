@@ -12,6 +12,13 @@ interface SpatialStructureElement {
 	hasSpatialChildren: SpatialStructureElement[];
 }
 
+interface DisplayState {
+	r: number;
+	g: number;
+	b: number;
+	a: number;
+}
+
 export class IFCLoader extends Loader {
 
 	constructor( manager?: LoadingManager );
@@ -19,8 +26,7 @@ export class IFCLoader extends Loader {
 
 	getExpressId(faceIndex: number): number;
 	getItemProperties(expressId: number, all: boolean, recursive: boolean): any;
-	highlightItems(expressIds: number[], scene: Scene, material: Material ): void;
-	setItemsVisibility(expressIds: number[], geometry: BufferGeometry, visible: boolean ): void;
+	setItemsVisibility(expressIds: number[], geometry: BufferGeometry, state: DisplayState ): void;
 	getSpatialStructure(): SpatialStructureElement;
 	pickItem(items: Intersection[], geometry: BufferGeometry): Intersection;
 

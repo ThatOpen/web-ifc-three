@@ -84,7 +84,6 @@ AnimationLoop();
       ifcLoader.load(ifcURL, (geometry) => {
         ifcMesh = geometry;
         scene.add(ifcMesh);
-        // console.log(ifcLoader.getObjectGUID(geometry, 14, 175425));
       });
     },
     false
@@ -94,6 +93,8 @@ AnimationLoop();
 //Setup object picking
 
 let ifcMesh = {};
+let previousSelection;
+const resetDisplayState = { r: 0, g: 0, b: 0, a: 1, h: 0 };
 
 function selectObject(event) {
   if (event.button != 0) return;
@@ -107,12 +108,22 @@ function selectObject(event) {
 
   const intersected = raycaster.intersectObjects(scene.children);
   if (intersected.length){
-    const faceIndex = intersected[0].faceIndex;
-    const id = ifcLoader.getExpressId(faceIndex);
 
-    ifcLoader.highlightItems([id], scene);
-    const props = ifcLoader.getItemProperties(id, true);
-    console.log(props);
+    if(previousSelection) ifcLoader.setItemsVisibility([previousSelection], ifcMesh, resetDisplayState, scene);
+
+    const item = ifcLoader.pickItem(intersected, ifcMesh.geometry);
+    const id = ifcLoader.getExpressId(item.faceIndex);
+    previousSelection = id;
+
+    // const ifcProject = ifcLoader.getSpatialStructure();
+    // console.log(ifcProject);
+
+    const properties = ifcLoader.getItemProperties(id, true);
+    console.log(properties);
+
+    // const state = { r: 0, g: 0, b: 1, a: 0.2, h: 1 }
+    // ifcLoader.setItemsVisibility([id], ifcMesh, state, scene);
+
   } 
 }
 

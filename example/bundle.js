@@ -70252,6 +70252,13 @@ var BufferGeometryUtils = {
 // import { IfcAPI } from 'web-ifc/web-ifc-api';
 
 const ifcAPI = new IfcAPI();
+const display = {
+	r: "r",
+	g: "g",
+	b: "b",
+	a: "a",
+	highlighted: "h"
+};
 
 class IFCLoader extends Loader {
 
@@ -70323,56 +70330,35 @@ class IFCLoader extends Loader {
 		return -1;
 	}
 
-	pickItem( items, geometry ){
+	pickItem( items, geometry, pickTransparent = true ){
 
-		if (!geometry.attributes.visibility) return items[0];
+		this.setupVisibility(geometry);
 
 		for (let i = 0; i < items.length; i++) {
+
 			const index = items[i].faceIndex;
 			const trueIndex = geometry.index.array[index * 3];
-			const visible = geometry.getAttribute("visibility").array[trueIndex];
-			if(visible == 0) return items[i];
+			const visible = geometry.getAttribute(display.a).array[trueIndex];
+			if(pickTransparent && visible != 0) return items[i];
+			else if(visible == 1) return items[i];
 		}
 
 		return null;
 
 	}
 
-	highlightItems( expressIds, scene, material = this.highlightMaterial ) {
+	setItemsVisibility( expressIds, mesh, state, scene ) {
 
-		this.removePreviousSelection(scene);
-
-		expressIds.forEach((id) => {
-
-			if (!this.mapIDGeometry[id]) return;
-			const mesh = new Mesh(this.mapIDGeometry[id], material);
-			mesh.renderOrder = 1;
-			scene.add(mesh);
-			this.selectedObjects.push(mesh);
-			return;
-
-		});
-	}
-
-	removePreviousSelection( scene ) {
-
-		if (this.selectedObjects.length > 0){
-
-			this.selectedObjects.forEach((object) => scene.remove(object));
-
-		} 
-	}
-
-	setItemsVisibility( expressIds, geometry, visible = false ) {
-
+		const geometry = mesh.geometry;
 		this.setupVisibility(geometry);
-		const previous = 0;
+
+		let previous = 0;
 
 		for (let current in this.mapFaceindexID) {
 
 			if (expressIds.includes(this.mapFaceindexID[current])) {
 
-				for (let i = previous; i < current; i++) this.setVertexVisibility(geometry, i, visible);
+				for (let i = previous; i < current; i++) this.setFaceDisplay(geometry, i, state);
 
 			}
 
@@ -70380,27 +70366,109 @@ class IFCLoader extends Loader {
 
 		}
 
-		geometry.attributes.visibility.needsUpdate = true;
+		geometry.attributes[display.r].needsUpdate = true;
+		geometry.attributes[display.g].needsUpdate = true;
+		geometry.attributes[display.b].needsUpdate = true;
+		geometry.attributes[display.a].needsUpdate = true;
+		geometry.attributes[display.highlighted].needsUpdate = true;
+
+		if(state.a != 1) this.updateTransparency(mesh, scene, state);
 
 	}
 
-	setVertexVisibility( geometry, index, visible ) {
+	setFaceDisplay( geometry, index, state ) {
 
-		const isVisible = visible ? 0 : 1;
 		const geoIndex = geometry.index.array;
-		geometry.attributes.visibility.setX(geoIndex[3 * index], isVisible);
-		geometry.attributes.visibility.setX(geoIndex[3 * index + 1], isVisible);
-		geometry.attributes.visibility.setX(geoIndex[3 * index + 2], isVisible);
+		this.setFaceAttribute(geometry, display.r, state.r, index, geoIndex);
+		this.setFaceAttribute(geometry, display.g, state.g, index, geoIndex);
+		this.setFaceAttribute(geometry, display.b, state.b, index, geoIndex);
+		this.setFaceAttribute(geometry, display.a, state.a, index, geoIndex);
+		this.setFaceAttribute(geometry, display.highlighted, state.h, index, geoIndex);
 		
+	}
+
+	setFaceAttribute( geometry, attribute, state, index, geoIndex ){
+
+		geometry.attributes[attribute].setX(geoIndex[3 * index], state);
+		geometry.attributes[attribute].setX(geoIndex[3 * index + 1], state);
+		geometry.attributes[attribute].setX(geoIndex[3 * index + 2], state);
+
 	}
 
 	setupVisibility( geometry ) {
 
-		if (!geometry.attributes.visibility) {
+		if (!geometry.attributes[display.r]) {
 
-		  const visible = new Float32Array(geometry.getAttribute('position').count);
-		  geometry.setAttribute('visibility', new BufferAttribute(visible, 1));
+		  const zeros = new Float32Array(geometry.getAttribute('position').count);
+		  geometry.setAttribute(display.r, new BufferAttribute(zeros.slice(), 1));
+		  geometry.setAttribute(display.g, new BufferAttribute(zeros.slice(), 1));
+		  geometry.setAttribute(display.b, new BufferAttribute(zeros.slice(), 1));
+		  geometry.setAttribute(display.a, new BufferAttribute(zeros.slice().fill(1), 1));
+		  geometry.setAttribute(display.highlighted, new BufferAttribute(zeros, 1));
 
+		}
+
+	}
+
+	updateTransparency(mesh, scene, state){
+		if(!mesh.geometry._transparentMesh) this.setupTransparency(mesh, scene);
+	}
+
+	setupTransparency(mesh, scene){
+		const transparentMesh = mesh.clone();
+
+		const transparentMaterials = [];
+		transparentMesh.material.forEach(mat => {
+			const newMat = mat.clone();
+			newMat.transparent = true;
+			// newMat.depthTest = false;
+			newMat.onBeforeCompile = materialTransparentDisplay;
+			transparentMaterials.push(newMat);
+		});
+		transparentMesh.material = transparentMaterials;
+
+		scene.add(transparentMesh);
+		mesh.geometry._transparentMesh = transparentMesh;
+
+		function materialTransparentDisplay(shader) {
+			shader.vertexShader = `
+			attribute float sizes;
+			attribute float r;
+			attribute float g;
+			attribute float b;
+			attribute float a;
+			attribute float h;
+			varying float vr;
+			varying float vg;
+			varying float vb;
+			varying float va;
+			varying float vh;
+		  ${shader.vertexShader}`.replace(
+			  `#include <fog_vertex>`,
+			  `#include <fog_vertex>
+			  vr = r;
+			  vg = g;
+			  vb = b;
+			  va = a;
+			  vh = h;
+			`
+			);
+			shader.fragmentShader = `
+			varying float vr;
+			varying float vg;
+			varying float vb;
+			varying float va;
+			varying float vh;
+		  ${shader.fragmentShader}`.replace(
+			  `	vec4 diffuseColor = vec4( diffuse, opacity );`,
+			  `
+			  vec4 diffuseColor = vec4( diffuse, opacity );
+			  if(vh > 0.0){
+				if (va == 0.0) discard;
+				diffuseColor = vec4( vr, vg, vb, va );
+			  } else discard;
+			  `
+			);
 		}
 
 	}
@@ -70641,7 +70709,7 @@ class IFCLoader extends Loader {
 
 				const col = new Color(color.x, color.y, color.z);
 				const newMaterial = new MeshLambertMaterial({ color: col, side: DoubleSide });
-				newMaterial.onBeforeCompile = materialHider;
+				newMaterial.onBeforeCompile = materialCustomDisplay;
 				newMaterial.transparent = color.w !== 1;
 				if (newMaterial.transparent) newMaterial.opacity = color.w;
 				geometryByMaterials[id] = initializeGeometryByMaterial(newMaterial);
@@ -70660,24 +70728,44 @@ class IFCLoader extends Loader {
 			};
 	  	}
 
-		function materialHider(shader) {
+		function materialCustomDisplay(shader) {
 			shader.vertexShader = `
 			attribute float sizes;
-			attribute float visibility;
-			varying float vVisible;
+			attribute float r;
+			attribute float g;
+			attribute float b;
+			attribute float a;
+			attribute float h;
+			varying float vr;
+			varying float vg;
+			varying float vb;
+			varying float va;
+			varying float vh;
 		  ${shader.vertexShader}`.replace(
 			  `#include <fog_vertex>`,
 			  `#include <fog_vertex>
-			  vVisible = visibility;
+			  vr = r;
+			  vg = g;
+			  vb = b;
+			  va = a;
+			  vh = h;
 			`
 			);
 			shader.fragmentShader = `
-			varying float vVisible;
+			varying float vr;
+			varying float vg;
+			varying float vb;
+			varying float va;
+			varying float vh;
 		  ${shader.fragmentShader}`.replace(
-			  `#include <clipping_planes_fragment>`,
+			  `	vec4 diffuseColor = vec4( diffuse, opacity );`,
 			  `
-			  if (vVisible > 0.5) discard;
-			#include <clipping_planes_fragment>`
+			  vec4 diffuseColor = vec4( diffuse, opacity );
+			  if(vh > 0.){
+				if (va <= 0.99) discard;
+				else diffuseColor = vec4( vr, vg, vb, opacity );
+			  } 
+			  `
 			);
 		}
 	}
@@ -72123,7 +72211,6 @@ AnimationLoop();
       ifcLoader.load(ifcURL, (geometry) => {
         ifcMesh = geometry;
         scene.add(ifcMesh);
-        // console.log(ifcLoader.getObjectGUID(geometry, 14, 175425));
       });
     },
     false
@@ -72133,8 +72220,10 @@ AnimationLoop();
 //Setup object picking
 
 let ifcMesh = {};
+let previousSelection;
+const resetDisplayState = { r: 0, g: 0, b: 0, a: 1, h: 0 };
 
-function selectObject(event) {
+async function selectObject(event) {
   if (event.button != 0) return;
 
   const mouse = new Vector2();
@@ -72147,9 +72236,21 @@ function selectObject(event) {
   const intersected = raycaster.intersectObjects(scene.children);
   if (intersected.length){
 
-    const picked = ifcLoader.pickItem(intersected, ifcMesh.geometry);
-    console.log(picked);
-    
+    if(previousSelection) ifcLoader.setItemsVisibility([previousSelection], ifcMesh, resetDisplayState, scene);
+
+    const item = ifcLoader.pickItem(intersected, ifcMesh.geometry);
+    const id = ifcLoader.getExpressId(item.faceIndex);
+    previousSelection = id;
+
+    // const ifcProject = ifcLoader.getSpatialStructure();
+    // console.log(ifcProject);
+
+    const properties = await ifcLoader.getItemProperties(id, true);
+    console.log(properties);
+
+    const state = { r: 0, g: 0, b: 1, a: 0.2, h: 1 };
+    await ifcLoader.setItemsVisibility([id], ifcMesh, state, scene);
+
   } 
 }
 
