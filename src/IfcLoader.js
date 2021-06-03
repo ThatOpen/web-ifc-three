@@ -129,7 +129,7 @@ class IFCLoader extends Loader {
 	setItemsVisibility( expressIds, geometry, visible = false ) {
 
 		this.setupVisibility(geometry);
-		const previous = 0;
+		let previous = 0;
 
 		for (let current in this.mapFaceindexID) {
 
