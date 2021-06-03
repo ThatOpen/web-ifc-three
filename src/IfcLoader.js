@@ -30,6 +30,7 @@ class IFCLoader extends Loader {
 		super( manager );
 		this.modelID = 0;
 		this.mapFaceindexID = {};
+		this.mapIDFaceindex = {};
 		this.mapIDGeometry = {};
 		this.selectedObjects = [];
 		this.highlightMaterial = new MeshBasicMaterial({ color: 0xff0000, depthTest: false, side: DoubleSide });
@@ -104,6 +105,7 @@ class IFCLoader extends Loader {
 			const visible = geometry.getAttribute(display.a).array[trueIndex];
 			if(pickTransparent && visible != 0) return items[i];
 			else if(visible == 1) return items[i];
+			
 		}
 
 		return null;
@@ -115,19 +117,9 @@ class IFCLoader extends Loader {
 		const geometry = mesh.geometry;
 		this.setupVisibility(geometry);
 
-		let previous = 0;
-
-		for (let current in this.mapFaceindexID) {
-
-			if (expressIds.includes(this.mapFaceindexID[current])) {
-
-				for (let i = previous; i < current; i++) this.setFaceDisplay(geometry, i, state);
-
-			}
-
-			previous = current;
-
-		}
+		const faceIndicesArray = expressIds.map(id => this.mapIDFaceindex[id]);
+		var faceIndices = [].concat.apply([], faceIndicesArray);
+		faceIndices.forEach(faceIndex => this.setFaceDisplay(geometry, faceIndex, state));
 
 		geometry.attributes[display.r].needsUpdate = true;
 		geometry.attributes[display.g].needsUpdate = true;
@@ -289,11 +281,8 @@ class IFCLoader extends Loader {
 	
 		  	if (Array.isArray(relatedItems)){
 
-			  relatedItems.forEach((relID) => {
-
-				  if (relID.value === elementID) foundElement = true;
-
-				});
+				const values = relatedItems.map(item => item.value);
+ 			    foundElement = values.includes(elementID);
 			}
 			else foundElement = (relatedItems.value === elementID);
 	
@@ -311,8 +300,8 @@ class IFCLoader extends Loader {
 	async parse( buffer ) {
 
 		const geometryByMaterials = {};
-		const mapIDGeometry = this.mapIDGeometry;
 		const mapFaceindexID = this.mapFaceindexID;
+		const mapIDFaceindex = this.mapIDFaceindex;
 
 		if ( ifcAPI.wasmModule === undefined ) {
 
@@ -335,8 +324,30 @@ class IFCLoader extends Loader {
 
 			const { materials, geometries } = getMaterialsAndGeometries();
 			const allGeometry = BufferGeometryUtils.mergeBufferGeometries(geometries, true);
+			storeFaceindicesByExpressIDs();
 			return new Mesh(allGeometry, materials);
 
+		}
+
+		function storeFaceindicesByExpressIDs(){
+
+			let previous = 0;
+
+			for(let current in mapFaceindexID){
+
+				const id = mapFaceindexID[current];
+
+				var faceIndices = [];
+				for (let j = previous; j < current; j++) {
+					faceIndices.push(j);
+				}
+
+				previous = current;
+
+				if(!mapIDFaceindex[id]) mapIDFaceindex[id] = [];
+				mapIDFaceindex[id].push(...faceIndices);
+
+			}
 		}
 	
 		function getMaterialsAndGeometries() {
@@ -390,7 +401,6 @@ class IFCLoader extends Loader {
 			geometry.computeVertexNormals();
 			const matrix = getMeshMatrix(placedGeometry.flatTransformation);
 			geometry.applyMatrix4(matrix);
-			storeGeometryForHighlight(productId, geometry);
 			saveGeometryByMaterial(geometry, placedGeometry, productId);
 
 		}
@@ -409,20 +419,6 @@ class IFCLoader extends Loader {
 			const mat = new Matrix4();
 			mat.fromArray(matrix);
 			return mat;
-
-		}
-	
-		function storeGeometryForHighlight(productId, geometry) {
-
-			if (!mapIDGeometry[productId]) {
-
-				mapIDGeometry[productId] = geometry;
-				return;
-
-			}
-
-			const geometries = [mapIDGeometry[productId], geometry];
-			mapIDGeometry[productId] = BufferGeometryUtils.mergeBufferGeometries(geometries, true);
 
 		}
 	

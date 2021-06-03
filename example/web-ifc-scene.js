@@ -118,13 +118,13 @@ function selectObject(event) {
     // const ifcProject = ifcLoader.getSpatialStructure();
     // console.log(ifcProject);
 
-    const properties = ifcLoader.getItemProperties(id, true);
+    const properties = ifcLoader.getItemProperties(id);
     console.log(properties);
 
-    // const state = { r: 0, g: 0, b: 1, a: 0.2, h: 1 }
-    // ifcLoader.setItemsVisibility([id], ifcMesh, state, scene);
+    const state = { r: 0, g: 0, b: 1, a: 0.2, h: 1 }
+    ifcLoader.setItemsVisibility([id], ifcMesh, state, scene);
 
   } 
 }
 
-threeCanvas.onpointerdown = selectObject;
+threeCanvas.ondblclick = selectObject;
