@@ -86,7 +86,7 @@ class IFCLoader extends Loader {
       const trueIndex = geometry.index.array[index * 3];
       const visible = geometry.getAttribute(display.a).array[trueIndex];
       if (pickTransparent && visible !== 0) return items[i];
-      else if (visible == 1) return items[i];
+      else if (visible === 1) return items[i];
     }
 
     return null;
@@ -106,7 +106,7 @@ class IFCLoader extends Loader {
     geometry.attributes[display.a].needsUpdate = true;
     geometry.attributes[display.highlighted].needsUpdate = true;
 
-    if (state.a != 1) this.updateTransparency(mesh, scene, state);
+    if (state.a !== 1) this.updateTransparency(mesh, scene, state);
   }
 
   setFaceDisplay(geometry, index, state) {
@@ -391,7 +391,7 @@ class IFCLoader extends Loader {
 
       for (let i = 0; i < vertexData.length; i++) {
         isNormalData ? normals.push(vertexData[i]) : vertices.push(vertexData[i]);
-        if ((i + 1) % 3 == 0) isNormalData = !isNormalData;
+        if ((i + 1) % 3 === 0) isNormalData = !isNormalData;
       }
 
       return { vertices, normals };

@@ -1,4 +1,4 @@
-import { IFCLoader } from '../src/IFCLoader';
+import { IFCLoader } from '../../src/IfcLoader';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 import Stats from '../node_modules/stats.js/src/Stats';
 import {
@@ -59,7 +59,6 @@ const stats = new Stats();
 stats.showPanel(0);
 document.body.appendChild(stats.dom);
 
-
 //Animation
 function AnimationLoop() {
   stats.begin();
@@ -107,9 +106,9 @@ function selectObject(event) {
   raycaster.setFromCamera(mouse, camera);
 
   const intersected = raycaster.intersectObjects(scene.children);
-  if (intersected.length){
-
-    if(previousSelection) ifcLoader.setItemsVisibility([previousSelection], ifcMesh, resetDisplayState, scene);
+  if (intersected.length) {
+    if (previousSelection)
+      ifcLoader.setItemsVisibility([previousSelection], ifcMesh, resetDisplayState, scene);
 
     const item = ifcLoader.pickItem(intersected, ifcMesh.geometry);
     const id = ifcLoader.getExpressId(item.faceIndex);
@@ -121,10 +120,9 @@ function selectObject(event) {
     const properties = ifcLoader.getItemProperties(id);
     console.log(properties);
 
-    const state = { r: 0, g: 0, b: 1, a: 0.2, h: 1 }
+    const state = { r: 0, g: 0, b: 1, a: 0.2, h: 1 };
     ifcLoader.setItemsVisibility([id], ifcMesh, state, scene);
-
-  } 
+  }
 }
 
 threeCanvas.ondblclick = selectObject;

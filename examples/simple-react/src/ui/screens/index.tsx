@@ -1,0 +1,1 @@
+export { IFCViewer } from "./IFCViewer";
