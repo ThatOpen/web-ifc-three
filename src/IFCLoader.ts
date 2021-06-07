@@ -1,13 +1,16 @@
 import { IFCManager } from './IFC/IFCManager';
-import { FileLoader, Loader } from 'three/build/three.module';
+import { BufferGeometry, FileLoader, Intersection, Loader, Mesh, Scene } from 'three';
+import { Display } from './IFC/BaseDefinitions';
 
 class IFCLoader extends Loader {
-    constructor(manager) {
+    private ifcManager;
+
+    constructor(manager: any) {
         super(manager);
         this.ifcManager = new IFCManager();
     }
 
-    load(url, onLoad, onProgress, onError) {
+    load(url: any, onLoad: any, onProgress: any, onError: any) {
         const scope = this;
 
         const loader = new FileLoader(scope.manager);
@@ -35,27 +38,27 @@ class IFCLoader extends Loader {
         );
     }
 
-    parse(buffer) {
+    parse(buffer: any) {
         return this.ifcManager.parse(buffer);
     }
 
-    setWasmPath(path) {
+    setWasmPath(path: string) {
         this.ifcManager.setWasmPath(path);
     }
 
-    getExpressId(faceIndex) {
+    getExpressId(faceIndex: number) {
         return this.ifcManager.getExpressId(faceIndex);
     }
 
-    pickItem(items, geometry, pickTransparent = true) {
-        return this.ifcManager.pickItem(items, geometry, pickTransparent);
+    pickItem(items: Intersection[], geometry: BufferGeometry, transparent = true) {
+        return this.ifcManager.pickItem(items, geometry, transparent);
     }
 
-    setItemsVisibility(id, mesh, state, scene) {
-        this.ifcManager.setItemsDisplay(id, mesh, state, scene);
+    setItemsVisibility(ids: number[], mesh: Mesh, state: Display, scene: Scene) {
+        this.ifcManager.setItemsDisplay(ids, mesh, state, scene);
     }
 
-    getItemProperties(id, all = false, recursive = false) {
+    getItemProperties(id: number, all = false, recursive = false) {
         return this.ifcManager.getItemProperties(id, all, recursive);
     }
 

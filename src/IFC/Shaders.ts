@@ -1,16 +1,22 @@
+import { Shader } from 'three';
 import { VertexProps } from './BaseDefinitions';
 
-export function OpaqueShader(shader) {
+export function OpaqueShader(shader: Shader) {
     shader.vertexShader = getVertexShader(shader);
-    shader.fragmentShader = getFragmentShader(shader, OpaqueConfig);
+    shader.fragmentShader = getFragmentShader(shader, opaque);
 }
 
-export function TransparentShader(shader) {
+export function TransparentShader(shader: Shader) {
     shader.vertexShader = getVertexShader(shader);
-    shader.fragmentShader = getFragmentShader(shader, TransparentConfig);
+    shader.fragmentShader = getFragmentShader(shader, transparent);
 }
 
-const OpaqueConfig = {
+interface ShaderConfig {
+  before: string;
+  after: string;
+}
+
+const opaque: ShaderConfig = {
     before: `vec4 diffuseColor = vec4( diffuse, opacity );`,
     after: `vec4 diffuseColor = vec4( diffuse, opacity );
   if(vh > 0.){
@@ -19,17 +25,16 @@ const OpaqueConfig = {
   }`
 };
 
-const TransparentConfig = {
+const transparent: ShaderConfig = {
     before: `	vec4 diffuseColor = vec4( diffuse, opacity );`,
     after: `vec4 diffuseColor = vec4( diffuse, opacity );
             if(vh > 0.0){
             if (va == 0.0) discard;
             diffuseColor = vec4( vr, vg, vb, va );
-            } else discard;
-`
+            } else discard;`
 };
 
-function getFragmentShader(shader, config) {
+function getFragmentShader(shader: Shader, config: ShaderConfig) {
     return `
   varying float vr;
   varying float vg;
@@ -39,7 +44,7 @@ function getFragmentShader(shader, config) {
 ${shader.fragmentShader}`.replace(config.before, config.after);
 }
 
-function getVertexShader(shader) {
+function getVertexShader(shader: Shader) {
     return `
   attribute float sizes;
   attribute float ${VertexProps.r};

@@ -1,28 +1,34 @@
-import * as WebIFC from 'web-ifc/web-ifc-api';
+import { IfcAPI, IFCPROJECT, IFCRELAGGREGATES, IFCRELCONTAINEDINSPATIALSTRUCTURE, IFCRELDEFINESBYPROPERTIES, IFCRELDEFINESBYTYPE, } from "web-ifc";
+import { MapFaceIndexID, MapIDFaceIndex } from "./BaseDefinitions";
 
 export class PropertyManager {
 
-    constructor(modelID, ifcAPI, mapFaceindexID, mapIDFaceindex) {
+    private modelID: number;
+    private ifcAPI: IfcAPI;
+    private mapFaceindexID: MapFaceIndexID;
+    private mapIDFaceindex: MapIDFaceIndex;
+
+    constructor(modelID: number, ifcAPI: IfcAPI, mapFaceindexID: MapFaceIndexID, mapIDFaceindex: MapIDFaceIndex) {
         this.modelID = modelID;
         this.mapFaceindexID = mapFaceindexID;
         this.mapIDFaceindex = mapIDFaceindex;
         this.ifcAPI = ifcAPI;
     }
 
-    getExpressId(faceIndex) {
+    getExpressId(faceIndex: Number) {
         for (let index in this.mapFaceindexID) {
             if (parseInt(index) > faceIndex) return this.mapFaceindexID[index];
         }
         return -1;
     }
 
-    getItemProperties(elementID, all = false, recursive = false) {
+    getItemProperties(elementID: number, all = false, recursive = false) {
         const properties = this.ifcAPI.GetLine(this.modelID, elementID, recursive);
 
         if (all) {
             const propSetIds = this.getAllRelatedItemsOfType(
                 elementID,
-                WebIFC.IFCRELDEFINESBYPROPERTIES,
+                IFCRELDEFINESBYPROPERTIES,
                 'RelatedObjects',
                 'RelatingPropertyDefinition'
             );
@@ -32,7 +38,7 @@ export class PropertyManager {
 
             const typeId = this.getAllRelatedItemsOfType(
                 elementID,
-                WebIFC.IFCRELDEFINESBYTYPE,
+                IFCRELDEFINESBYTYPE,
                 'RelatedObjects',
                 'RelatingType'
             );
@@ -46,18 +52,18 @@ export class PropertyManager {
     }
 
     getSpatialStructure() {
-        let lines = this.ifcAPI.GetLineIDsWithType(this.modelID, WebIFC.IFCPROJECT);
+        let lines = this.ifcAPI.GetLineIDsWithType(this.modelID, IFCPROJECT);
         let ifcProjectId = lines.get(0);
         let ifcProject = this.ifcAPI.GetLine(this.modelID, ifcProjectId);
         this.getAllSpatialChildren(ifcProject);
         return ifcProject;
     }
 
-    getAllSpatialChildren(spatialElement) {
+    getAllSpatialChildren(spatialElement: any) {
         const id = spatialElement.expressID;
         const spatialChildrenID = this.getAllRelatedItemsOfType(
             id,
-            WebIFC.IFCRELAGGREGATES,
+            IFCRELAGGREGATES,
             'RelatingObject',
             'RelatedObjects'
         );
@@ -66,14 +72,14 @@ export class PropertyManager {
         );
         spatialElement.hasChildren = this.getAllRelatedItemsOfType(
             id,
-            WebIFC.IFCRELCONTAINEDINSPATIALSTRUCTURE,
+            IFCRELCONTAINEDINSPATIALSTRUCTURE,
             'RelatingStructure',
             'RelatedElements'
         );
-        spatialElement.hasSpatialChildren.forEach((child) => this.getAllSpatialChildren(child));
+        spatialElement.hasSpatialChildren.forEach((child : any) => this.getAllSpatialChildren(child));
     }
 
-    getAllRelatedItemsOfType(elementID, type, relation, relatedProperty) {
+    getAllRelatedItemsOfType(elementID: number, type: any, relation: string, relatedProperty: string) {
         const lines = this.ifcAPI.GetLineIDsWithType(this.modelID, type);
         const IDs = [];
 

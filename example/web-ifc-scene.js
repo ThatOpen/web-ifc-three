@@ -1,4 +1,4 @@
-import { IFCLoader } from '../src/IFCLoader';
+import { IFCLoader } from '../dist/IFCLoader';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 import Stats from '../node_modules/stats.js/src/Stats';
 import {
@@ -70,7 +70,6 @@ function AnimationLoop() {
 }
 
 const ifcLoader = new IFCLoader();
-ifcLoader.setWasmPath("wasm/")
 
 AnimationLoop();
 

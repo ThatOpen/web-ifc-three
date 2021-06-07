@@ -1,4 +1,6 @@
 import { BufferGeometryUtils } from 'three/examples/jsm/utils/BufferGeometryUtils';
+import { OpaqueShader } from './Shaders';
+import { IfcAPI, PlacedGeometry, Color as ifcColor } from 'web-ifc';
 import {
     Mesh,
     Color,
@@ -6,29 +8,41 @@ import {
     DoubleSide,
     Matrix4,
     BufferGeometry,
-    BufferAttribute
-} from 'three/build/three.module';
-import { OpaqueShader } from './Shaders';
+    BufferAttribute,
+    Material
+} from 'three';
+import {
+    GeometriesByMaterial,
+    MapFaceIndexID,
+    MapIDFaceIndex
+} from './BaseDefinitions';
 
 export class IFCParser {
-    constructor(ifcAPI, mapFaceindexID, mapIDFaceindex) {
+    private modelID: number;
+    private ifcAPI: IfcAPI;
+    private mapFaceindexID: MapFaceIndexID;
+    private mapIDFaceindex: MapIDFaceIndex;
+    private geometryByMaterials: GeometriesByMaterial;
+
+    constructor(ifcAPI: IfcAPI, mapFaceindexID: MapFaceIndexID, mapIDFaceindex: MapIDFaceIndex) {
+        this.modelID = -1;
         this.mapFaceindexID = mapFaceindexID;
         this.mapIDFaceindex = mapIDFaceindex;
         this.geometryByMaterials = {};
         this.ifcAPI = ifcAPI;
     }
 
-    async parse(buffer) {
+    async parse(buffer: any) {
         if (this.ifcAPI.wasmModule === undefined) {
             await this.ifcAPI.Init();
         }
         const data = new Uint8Array(buffer);
-        this.modelID = this.ifcAPI.OpenModel('example.ifc', data);
-        return this.loadAllGeometry(this.modelID);
+        this.modelID = this.ifcAPI.OpenModel(data);
+        return this.loadAllGeometry();
     }
 
-    loadAllGeometry(modelID) {
-        this.saveAllPlacedGeometriesByMaterial(modelID);
+    loadAllGeometry() {
+        this.saveAllPlacedGeometriesByMaterial();
         return this.generateAllGeometriesByMaterial();
     }
 
@@ -69,7 +83,7 @@ export class IFCParser {
             geometries.push(BufferGeometryUtils.mergeBufferGeometries(currentGeometries));
 
             for (let j in this.geometryByMaterials[i].indices) {
-                const globalIndex = parseInt(j, 10) + parseInt(totalFaceCount, 10);
+                const globalIndex = parseInt(j, 10) + totalFaceCount;
                 this.mapFaceindexID[globalIndex] = this.geometryByMaterials[i].indices[j];
             }
 
@@ -79,8 +93,8 @@ export class IFCParser {
         return { materials, geometries };
     }
 
-    saveAllPlacedGeometriesByMaterial(modelID) {
-        const flatMeshes = this.ifcAPI.LoadAllGeometry(modelID);
+    saveAllPlacedGeometriesByMaterial() {
+        const flatMeshes = this.ifcAPI.LoadAllGeometry(this.modelID);
 
         for (let i = 0; i < flatMeshes.size(); i++) {
             const flatMesh = flatMeshes.get(i);
@@ -88,21 +102,21 @@ export class IFCParser {
             const placedGeometries = flatMesh.geometries;
 
             for (let j = 0; j < placedGeometries.size(); j++) {
-                this.savePlacedGeometryByMaterial(modelID, placedGeometries.get(j), productId);
+                this.savePlacedGeometryByMaterial(placedGeometries.get(j), productId);
             }
         }
     }
 
-    savePlacedGeometryByMaterial(modelID, placedGeometry, productId) {
-        const geometry = this.getBufferGeometry(modelID, placedGeometry);
+    savePlacedGeometryByMaterial(placedGeometry: PlacedGeometry, productId: number) {
+        const geometry = this.getBufferGeometry(placedGeometry);
         geometry.computeVertexNormals();
         const matrix = this.getMeshMatrix(placedGeometry.flatTransformation);
         geometry.applyMatrix4(matrix);
         this.saveGeometryByMaterial(geometry, placedGeometry, productId);
     }
 
-    getBufferGeometry(modelID, placedGeometry) {
-        const geometry = this.ifcAPI.GetGeometry(modelID, placedGeometry.geometryExpressID);
+    getBufferGeometry(placedGeometry: PlacedGeometry) {
+        const geometry = this.ifcAPI.GetGeometry(this.modelID, placedGeometry.geometryExpressID);
         const verts = this.ifcAPI.GetVertexArray(
             geometry.GetVertexData(),
             geometry.GetVertexDataSize()
@@ -114,13 +128,13 @@ export class IFCParser {
         return this.ifcGeometryToBuffer(verts, indices);
     }
 
-    getMeshMatrix(matrix) {
+    getMeshMatrix(matrix: number[]) {
         const mat = new Matrix4();
         mat.fromArray(matrix);
         return mat;
     }
 
-    ifcGeometryToBuffer(vertexData, indexData) {
+    ifcGeometryToBuffer(vertexData: any, indexData: any) {
         const geometry = new BufferGeometry();
         const { vertices, normals } = this.extractVertexData(vertexData);
         geometry.setAttribute('position', new BufferAttribute(new Float32Array(vertices), 3));
@@ -129,7 +143,7 @@ export class IFCParser {
         return geometry;
     }
 
-    extractVertexData(vertexData) {
+    extractVertexData(vertexData: any) {
         const vertices = [];
         const normals = [];
         let isNormalData = false;
@@ -142,28 +156,29 @@ export class IFCParser {
         return { vertices, normals };
     }
 
-    saveGeometryByMaterial(geometry, placedGeometry, productId) {
+    saveGeometryByMaterial(geometry: BufferGeometry, placedGeometry: PlacedGeometry, productId: number) {
+        if(!geometry.index) return;
         const color = placedGeometry.color;
-        const id = `${color.x}${color.y}${color.z}${color.w}`;
-        this.createMaterial(id, color);
-        const currentGeometry = this.geometryByMaterials[id];
+        const colorID = `${color.x}${color.y}${color.z}${color.w}`;
+        this.createMaterial(colorID, color);
+        const currentGeometry = this.geometryByMaterials[colorID];
         currentGeometry.geometry.push(geometry);
         currentGeometry.lastIndex += geometry.index.count / 3;
         currentGeometry.indices[currentGeometry.lastIndex] = productId;
     }
 
-    createMaterial(id, color) {
-        if (!this.geometryByMaterials[id]) {
+    createMaterial(colorID: string, color: ifcColor) {
+        if (!this.geometryByMaterials[colorID]) {
             const col = new Color(color.x, color.y, color.z);
             const newMaterial = new MeshLambertMaterial({ color: col, side: DoubleSide });
             newMaterial.onBeforeCompile = OpaqueShader;
             newMaterial.transparent = color.w !== 1;
             if (newMaterial.transparent) newMaterial.opacity = color.w;
-            this.geometryByMaterials[id] = this.newGeometryByMaterial(newMaterial);
+            this.geometryByMaterials[colorID] = this.newGeometryByMaterial(newMaterial);
         }
     }
 
-    newGeometryByMaterial(newMaterial) {
+    newGeometryByMaterial(newMaterial: Material) {
         return {
             material: newMaterial,
             geometry: [],

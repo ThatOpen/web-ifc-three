@@ -1,42 +1,54 @@
-import * as WebIFC from 'web-ifc/web-ifc-api';
+import * as WebIFC from 'web-ifc';
 import { IFCParser } from './IFCParser';
 import { DisplayManager } from './DisplayManager';
 import { ItemPicker } from './ItemPicker';
 import { PropertyManager } from './PropertyManager';
+import { Display, MapFaceIndexID, MapIDFaceIndex } from './BaseDefinitions';
+import { BufferGeometry, Intersection, Mesh, Scene } from 'three';
 
 export class IFCManager {
+
+    private modelID: number;
+    private ifcAPI: WebIFC.IfcAPI;
+    private mapFaceindexID: MapFaceIndexID;
+    private mapIDFaceindex: MapIDFaceIndex;
+    private parser: IFCParser;
+    private display: DisplayManager;
+    private properties: PropertyManager;
+    private picker: ItemPicker;
+
     constructor() {
         this.modelID = 0;
         this.ifcAPI = new WebIFC.IfcAPI();
         this.mapFaceindexID = {};
         this.mapIDFaceindex = {};
         this.parser = new IFCParser(this.ifcAPI, this.mapFaceindexID, this.mapIDFaceindex);
-        this.display = new DisplayManager(this.mapFaceindexID, this.mapIDFaceindex);
+        this.display = new DisplayManager(this.mapIDFaceindex);
         this.properties = new PropertyManager(this.modelID, this.ifcAPI, this.mapFaceindexID, this.mapIDFaceindex);
         this.picker = new ItemPicker(this.display);
     }
 
-    parse(buffer) {
+    parse(buffer: any) {
         return this.parser.parse(buffer);
     }
 
-    setWasmPath(path) {
+    setWasmPath(path: string) {
         this.ifcAPI.SetWasmPath(path);
     }
 
-    pickItem(items, geometry, pickTransparent = true) {
+    pickItem(items: Intersection[], geometry: BufferGeometry, pickTransparent = true) {
         return this.picker.pickItem(items, geometry, pickTransparent);
     }
 
-    setItemsDisplay(id, mesh, state, scene) {
-        this.display.setItemsDisplay(id, mesh, state, scene);
+    setItemsDisplay(items: number[], mesh: Mesh, state: Display, scene: Scene) {
+        this.display.setItemsDisplay(items, mesh, state, scene);
     }
 
-    getExpressId(faceIndex) {
+    getExpressId(faceIndex: number) {
         return this.properties.getExpressId(faceIndex);
     }
 
-    getItemProperties(id, all = false, recursive = false) {
+    getItemProperties(id: number, all = false, recursive = false) {
         return this.properties.getItemProperties(id, all, recursive);
     }
 
