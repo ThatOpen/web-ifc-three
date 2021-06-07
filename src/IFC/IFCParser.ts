@@ -41,19 +41,19 @@ export class IFCParser {
         return this.loadAllGeometry();
     }
 
-    loadAllGeometry() {
+    private loadAllGeometry() {
         this.saveAllPlacedGeometriesByMaterial();
         return this.generateAllGeometriesByMaterial();
     }
 
-    generateAllGeometriesByMaterial() {
+    private generateAllGeometriesByMaterial() {
         const { materials, geometries } = this.getMaterialsAndGeometries();
         const allGeometry = BufferGeometryUtils.mergeBufferGeometries(geometries, true);
         this.storeFaceindicesByExpressIDs();
         return new Mesh(allGeometry, materials);
     }
 
-    storeFaceindicesByExpressIDs() {
+    private storeFaceindicesByExpressIDs() {
         let previous = 0;
 
         for (let index in this.mapFaceindexID) {
@@ -72,7 +72,7 @@ export class IFCParser {
         }
     }
 
-    getMaterialsAndGeometries() {
+    private getMaterialsAndGeometries() {
         const materials = [];
         const geometries = [];
         let totalFaceCount = 0;
@@ -93,7 +93,7 @@ export class IFCParser {
         return { materials, geometries };
     }
 
-    saveAllPlacedGeometriesByMaterial() {
+    private saveAllPlacedGeometriesByMaterial() {
         const flatMeshes = this.ifcAPI.LoadAllGeometry(this.modelID);
 
         for (let i = 0; i < flatMeshes.size(); i++) {
@@ -107,7 +107,7 @@ export class IFCParser {
         }
     }
 
-    savePlacedGeometryByMaterial(placedGeometry: PlacedGeometry, productId: number) {
+    private savePlacedGeometryByMaterial(placedGeometry: PlacedGeometry, productId: number) {
         const geometry = this.getBufferGeometry(placedGeometry);
         geometry.computeVertexNormals();
         const matrix = this.getMeshMatrix(placedGeometry.flatTransformation);
@@ -115,7 +115,7 @@ export class IFCParser {
         this.saveGeometryByMaterial(geometry, placedGeometry, productId);
     }
 
-    getBufferGeometry(placedGeometry: PlacedGeometry) {
+    private getBufferGeometry(placedGeometry: PlacedGeometry) {
         const geometry = this.ifcAPI.GetGeometry(this.modelID, placedGeometry.geometryExpressID);
         const verts = this.ifcAPI.GetVertexArray(
             geometry.GetVertexData(),
@@ -128,13 +128,13 @@ export class IFCParser {
         return this.ifcGeometryToBuffer(verts, indices);
     }
 
-    getMeshMatrix(matrix: number[]) {
+    private getMeshMatrix(matrix: number[]) {
         const mat = new Matrix4();
         mat.fromArray(matrix);
         return mat;
     }
 
-    ifcGeometryToBuffer(vertexData: any, indexData: any) {
+    private ifcGeometryToBuffer(vertexData: any, indexData: any) {
         const geometry = new BufferGeometry();
         const { vertices, normals } = this.extractVertexData(vertexData);
         geometry.setAttribute('position', new BufferAttribute(new Float32Array(vertices), 3));
@@ -143,7 +143,7 @@ export class IFCParser {
         return geometry;
     }
 
-    extractVertexData(vertexData: any) {
+    private extractVertexData(vertexData: any) {
         const vertices = [];
         const normals = [];
         let isNormalData = false;
@@ -156,7 +156,7 @@ export class IFCParser {
         return { vertices, normals };
     }
 
-    saveGeometryByMaterial(geometry: BufferGeometry, placedGeometry: PlacedGeometry, productId: number) {
+    private saveGeometryByMaterial(geometry: BufferGeometry, placedGeometry: PlacedGeometry, productId: number) {
         if(!geometry.index) return;
         const color = placedGeometry.color;
         const colorID = `${color.x}${color.y}${color.z}${color.w}`;
@@ -167,7 +167,7 @@ export class IFCParser {
         currentGeometry.indices[currentGeometry.lastIndex] = productId;
     }
 
-    createMaterial(colorID: string, color: ifcColor) {
+    private createMaterial(colorID: string, color: ifcColor) {
         if (!this.geometryByMaterials[colorID]) {
             const col = new Color(color.x, color.y, color.z);
             const newMaterial = new MeshLambertMaterial({ color: col, side: DoubleSide });
@@ -178,7 +178,7 @@ export class IFCParser {
         }
     }
 
-    newGeometryByMaterial(newMaterial: Material) {
+    private newGeometryByMaterial(newMaterial: Material) {
         return {
             material: newMaterial,
             geometry: [],

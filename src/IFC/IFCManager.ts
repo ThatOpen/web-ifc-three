@@ -48,8 +48,16 @@ export class IFCManager {
         return this.properties.getExpressId(faceIndex);
     }
 
-    getItemProperties(id: number, all = false, recursive = false) {
-        return this.properties.getItemProperties(id, all, recursive);
+    getItemProperties(id: number, recursive = false) {
+        return this.properties.getItemProperties(id, recursive);
+    }
+
+    getPropertySets(id: number, recursive = false) {
+        return this.properties.getPropertySets(id, recursive);
+    }
+
+    getTypeProperties(id: number, recursive = false) {
+        return this.properties.getTypeProperties(id, recursive);
     }
 
     getSpatialStructure() {

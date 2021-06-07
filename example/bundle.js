@@ -70500,6 +70500,17 @@ class DisplayManager {
       this.setupTransparency(mesh, scene);
   }
 
+  setupVisibility(geometry) {
+    if (!geometry.attributes[VertexProps.r]) {
+      const zeros = new Float32Array(geometry.getAttribute('position').count);
+      geometry.setAttribute(VertexProps.r, new BufferAttribute(zeros.slice(), 1));
+      geometry.setAttribute(VertexProps.g, new BufferAttribute(zeros.slice(), 1));
+      geometry.setAttribute(VertexProps.b, new BufferAttribute(zeros.slice(), 1));
+      geometry.setAttribute(VertexProps.a, new BufferAttribute(zeros.slice().fill(1), 1));
+      geometry.setAttribute(VertexProps.h, new BufferAttribute(zeros, 1));
+    }
+  }
+
   setFaceDisplay(geometry, index, state) {
     if (!geometry.index)
       return;
@@ -70515,17 +70526,6 @@ class DisplayManager {
     geometry.attributes[attr].setX(geoIndex[3 * index], state);
     geometry.attributes[attr].setX(geoIndex[3 * index + 1], state);
     geometry.attributes[attr].setX(geoIndex[3 * index + 2], state);
-  }
-
-  setupVisibility(geometry) {
-    if (!geometry.attributes[VertexProps.r]) {
-      const zeros = new Float32Array(geometry.getAttribute('position').count);
-      geometry.setAttribute(VertexProps.r, new BufferAttribute(zeros.slice(), 1));
-      geometry.setAttribute(VertexProps.g, new BufferAttribute(zeros.slice(), 1));
-      geometry.setAttribute(VertexProps.b, new BufferAttribute(zeros.slice(), 1));
-      geometry.setAttribute(VertexProps.a, new BufferAttribute(zeros.slice().fill(1), 1));
-      geometry.setAttribute(VertexProps.h, new BufferAttribute(zeros, 1));
-    }
   }
 
   setupTransparency(mesh, scene) {
@@ -70597,15 +70597,18 @@ class PropertyManager {
     return -1;
   }
 
-  getItemProperties(elementID, all = false, recursive = false) {
-    const properties = this.ifcAPI.GetLine(this.modelID, elementID, recursive);
-    if (all) {
-      const propSetIds = this.getAllRelatedItemsOfType(elementID, IFCRELDEFINESBYPROPERTIES, 'RelatedObjects', 'RelatingPropertyDefinition');
-      properties.hasPropertySets = propSetIds.map((id) => this.ifcAPI.GetLine(this.modelID, id, recursive));
-      const typeId = this.getAllRelatedItemsOfType(elementID, IFCRELDEFINESBYTYPE, 'RelatedObjects', 'RelatingType');
-      properties.hasType = typeId.map((id) => this.ifcAPI.GetLine(this.modelID, id, recursive));
-    }
-    return properties;
+  getItemProperties(elementID, recursive = false) {
+    return this.ifcAPI.GetLine(this.modelID, elementID, recursive);
+  }
+
+  getPropertySets(elementID, recursive = false) {
+    const propSetIds = this.getAllRelatedItemsOfType(elementID, IFCRELDEFINESBYPROPERTIES, 'RelatedObjects', 'RelatingPropertyDefinition');
+    return propSetIds.map((id) => this.ifcAPI.GetLine(this.modelID, id, recursive));
+  }
+
+  getTypeProperties(elementID, recursive = false) {
+    const typeId = this.getAllRelatedItemsOfType(elementID, IFCRELDEFINESBYTYPE, 'RelatedObjects', 'RelatingType');
+    return typeId.map((id) => this.ifcAPI.GetLine(this.modelID, id, recursive));
   }
 
   getSpatialStructure() {
@@ -70684,8 +70687,16 @@ class IFCManager {
     return this.properties.getExpressId(faceIndex);
   }
 
-  getItemProperties(id, all = false, recursive = false) {
-    return this.properties.getItemProperties(id, all, recursive);
+  getItemProperties(id, recursive = false) {
+    return this.properties.getItemProperties(id, recursive);
+  }
+
+  getPropertySets(id, recursive = false) {
+    return this.properties.getPropertySets(id, recursive);
+  }
+
+  getTypeProperties(id, recursive = false) {
+    return this.properties.getTypeProperties(id, recursive);
   }
 
   getSpatialStructure() {
@@ -70738,12 +70749,20 @@ class IFCLoader extends Loader {
     return this.ifcManager.pickItem(items, geometry, transparent);
   }
 
-  setItemsVisibility(ids, mesh, state, scene) {
+  setItemsDisplay(ids, mesh, state, scene) {
     this.ifcManager.setItemsDisplay(ids, mesh, state, scene);
   }
 
-  getItemProperties(id, all = false, recursive = false) {
-    return this.ifcManager.getItemProperties(id, all, recursive);
+  getItemProperties(id, recursive = false) {
+    return this.ifcManager.getItemProperties(id, recursive);
+  }
+
+  getPropertySets(id, recursive = false) {
+    return this.ifcManager.getPropertySets(id, recursive);
+  }
+
+  getTypeProperties(id, recursive = false) {
+    return this.ifcManager.getTypeProperties(id, recursive);
   }
 
   getSpatialStructure() {
@@ -72217,20 +72236,20 @@ function selectObject(event) {
   const intersected = raycaster.intersectObjects(scene.children);
   if (intersected.length){
 
-    if(previousSelection) ifcLoader.setItemsVisibility([previousSelection], ifcMesh, resetDisplayState, scene);
+    if(previousSelection) ifcLoader.setItemsDisplay([previousSelection], ifcMesh, resetDisplayState, scene);
 
     const item = ifcLoader.pickItem(intersected, ifcMesh.geometry);
     const id = ifcLoader.getExpressId(item.faceIndex);
     previousSelection = id;
 
-    const ifcProject = ifcLoader.getSpatialStructure();
-    console.log(ifcProject);
-
     const properties = ifcLoader.getItemProperties(id);
     console.log(properties);
 
+    // const ifcProject = ifcLoader.getSpatialStructure();
+    // console.log(ifcProject);
+
     const state = { r: 0, g: 0, b: 1, a: 0.2, h: 1 };
-    ifcLoader.setItemsVisibility([id], ifcMesh, state, scene);
+    ifcLoader.setItemsDisplay([id], ifcMesh, state, scene);
 
   } 
 }

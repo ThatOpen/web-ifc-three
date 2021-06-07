@@ -109,20 +109,20 @@ function selectObject(event) {
   const intersected = raycaster.intersectObjects(scene.children);
   if (intersected.length){
 
-    if(previousSelection) ifcLoader.setItemsVisibility([previousSelection], ifcMesh, resetDisplayState, scene);
+    if(previousSelection) ifcLoader.setItemsDisplay([previousSelection], ifcMesh, resetDisplayState, scene);
 
     const item = ifcLoader.pickItem(intersected, ifcMesh.geometry);
     const id = ifcLoader.getExpressId(item.faceIndex);
     previousSelection = id;
 
-    const ifcProject = ifcLoader.getSpatialStructure();
-    console.log(ifcProject);
-
     const properties = ifcLoader.getItemProperties(id);
     console.log(properties);
 
+    // const ifcProject = ifcLoader.getSpatialStructure();
+    // console.log(ifcProject);
+
     const state = { r: 0, g: 0, b: 1, a: 0.2, h: 1 }
-    ifcLoader.setItemsVisibility([id], ifcMesh, state, scene);
+    ifcLoader.setItemsDisplay([id], ifcMesh, state, scene);
 
   } 
 }

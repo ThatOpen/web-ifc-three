@@ -26,28 +26,6 @@ export class DisplayManager {
         if (state.a != 1) this.setupTransparency(mesh as TransparentMesh, scene);
     }
 
-    setFaceDisplay(geometry: BufferGeometry, index: number, state: Display) {
-        if (!geometry.index) return;
-        const geoIndex = geometry.index.array;
-        this.setFaceAttribute(geometry, VertexProps.r, state.r, index, geoIndex);
-        this.setFaceAttribute(geometry, VertexProps.g, state.g, index, geoIndex);
-        this.setFaceAttribute(geometry, VertexProps.b, state.b, index, geoIndex);
-        this.setFaceAttribute(geometry, VertexProps.a, state.a, index, geoIndex);
-        this.setFaceAttribute(geometry, VertexProps.h, state.h, index, geoIndex);
-    }
-
-    setFaceAttribute(
-        geometry: BufferGeometry,
-        attr: string,
-        state: number,
-        index: number,
-        geoIndex: ArrayLike<number>
-    ) {
-        geometry.attributes[attr].setX(geoIndex[3 * index], state);
-        geometry.attributes[attr].setX(geoIndex[3 * index + 1], state);
-        geometry.attributes[attr].setX(geoIndex[3 * index + 2], state);
-    }
-
     setupVisibility(geometry: BufferGeometry) {
         if (!geometry.attributes[VertexProps.r]) {
             const zeros = new Float32Array(geometry.getAttribute('position').count);
@@ -59,7 +37,29 @@ export class DisplayManager {
         }
     }
 
-    setupTransparency(mesh: TransparentMesh, scene: Scene) {
+    private setFaceDisplay(geometry: BufferGeometry, index: number, state: Display) {
+        if (!geometry.index) return;
+        const geoIndex = geometry.index.array;
+        this.setFaceAttribute(geometry, VertexProps.r, state.r, index, geoIndex);
+        this.setFaceAttribute(geometry, VertexProps.g, state.g, index, geoIndex);
+        this.setFaceAttribute(geometry, VertexProps.b, state.b, index, geoIndex);
+        this.setFaceAttribute(geometry, VertexProps.a, state.a, index, geoIndex);
+        this.setFaceAttribute(geometry, VertexProps.h, state.h, index, geoIndex);
+    }
+
+    private setFaceAttribute(
+        geometry: BufferGeometry,
+        attr: string,
+        state: number,
+        index: number,
+        geoIndex: ArrayLike<number>
+    ) {
+        geometry.attributes[attr].setX(geoIndex[3 * index], state);
+        geometry.attributes[attr].setX(geoIndex[3 * index + 1], state);
+        geometry.attributes[attr].setX(geoIndex[3 * index + 2], state);
+    }
+
+    private setupTransparency(mesh: TransparentMesh, scene: Scene) {
         if (mesh.transparentMesh) return;
         const transMesh = mesh.clone();
 
@@ -78,7 +78,7 @@ export class DisplayManager {
         mesh.transparentMesh = transMesh;
     }
 
-    newTransparent(mat: Material) {
+    private newTransparent(mat: Material) {
         const newMat = mat.clone();
         newMat.transparent = true;
         // newMat.depthTest = false;

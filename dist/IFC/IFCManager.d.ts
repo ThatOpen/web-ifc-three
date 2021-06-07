@@ -15,6 +15,8 @@ export declare class IFCManager {
     pickItem(items: Intersection[], geometry: BufferGeometry, pickTransparent?: boolean): Intersection | null | undefined;
     setItemsDisplay(items: number[], mesh: Mesh, state: Display, scene: Scene): void;
     getExpressId(faceIndex: number): number;
-    getItemProperties(id: number, all?: boolean, recursive?: boolean): any;
+    getItemProperties(id: number, recursive?: boolean): any;
+    getPropertySets(id: number, recursive?: boolean): any[];
+    getTypeProperties(id: number, recursive?: boolean): any[];
     getSpatialStructure(): any;
 }

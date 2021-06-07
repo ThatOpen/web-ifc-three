@@ -1,14 +1,25 @@
-import { IfcAPI, IFCPROJECT, IFCRELAGGREGATES, IFCRELCONTAINEDINSPATIALSTRUCTURE, IFCRELDEFINESBYPROPERTIES, IFCRELDEFINESBYTYPE, } from "web-ifc";
-import { MapFaceIndexID, MapIDFaceIndex } from "./BaseDefinitions";
+import {
+    IfcAPI,
+    IFCPROJECT,
+    IFCRELAGGREGATES,
+    IFCRELCONTAINEDINSPATIALSTRUCTURE,
+    IFCRELDEFINESBYPROPERTIES,
+    IFCRELDEFINESBYTYPE
+} from 'web-ifc';
+import { MapFaceIndexID, MapIDFaceIndex } from './BaseDefinitions';
 
 export class PropertyManager {
-
     private modelID: number;
     private ifcAPI: IfcAPI;
     private mapFaceindexID: MapFaceIndexID;
     private mapIDFaceindex: MapIDFaceIndex;
 
-    constructor(modelID: number, ifcAPI: IfcAPI, mapFaceindexID: MapFaceIndexID, mapIDFaceindex: MapIDFaceIndex) {
+    constructor(
+        modelID: number,
+        ifcAPI: IfcAPI,
+        mapFaceindexID: MapFaceIndexID,
+        mapIDFaceindex: MapIDFaceIndex
+    ) {
         this.modelID = modelID;
         this.mapFaceindexID = mapFaceindexID;
         this.mapIDFaceindex = mapIDFaceindex;
@@ -22,33 +33,28 @@ export class PropertyManager {
         return -1;
     }
 
-    getItemProperties(elementID: number, all = false, recursive = false) {
-        const properties = this.ifcAPI.GetLine(this.modelID, elementID, recursive);
+    getItemProperties(elementID: number, recursive = false) {
+        return this.ifcAPI.GetLine(this.modelID, elementID, recursive);
+    }
 
-        if (all) {
-            const propSetIds = this.getAllRelatedItemsOfType(
-                elementID,
-                IFCRELDEFINESBYPROPERTIES,
-                'RelatedObjects',
-                'RelatingPropertyDefinition'
-            );
-            properties.hasPropertySets = propSetIds.map((id) =>
-                this.ifcAPI.GetLine(this.modelID, id, recursive)
-            );
+    getPropertySets(elementID: number, recursive = false) {
+        const propSetIds = this.getAllRelatedItemsOfType(
+            elementID,
+            IFCRELDEFINESBYPROPERTIES,
+            'RelatedObjects',
+            'RelatingPropertyDefinition'
+        );
+        return propSetIds.map((id) => this.ifcAPI.GetLine(this.modelID, id, recursive));
+    }
 
-            const typeId = this.getAllRelatedItemsOfType(
-                elementID,
-                IFCRELDEFINESBYTYPE,
-                'RelatedObjects',
-                'RelatingType'
-            );
-            properties.hasType = typeId.map((id) =>
-                this.ifcAPI.GetLine(this.modelID, id, recursive)
-            );
-        }
-
-        // properties.type = properties.constructor.name;
-        return properties;
+    getTypeProperties(elementID: number, recursive = false) {
+        const typeId = this.getAllRelatedItemsOfType(
+            elementID,
+            IFCRELDEFINESBYTYPE,
+            'RelatedObjects',
+            'RelatingType'
+        );
+        return typeId.map((id) => this.ifcAPI.GetLine(this.modelID, id, recursive));
     }
 
     getSpatialStructure() {
@@ -59,7 +65,7 @@ export class PropertyManager {
         return ifcProject;
     }
 
-    getAllSpatialChildren(spatialElement: any) {
+    private getAllSpatialChildren(spatialElement: any) {
         const id = spatialElement.expressID;
         const spatialChildrenID = this.getAllRelatedItemsOfType(
             id,
@@ -76,10 +82,17 @@ export class PropertyManager {
             'RelatingStructure',
             'RelatedElements'
         );
-        spatialElement.hasSpatialChildren.forEach((child : any) => this.getAllSpatialChildren(child));
+        spatialElement.hasSpatialChildren.forEach((child: any) =>
+            this.getAllSpatialChildren(child)
+        );
     }
 
-    getAllRelatedItemsOfType(elementID: number, type: any, relation: string, relatedProperty: string) {
+    private getAllRelatedItemsOfType(
+        elementID: number,
+        type: any,
+        relation: string,
+        relatedProperty: string
+    ) {
         const lines = this.ifcAPI.GetLineIDsWithType(this.modelID, type);
         const IDs = [];
 
@@ -102,5 +115,4 @@ export class PropertyManager {
         }
         return IDs;
     }
-
 }
