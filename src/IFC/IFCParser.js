@@ -1,257 +1,174 @@
 import { BufferGeometryUtils } from 'three/examples/jsm/utils/BufferGeometryUtils';
 import {
-  FileLoader,
-  Loader,
-  Mesh,
-  Color,
-  MeshBasicMaterial,
-  MeshLambertMaterial,
-  DoubleSide,
-  Matrix4,
-  BufferGeometry,
-  BufferAttribute
+    Mesh,
+    Color,
+    MeshLambertMaterial,
+    DoubleSide,
+    Matrix4,
+    BufferGeometry,
+    BufferAttribute
 } from 'three/build/three.module';
+import { OpaqueShader } from './Shaders';
 
 export class IFCParser {
-
-    constructor(ifcAPI, mapFaceindexID, mapIDFaceindex){
+    constructor(ifcAPI, mapFaceindexID, mapIDFaceindex) {
         this.mapFaceindexID = mapFaceindexID;
         this.mapIDFaceindex = mapIDFaceindex;
+        this.geometryByMaterials = {};
         this.ifcAPI = ifcAPI;
     }
 
-    async parse( buffer ) {
+    async parse(buffer) {
+        if (this.ifcAPI.wasmModule === undefined) {
+            await this.ifcAPI.Init();
+        }
+        const data = new Uint8Array(buffer);
+        this.modelID = this.ifcAPI.OpenModel('example.ifc', data);
+        return this.loadAllGeometry(this.modelID);
+    }
 
-		const geometryByMaterials = {};
-		const mapFaceindexID = this.mapFaceindexID;
-		const mapIDFaceindex = this.mapIDFaceindex;
-        const ifcAPI = this.ifcAPI;
+    loadAllGeometry(modelID) {
+        this.saveAllPlacedGeometriesByMaterial(modelID);
+        return this.generateAllGeometriesByMaterial();
+    }
 
-		if ( this.ifcAPI.wasmModule === undefined ) {
+    generateAllGeometriesByMaterial() {
+        const { materials, geometries } = this.getMaterialsAndGeometries();
+        const allGeometry = BufferGeometryUtils.mergeBufferGeometries(geometries, true);
+        this.storeFaceindicesByExpressIDs();
+        return new Mesh(allGeometry, materials);
+    }
 
-			await this.ifcAPI.Init();
+    storeFaceindicesByExpressIDs() {
+        let previous = 0;
 
-		}
+        for (let index in this.mapFaceindexID) {
+            const current = parseInt(index);
+            const id = this.mapFaceindexID[current];
 
-		const data = new Uint8Array( buffer );
-		this.modelID = this.ifcAPI.OpenModel( 'example.ifc', data );
-		return loadAllGeometry( this.modelID );
+            var faceIndices = [];
+            for (let j = previous; j < current; j++) {
+                faceIndices.push(j);
+            }
 
-		function loadAllGeometry(modelID) {
+            previous = current;
 
-			saveAllPlacedGeometriesByMaterial(modelID);
-			return generateAllGeometriesByMaterial();
+            if (!this.mapIDFaceindex[id]) this.mapIDFaceindex[id] = [];
+            this.mapIDFaceindex[id].push(...faceIndices);
+        }
+    }
 
-		}
-	
-		function generateAllGeometriesByMaterial() {
+    getMaterialsAndGeometries() {
+        const materials = [];
+        const geometries = [];
+        let totalFaceCount = 0;
 
-			const { materials, geometries } = getMaterialsAndGeometries();
-			const allGeometry = BufferGeometryUtils.mergeBufferGeometries(geometries, true);
-			storeFaceindicesByExpressIDs();
-			return new Mesh(allGeometry, materials);
+        for (let i in this.geometryByMaterials) {
+            materials.push(this.geometryByMaterials[i].material);
+            const currentGeometries = this.geometryByMaterials[i].geometry;
+            geometries.push(BufferGeometryUtils.mergeBufferGeometries(currentGeometries));
 
-		}
+            for (let j in this.geometryByMaterials[i].indices) {
+                const globalIndex = parseInt(j, 10) + parseInt(totalFaceCount, 10);
+                this.mapFaceindexID[globalIndex] = this.geometryByMaterials[i].indices[j];
+            }
 
-		function storeFaceindicesByExpressIDs(){
+            totalFaceCount += this.geometryByMaterials[i].lastIndex;
+        }
 
-			let previous = 0;
+        return { materials, geometries };
+    }
 
-			for(let index in mapFaceindexID){
+    saveAllPlacedGeometriesByMaterial(modelID) {
+        const flatMeshes = this.ifcAPI.LoadAllGeometry(modelID);
 
-				const current = parseInt(index);
-				const id = mapFaceindexID[current];
+        for (let i = 0; i < flatMeshes.size(); i++) {
+            const flatMesh = flatMeshes.get(i);
+            const productId = flatMesh.expressID;
+            const placedGeometries = flatMesh.geometries;
 
-				var faceIndices = [];
-				for (let j = previous; j < current; j++) {
-					faceIndices.push(j);
-				}
+            for (let j = 0; j < placedGeometries.size(); j++) {
+                this.savePlacedGeometryByMaterial(modelID, placedGeometries.get(j), productId);
+            }
+        }
+    }
 
-				previous = current;
+    savePlacedGeometryByMaterial(modelID, placedGeometry, productId) {
+        const geometry = this.getBufferGeometry(modelID, placedGeometry);
+        geometry.computeVertexNormals();
+        const matrix = this.getMeshMatrix(placedGeometry.flatTransformation);
+        geometry.applyMatrix4(matrix);
+        this.saveGeometryByMaterial(geometry, placedGeometry, productId);
+    }
 
-				if(!mapIDFaceindex[id]) mapIDFaceindex[id] = [];
-				mapIDFaceindex[id].push(...faceIndices);
+    getBufferGeometry(modelID, placedGeometry) {
+        const geometry = this.ifcAPI.GetGeometry(modelID, placedGeometry.geometryExpressID);
+        const verts = this.ifcAPI.GetVertexArray(
+            geometry.GetVertexData(),
+            geometry.GetVertexDataSize()
+        );
+        const indices = this.ifcAPI.GetIndexArray(
+            geometry.GetIndexData(),
+            geometry.GetIndexDataSize()
+        );
+        return this.ifcGeometryToBuffer(verts, indices);
+    }
 
-			}
-		}
-	
-		function getMaterialsAndGeometries() {
+    getMeshMatrix(matrix) {
+        const mat = new Matrix4();
+        mat.fromArray(matrix);
+        return mat;
+    }
 
-			const materials = [];
-			const geometries = [];
-			let totalFaceCount = 0;
+    ifcGeometryToBuffer(vertexData, indexData) {
+        const geometry = new BufferGeometry();
+        const { vertices, normals } = this.extractVertexData(vertexData);
+        geometry.setAttribute('position', new BufferAttribute(new Float32Array(vertices), 3));
+        geometry.setAttribute('normal', new BufferAttribute(new Float32Array(normals), 3));
+        geometry.setIndex(new BufferAttribute(indexData, 1));
+        return geometry;
+    }
 
-			for (let i in geometryByMaterials) {
+    extractVertexData(vertexData) {
+        const vertices = [];
+        const normals = [];
+        let isNormalData = false;
 
-				materials.push(geometryByMaterials[i].material);
-				const currentGeometries = geometryByMaterials[i].geometry;
-				geometries.push(BufferGeometryUtils.mergeBufferGeometries(currentGeometries));
+        for (let i = 0; i < vertexData.length; i++) {
+            isNormalData ? normals.push(vertexData[i]) : vertices.push(vertexData[i]);
+            if ((i + 1) % 3 == 0) isNormalData = !isNormalData;
+        }
 
-				for (let j in geometryByMaterials[i].indices) {
+        return { vertices, normals };
+    }
 
-					const globalIndex = parseInt(j, 10) + parseInt(totalFaceCount, 10);
-					mapFaceindexID[globalIndex] = geometryByMaterials[i].indices[j];
+    saveGeometryByMaterial(geometry, placedGeometry, productId) {
+        const color = placedGeometry.color;
+        const id = `${color.x}${color.y}${color.z}${color.w}`;
+        this.createMaterial(id, color);
+        const currentGeometry = this.geometryByMaterials[id];
+        currentGeometry.geometry.push(geometry);
+        currentGeometry.lastIndex += geometry.index.count / 3;
+        currentGeometry.indices[currentGeometry.lastIndex] = productId;
+    }
 
-				}
+    createMaterial(id, color) {
+        if (!this.geometryByMaterials[id]) {
+            const col = new Color(color.x, color.y, color.z);
+            const newMaterial = new MeshLambertMaterial({ color: col, side: DoubleSide });
+            newMaterial.onBeforeCompile = OpaqueShader;
+            newMaterial.transparent = color.w !== 1;
+            if (newMaterial.transparent) newMaterial.opacity = color.w;
+            this.geometryByMaterials[id] = this.newGeometryByMaterial(newMaterial);
+        }
+    }
 
-				totalFaceCount += geometryByMaterials[i].lastIndex;
-
-			}
-
-			return { materials, geometries };
-
-		}
-	
-		function saveAllPlacedGeometriesByMaterial(modelID) {
-
-			const flatMeshes = ifcAPI.LoadAllGeometry(modelID);
-
-			for (let i = 0; i < flatMeshes.size(); i++) {
-
-				const flatMesh = flatMeshes.get(i);
-				const productId = flatMesh.expressID;
-				const placedGeometries = flatMesh.geometries;
-
-				for (let j = 0; j < placedGeometries.size(); j++) {
-
-					savePlacedGeometryByMaterial(modelID, placedGeometries.get(j), productId);
-
-				}
-			}
-		}
-
-		function savePlacedGeometryByMaterial(modelID, placedGeometry, productId) {
-
-			const geometry = getBufferGeometry(modelID, placedGeometry);
-			geometry.computeVertexNormals();
-			const matrix = getMeshMatrix(placedGeometry.flatTransformation);
-			geometry.applyMatrix4(matrix);
-			saveGeometryByMaterial(geometry, placedGeometry, productId);
-
-		}
-
-		function getBufferGeometry(modelID, placedGeometry) {
-
-			const geometry = ifcAPI.GetGeometry(modelID, placedGeometry.geometryExpressID);
-			const verts = ifcAPI.GetVertexArray(geometry.GetVertexData(), geometry.GetVertexDataSize());
-			const indices = ifcAPI.GetIndexArray(geometry.GetIndexData(), geometry.GetIndexDataSize());
-			return ifcGeometryToBuffer(verts, indices);
-
-		}
-
-		function getMeshMatrix(matrix) {
-
-			const mat = new Matrix4();
-			mat.fromArray(matrix);
-			return mat;
-
-		}
-	
-		function ifcGeometryToBuffer(vertexData, indexData) {
-
-			const geometry = new BufferGeometry();
-			const { vertices, normals } = extractVertexData(vertexData);
-			geometry.setAttribute('position', new BufferAttribute(new Float32Array(vertices), 3));
-			geometry.setAttribute('normal', new BufferAttribute(new Float32Array(normals), 3));
-			geometry.setIndex(new BufferAttribute(indexData, 1));
-			return geometry;
-
-		}
-	
-		function extractVertexData(vertexData) {
-
-			const vertices = [];
-			const normals = [];
-			let isNormalData = false;
-
-			for (let i = 0; i < vertexData.length; i++) {
-
-				isNormalData ? normals.push(vertexData[i]) : vertices.push(vertexData[i]);
-				if ((i + 1) % 3 == 0) isNormalData = !isNormalData;
-
-			}
-
-			return { vertices, normals };
-
-		}
-	
-		function saveGeometryByMaterial(geometry, placedGeometry, productId) {
-
-			const color = placedGeometry.color;
-			const id = `${color.x}${color.y}${color.z}${color.w}`;
-			createMaterial(id, color);
-			const currentGeometry = geometryByMaterials[id];
-			currentGeometry.geometry.push(geometry);
-			currentGeometry.lastIndex += geometry.index.count / 3;
-			currentGeometry.indices[currentGeometry.lastIndex] = productId;
-
-		}
-	
-		function createMaterial(id, color) {
-
-			if (!geometryByMaterials[id]){
-
-				const col = new Color(color.x, color.y, color.z);
-				const newMaterial = new MeshLambertMaterial({ color: col, side: DoubleSide });
-				newMaterial.onBeforeCompile = materialCustomDisplay;
-				newMaterial.transparent = color.w !== 1;
-				if (newMaterial.transparent) newMaterial.opacity = color.w;
-				geometryByMaterials[id] = initializeGeometryByMaterial(newMaterial);
-
-			}
-		}
-	
-		function initializeGeometryByMaterial(newMaterial) {
-
-			return {
-				material: newMaterial,
-				geometry: [],
-				indices: {},
-				lastIndex: 0
-
-			};
-	  	}
-
-		function materialCustomDisplay(shader) {
-			shader.vertexShader = `
-			attribute float sizes;
-			attribute float r;
-			attribute float g;
-			attribute float b;
-			attribute float a;
-			attribute float h;
-			varying float vr;
-			varying float vg;
-			varying float vb;
-			varying float va;
-			varying float vh;
-		  ${shader.vertexShader}`.replace(
-			  `#include <fog_vertex>`,
-			  `#include <fog_vertex>
-			  vr = r;
-			  vg = g;
-			  vb = b;
-			  va = a;
-			  vh = h;
-			`
-			);
-			shader.fragmentShader = `
-			varying float vr;
-			varying float vg;
-			varying float vb;
-			varying float va;
-			varying float vh;
-		  ${shader.fragmentShader}`.replace(
-			  `	vec4 diffuseColor = vec4( diffuse, opacity );`,
-			  `
-			  vec4 diffuseColor = vec4( diffuse, opacity );
-			  if(vh > 0.){
-				if (va <= 0.99) discard;
-				else diffuseColor = vec4( vr, vg, vb, opacity );
-			  } 
-			  `
-			);
-		}
-	}
-
+    newGeometryByMaterial(newMaterial) {
+        return {
+            material: newMaterial,
+            geometry: [],
+            indices: {},
+            lastIndex: 0
+        };
+    }
 }

@@ -70,6 +70,7 @@ function AnimationLoop() {
 }
 
 const ifcLoader = new IFCLoader();
+ifcLoader.setWasmPath("wasm/")
 
 AnimationLoop();
 
@@ -115,8 +116,8 @@ function selectObject(event) {
     const id = ifcLoader.getExpressId(item.faceIndex);
     previousSelection = id;
 
-    // const ifcProject = ifcLoader.getSpatialStructure();
-    // console.log(ifcProject);
+    const ifcProject = ifcLoader.getSpatialStructure();
+    console.log(ifcProject);
 
     const properties = ifcLoader.getItemProperties(id);
     console.log(properties);

@@ -70249,535 +70249,532 @@ var BufferGeometryUtils = {
 
 };
 
-class IFCParser {
+const VertexProps = {
+    r: "red",
+    g: "green",
+    b: "blue",
+    a: "alfa",
+    h: "highlighted"
+};
 
-    constructor(ifcAPI, mapFaceindexID, mapIDFaceindex){
+function OpaqueShader(shader) {
+    shader.vertexShader = getVertexShader(shader);
+    shader.fragmentShader = getFragmentShader(shader, OpaqueConfig);
+}
+
+function TransparentShader(shader) {
+    shader.vertexShader = getVertexShader(shader);
+    shader.fragmentShader = getFragmentShader(shader, TransparentConfig);
+}
+
+const OpaqueConfig = {
+    before: `vec4 diffuseColor = vec4( diffuse, opacity );`,
+    after: `vec4 diffuseColor = vec4( diffuse, opacity );
+  if(vh > 0.){
+    if (va <= 0.99) discard;
+    else diffuseColor = vec4( vr, vg, vb, opacity );
+  }`
+};
+
+const TransparentConfig = {
+    before: `	vec4 diffuseColor = vec4( diffuse, opacity );`,
+    after: `vec4 diffuseColor = vec4( diffuse, opacity );
+            if(vh > 0.0){
+            if (va == 0.0) discard;
+            diffuseColor = vec4( vr, vg, vb, va );
+            } else discard;
+`
+};
+
+function getFragmentShader(shader, config) {
+    return `
+  varying float vr;
+  varying float vg;
+  varying float vb;
+  varying float va;
+  varying float vh;
+${shader.fragmentShader}`.replace(config.before, config.after);
+}
+
+function getVertexShader(shader) {
+    return `
+  attribute float sizes;
+  attribute float ${VertexProps.r};
+  attribute float ${VertexProps.g};
+  attribute float ${VertexProps.b};
+  attribute float ${VertexProps.a};
+  attribute float ${VertexProps.h};
+  varying float vr;
+  varying float vg;
+  varying float vb;
+  varying float va;
+  varying float vh;
+${shader.vertexShader}`.replace(
+    `#include <fog_vertex>`,
+    `#include <fog_vertex>
+    vr = ${VertexProps.r};
+    vg = ${VertexProps.g};
+    vb = ${VertexProps.b};
+    va = ${VertexProps.a};
+    vh = ${VertexProps.h};`
+  );
+}
+
+class IFCParser {
+    constructor(ifcAPI, mapFaceindexID, mapIDFaceindex) {
+        this.mapFaceindexID = mapFaceindexID;
+        this.mapIDFaceindex = mapIDFaceindex;
+        this.geometryByMaterials = {};
+        this.ifcAPI = ifcAPI;
+    }
+
+    async parse(buffer) {
+        if (this.ifcAPI.wasmModule === undefined) {
+            await this.ifcAPI.Init();
+        }
+        const data = new Uint8Array(buffer);
+        this.modelID = this.ifcAPI.OpenModel('example.ifc', data);
+        return this.loadAllGeometry(this.modelID);
+    }
+
+    loadAllGeometry(modelID) {
+        this.saveAllPlacedGeometriesByMaterial(modelID);
+        return this.generateAllGeometriesByMaterial();
+    }
+
+    generateAllGeometriesByMaterial() {
+        const { materials, geometries } = this.getMaterialsAndGeometries();
+        const allGeometry = BufferGeometryUtils.mergeBufferGeometries(geometries, true);
+        this.storeFaceindicesByExpressIDs();
+        return new Mesh(allGeometry, materials);
+    }
+
+    storeFaceindicesByExpressIDs() {
+        let previous = 0;
+
+        for (let index in this.mapFaceindexID) {
+            const current = parseInt(index);
+            const id = this.mapFaceindexID[current];
+
+            var faceIndices = [];
+            for (let j = previous; j < current; j++) {
+                faceIndices.push(j);
+            }
+
+            previous = current;
+
+            if (!this.mapIDFaceindex[id]) this.mapIDFaceindex[id] = [];
+            this.mapIDFaceindex[id].push(...faceIndices);
+        }
+    }
+
+    getMaterialsAndGeometries() {
+        const materials = [];
+        const geometries = [];
+        let totalFaceCount = 0;
+
+        for (let i in this.geometryByMaterials) {
+            materials.push(this.geometryByMaterials[i].material);
+            const currentGeometries = this.geometryByMaterials[i].geometry;
+            geometries.push(BufferGeometryUtils.mergeBufferGeometries(currentGeometries));
+
+            for (let j in this.geometryByMaterials[i].indices) {
+                const globalIndex = parseInt(j, 10) + parseInt(totalFaceCount, 10);
+                this.mapFaceindexID[globalIndex] = this.geometryByMaterials[i].indices[j];
+            }
+
+            totalFaceCount += this.geometryByMaterials[i].lastIndex;
+        }
+
+        return { materials, geometries };
+    }
+
+    saveAllPlacedGeometriesByMaterial(modelID) {
+        const flatMeshes = this.ifcAPI.LoadAllGeometry(modelID);
+
+        for (let i = 0; i < flatMeshes.size(); i++) {
+            const flatMesh = flatMeshes.get(i);
+            const productId = flatMesh.expressID;
+            const placedGeometries = flatMesh.geometries;
+
+            for (let j = 0; j < placedGeometries.size(); j++) {
+                this.savePlacedGeometryByMaterial(modelID, placedGeometries.get(j), productId);
+            }
+        }
+    }
+
+    savePlacedGeometryByMaterial(modelID, placedGeometry, productId) {
+        const geometry = this.getBufferGeometry(modelID, placedGeometry);
+        geometry.computeVertexNormals();
+        const matrix = this.getMeshMatrix(placedGeometry.flatTransformation);
+        geometry.applyMatrix4(matrix);
+        this.saveGeometryByMaterial(geometry, placedGeometry, productId);
+    }
+
+    getBufferGeometry(modelID, placedGeometry) {
+        const geometry = this.ifcAPI.GetGeometry(modelID, placedGeometry.geometryExpressID);
+        const verts = this.ifcAPI.GetVertexArray(
+            geometry.GetVertexData(),
+            geometry.GetVertexDataSize()
+        );
+        const indices = this.ifcAPI.GetIndexArray(
+            geometry.GetIndexData(),
+            geometry.GetIndexDataSize()
+        );
+        return this.ifcGeometryToBuffer(verts, indices);
+    }
+
+    getMeshMatrix(matrix) {
+        const mat = new Matrix4();
+        mat.fromArray(matrix);
+        return mat;
+    }
+
+    ifcGeometryToBuffer(vertexData, indexData) {
+        const geometry = new BufferGeometry();
+        const { vertices, normals } = this.extractVertexData(vertexData);
+        geometry.setAttribute('position', new BufferAttribute(new Float32Array(vertices), 3));
+        geometry.setAttribute('normal', new BufferAttribute(new Float32Array(normals), 3));
+        geometry.setIndex(new BufferAttribute(indexData, 1));
+        return geometry;
+    }
+
+    extractVertexData(vertexData) {
+        const vertices = [];
+        const normals = [];
+        let isNormalData = false;
+
+        for (let i = 0; i < vertexData.length; i++) {
+            isNormalData ? normals.push(vertexData[i]) : vertices.push(vertexData[i]);
+            if ((i + 1) % 3 == 0) isNormalData = !isNormalData;
+        }
+
+        return { vertices, normals };
+    }
+
+    saveGeometryByMaterial(geometry, placedGeometry, productId) {
+        const color = placedGeometry.color;
+        const id = `${color.x}${color.y}${color.z}${color.w}`;
+        this.createMaterial(id, color);
+        const currentGeometry = this.geometryByMaterials[id];
+        currentGeometry.geometry.push(geometry);
+        currentGeometry.lastIndex += geometry.index.count / 3;
+        currentGeometry.indices[currentGeometry.lastIndex] = productId;
+    }
+
+    createMaterial(id, color) {
+        if (!this.geometryByMaterials[id]) {
+            const col = new Color(color.x, color.y, color.z);
+            const newMaterial = new MeshLambertMaterial({ color: col, side: DoubleSide });
+            newMaterial.onBeforeCompile = OpaqueShader;
+            newMaterial.transparent = color.w !== 1;
+            if (newMaterial.transparent) newMaterial.opacity = color.w;
+            this.geometryByMaterials[id] = this.newGeometryByMaterial(newMaterial);
+        }
+    }
+
+    newGeometryByMaterial(newMaterial) {
+        return {
+            material: newMaterial,
+            geometry: [],
+            indices: {},
+            lastIndex: 0
+        };
+    }
+}
+
+class DisplayManager {
+    constructor(mapFaceindexID, mapIDFaceindex) {
+        this.mapFaceindexID = mapFaceindexID;
+        this.mapIDFaceindex = mapIDFaceindex;
+    }
+
+    setItemsDisplay(expressIds, mesh, state, scene) {
+        const geometry = mesh.geometry;
+        this.setupVisibility(geometry);
+
+        const faceIndicesArray = expressIds.map((id) => this.mapIDFaceindex[id]);
+        var faceIndices = [].concat.apply([], faceIndicesArray);
+        faceIndices.forEach((faceIndex) => this.setFaceDisplay(geometry, faceIndex, state));
+
+        geometry.attributes[VertexProps.r].needsUpdate = true;
+        geometry.attributes[VertexProps.g].needsUpdate = true;
+        geometry.attributes[VertexProps.b].needsUpdate = true;
+        geometry.attributes[VertexProps.a].needsUpdate = true;
+        geometry.attributes[VertexProps.h].needsUpdate = true;
+
+        if (state.a != 1) this.updateTransparency(mesh, scene, state);
+    }
+
+    setFaceDisplay(geometry, index, state) {
+        const geoIndex = geometry.index.array;
+        this.setFaceAttribute(geometry, VertexProps.r, state.r, index, geoIndex);
+        this.setFaceAttribute(geometry, VertexProps.g, state.g, index, geoIndex);
+        this.setFaceAttribute(geometry, VertexProps.b, state.b, index, geoIndex);
+        this.setFaceAttribute(geometry, VertexProps.a, state.a, index, geoIndex);
+        this.setFaceAttribute(geometry, VertexProps.h, state.h, index, geoIndex);
+    }
+
+    setFaceAttribute(geometry, attribute, state, index, geoIndex) {
+        geometry.attributes[attribute].setX(geoIndex[3 * index], state);
+        geometry.attributes[attribute].setX(geoIndex[3 * index + 1], state);
+        geometry.attributes[attribute].setX(geoIndex[3 * index + 2], state);
+    }
+
+    setupVisibility(geometry) {
+        if (!geometry.attributes[VertexProps.r]) {
+            const zeros = new Float32Array(geometry.getAttribute('position').count);
+            geometry.setAttribute(VertexProps.r, new BufferAttribute(zeros.slice(), 1));
+            geometry.setAttribute(VertexProps.g, new BufferAttribute(zeros.slice(), 1));
+            geometry.setAttribute(VertexProps.b, new BufferAttribute(zeros.slice(), 1));
+            geometry.setAttribute(VertexProps.a, new BufferAttribute(zeros.slice().fill(1), 1));
+            geometry.setAttribute(VertexProps.h, new BufferAttribute(zeros, 1));
+        }
+    }
+
+    updateTransparency(mesh, scene, state) {
+        if (!mesh.geometry._transparentMesh) this.setupTransparency(mesh, scene);
+    }
+
+    setupTransparency(mesh, scene) {
+        const transparentMesh = mesh.clone();
+
+        const transparentMaterials = [];
+        transparentMesh.material.forEach((mat) => {
+            const newMat = mat.clone();
+            newMat.transparent = true;
+            // newMat.depthTest = false;
+            newMat.onBeforeCompile = TransparentShader;
+            transparentMaterials.push(newMat);
+        });
+        transparentMesh.material = transparentMaterials;
+
+        scene.add(transparentMesh);
+        mesh.geometry._transparentMesh = transparentMesh;
+    }
+}
+
+class ItemPicker {
+    constructor(displayManager){
+        this.display = displayManager;
+    }
+
+    pickItem(items, geometry, pickTransparent = true) {
+        this.display.setupVisibility(geometry);
+
+        for (let i = 0; i < items.length; i++) {
+            const index = items[i].faceIndex;
+            const trueIndex = geometry.index.array[index * 3];
+            const visible = geometry.getAttribute(VertexProps.a).array[trueIndex];
+            if (pickTransparent && visible != 0) return items[i];
+            else if (visible == 1) return items[i];
+        }
+
+        return null;
+    }
+}
+
+class PropertyManager {
+
+    constructor(modelID, ifcAPI, mapFaceindexID, mapIDFaceindex) {
+        this.modelID = modelID;
         this.mapFaceindexID = mapFaceindexID;
         this.mapIDFaceindex = mapIDFaceindex;
         this.ifcAPI = ifcAPI;
     }
 
-    async parse( buffer ) {
+    getExpressId(faceIndex) {
+        for (let index in this.mapFaceindexID) {
+            if (parseInt(index) > faceIndex) return this.mapFaceindexID[index];
+        }
+        return -1;
+    }
 
-		const geometryByMaterials = {};
-		const mapFaceindexID = this.mapFaceindexID;
-		const mapIDFaceindex = this.mapIDFaceindex;
-        const ifcAPI = this.ifcAPI;
+    getItemProperties(elementID, all = false, recursive = false) {
+        const properties = this.ifcAPI.GetLine(this.modelID, elementID, recursive);
 
-		if ( this.ifcAPI.wasmModule === undefined ) {
+        if (all) {
+            const propSetIds = this.getAllRelatedItemsOfType(
+                elementID,
+                IFCRELDEFINESBYPROPERTIES,
+                'RelatedObjects',
+                'RelatingPropertyDefinition'
+            );
+            properties.hasPropertySets = propSetIds.map((id) =>
+                this.ifcAPI.GetLine(this.modelID, id, recursive)
+            );
 
-			await this.ifcAPI.Init();
+            const typeId = this.getAllRelatedItemsOfType(
+                elementID,
+                IFCRELDEFINESBYTYPE,
+                'RelatedObjects',
+                'RelatingType'
+            );
+            properties.hasType = typeId.map((id) =>
+                this.ifcAPI.GetLine(this.modelID, id, recursive)
+            );
+        }
 
-		}
+        // properties.type = properties.constructor.name;
+        return properties;
+    }
 
-		const data = new Uint8Array( buffer );
-		this.modelID = this.ifcAPI.OpenModel( 'example.ifc', data );
-		return loadAllGeometry( this.modelID );
+    getSpatialStructure() {
+        let lines = this.ifcAPI.GetLineIDsWithType(this.modelID, IFCPROJECT);
+        let ifcProjectId = lines.get(0);
+        let ifcProject = this.ifcAPI.GetLine(this.modelID, ifcProjectId);
+        this.getAllSpatialChildren(ifcProject);
+        return ifcProject;
+    }
 
-		function loadAllGeometry(modelID) {
+    getAllSpatialChildren(spatialElement) {
+        const id = spatialElement.expressID;
+        const spatialChildrenID = this.getAllRelatedItemsOfType(
+            id,
+            IFCRELAGGREGATES,
+            'RelatingObject',
+            'RelatedObjects'
+        );
+        spatialElement.hasSpatialChildren = spatialChildrenID.map((id) =>
+            this.ifcAPI.GetLine(this.modelID, id, false)
+        );
+        spatialElement.hasChildren = this.getAllRelatedItemsOfType(
+            id,
+            IFCRELCONTAINEDINSPATIALSTRUCTURE,
+            'RelatingStructure',
+            'RelatedElements'
+        );
+        spatialElement.hasSpatialChildren.forEach((child) => this.getAllSpatialChildren(child));
+    }
 
-			saveAllPlacedGeometriesByMaterial(modelID);
-			return generateAllGeometriesByMaterial();
+    getAllRelatedItemsOfType(elementID, type, relation, relatedProperty) {
+        const lines = this.ifcAPI.GetLineIDsWithType(this.modelID, type);
+        const IDs = [];
 
-		}
-	
-		function generateAllGeometriesByMaterial() {
+        for (let i = 0; i < lines.size(); i++) {
+            const relID = lines.get(i);
+            const rel = this.ifcAPI.GetLine(this.modelID, relID);
+            const relatedItems = rel[relation];
+            let foundElement = false;
 
-			const { materials, geometries } = getMaterialsAndGeometries();
-			const allGeometry = BufferGeometryUtils.mergeBufferGeometries(geometries, true);
-			storeFaceindicesByExpressIDs();
-			return new Mesh(allGeometry, materials);
+            if (Array.isArray(relatedItems)) {
+                const values = relatedItems.map((item) => item.value);
+                foundElement = values.includes(elementID);
+            } else foundElement = relatedItems.value === elementID;
 
-		}
-
-		function storeFaceindicesByExpressIDs(){
-
-			let previous = 0;
-
-			for(let index in mapFaceindexID){
-
-				const current = parseInt(index);
-				const id = mapFaceindexID[current];
-
-				var faceIndices = [];
-				for (let j = previous; j < current; j++) {
-					faceIndices.push(j);
-				}
-
-				previous = current;
-
-				if(!mapIDFaceindex[id]) mapIDFaceindex[id] = [];
-				mapIDFaceindex[id].push(...faceIndices);
-
-			}
-		}
-	
-		function getMaterialsAndGeometries() {
-
-			const materials = [];
-			const geometries = [];
-			let totalFaceCount = 0;
-
-			for (let i in geometryByMaterials) {
-
-				materials.push(geometryByMaterials[i].material);
-				const currentGeometries = geometryByMaterials[i].geometry;
-				geometries.push(BufferGeometryUtils.mergeBufferGeometries(currentGeometries));
-
-				for (let j in geometryByMaterials[i].indices) {
-
-					const globalIndex = parseInt(j, 10) + parseInt(totalFaceCount, 10);
-					mapFaceindexID[globalIndex] = geometryByMaterials[i].indices[j];
-
-				}
-
-				totalFaceCount += geometryByMaterials[i].lastIndex;
-
-			}
-
-			return { materials, geometries };
-
-		}
-	
-		function saveAllPlacedGeometriesByMaterial(modelID) {
-
-			const flatMeshes = ifcAPI.LoadAllGeometry(modelID);
-
-			for (let i = 0; i < flatMeshes.size(); i++) {
-
-				const flatMesh = flatMeshes.get(i);
-				const productId = flatMesh.expressID;
-				const placedGeometries = flatMesh.geometries;
-
-				for (let j = 0; j < placedGeometries.size(); j++) {
-
-					savePlacedGeometryByMaterial(modelID, placedGeometries.get(j), productId);
-
-				}
-			}
-		}
-
-		function savePlacedGeometryByMaterial(modelID, placedGeometry, productId) {
-
-			const geometry = getBufferGeometry(modelID, placedGeometry);
-			geometry.computeVertexNormals();
-			const matrix = getMeshMatrix(placedGeometry.flatTransformation);
-			geometry.applyMatrix4(matrix);
-			saveGeometryByMaterial(geometry, placedGeometry, productId);
-
-		}
-
-		function getBufferGeometry(modelID, placedGeometry) {
-
-			const geometry = ifcAPI.GetGeometry(modelID, placedGeometry.geometryExpressID);
-			const verts = ifcAPI.GetVertexArray(geometry.GetVertexData(), geometry.GetVertexDataSize());
-			const indices = ifcAPI.GetIndexArray(geometry.GetIndexData(), geometry.GetIndexDataSize());
-			return ifcGeometryToBuffer(verts, indices);
-
-		}
-
-		function getMeshMatrix(matrix) {
-
-			const mat = new Matrix4();
-			mat.fromArray(matrix);
-			return mat;
-
-		}
-	
-		function ifcGeometryToBuffer(vertexData, indexData) {
-
-			const geometry = new BufferGeometry();
-			const { vertices, normals } = extractVertexData(vertexData);
-			geometry.setAttribute('position', new BufferAttribute(new Float32Array(vertices), 3));
-			geometry.setAttribute('normal', new BufferAttribute(new Float32Array(normals), 3));
-			geometry.setIndex(new BufferAttribute(indexData, 1));
-			return geometry;
-
-		}
-	
-		function extractVertexData(vertexData) {
-
-			const vertices = [];
-			const normals = [];
-			let isNormalData = false;
-
-			for (let i = 0; i < vertexData.length; i++) {
-
-				isNormalData ? normals.push(vertexData[i]) : vertices.push(vertexData[i]);
-				if ((i + 1) % 3 == 0) isNormalData = !isNormalData;
-
-			}
-
-			return { vertices, normals };
-
-		}
-	
-		function saveGeometryByMaterial(geometry, placedGeometry, productId) {
-
-			const color = placedGeometry.color;
-			const id = `${color.x}${color.y}${color.z}${color.w}`;
-			createMaterial(id, color);
-			const currentGeometry = geometryByMaterials[id];
-			currentGeometry.geometry.push(geometry);
-			currentGeometry.lastIndex += geometry.index.count / 3;
-			currentGeometry.indices[currentGeometry.lastIndex] = productId;
-
-		}
-	
-		function createMaterial(id, color) {
-
-			if (!geometryByMaterials[id]){
-
-				const col = new Color(color.x, color.y, color.z);
-				const newMaterial = new MeshLambertMaterial({ color: col, side: DoubleSide });
-				newMaterial.onBeforeCompile = materialCustomDisplay;
-				newMaterial.transparent = color.w !== 1;
-				if (newMaterial.transparent) newMaterial.opacity = color.w;
-				geometryByMaterials[id] = initializeGeometryByMaterial(newMaterial);
-
-			}
-		}
-	
-		function initializeGeometryByMaterial(newMaterial) {
-
-			return {
-				material: newMaterial,
-				geometry: [],
-				indices: {},
-				lastIndex: 0
-
-			};
-	  	}
-
-		function materialCustomDisplay(shader) {
-			shader.vertexShader = `
-			attribute float sizes;
-			attribute float r;
-			attribute float g;
-			attribute float b;
-			attribute float a;
-			attribute float h;
-			varying float vr;
-			varying float vg;
-			varying float vb;
-			varying float va;
-			varying float vh;
-		  ${shader.vertexShader}`.replace(
-			  `#include <fog_vertex>`,
-			  `#include <fog_vertex>
-			  vr = r;
-			  vg = g;
-			  vb = b;
-			  va = a;
-			  vh = h;
-			`
-			);
-			shader.fragmentShader = `
-			varying float vr;
-			varying float vg;
-			varying float vb;
-			varying float va;
-			varying float vh;
-		  ${shader.fragmentShader}`.replace(
-			  `	vec4 diffuseColor = vec4( diffuse, opacity );`,
-			  `
-			  vec4 diffuseColor = vec4( diffuse, opacity );
-			  if(vh > 0.){
-				if (va <= 0.99) discard;
-				else diffuseColor = vec4( vr, vg, vb, opacity );
-			  } 
-			  `
-			);
-		}
-	}
+            if (foundElement) {
+                const element = rel[relatedProperty];
+                if (!Array.isArray(element)) IDs.push(element.value);
+                else element.forEach((ele) => IDs.push(ele.value));
+            }
+        }
+        return IDs;
+    }
 
 }
 
-const display = {
-	r: "r",
-	g: "g",
-	b: "b",
-	a: "a",
-	highlighted: "h"
-};
+class IFCManager {
+    constructor() {
+        this.modelID = 0;
+        this.ifcAPI = new IfcAPI();
+        this.mapFaceindexID = {};
+        this.mapIDFaceindex = {};
+        this.parser = new IFCParser(this.ifcAPI, this.mapFaceindexID, this.mapIDFaceindex);
+        this.display = new DisplayManager(this.mapFaceindexID, this.mapIDFaceindex);
+        this.properties = new PropertyManager(this.modelID, this.ifcAPI, this.mapFaceindexID, this.mapIDFaceindex);
+        this.picker = new ItemPicker(this.display);
+    }
+
+    parse(buffer) {
+        return this.parser.parse(buffer);
+    }
+
+    setWasmPath(path) {
+        this.ifcAPI.SetWasmPath(path);
+    }
+
+    pickItem(items, geometry, pickTransparent = true) {
+        return this.picker.pickItem(items, geometry, pickTransparent);
+    }
+
+    setItemsDisplay(id, mesh, state, scene) {
+        this.display.setItemsDisplay(id, mesh, state, scene);
+    }
+
+    getExpressId(faceIndex) {
+        return this.properties.getExpressId(faceIndex);
+    }
+
+    getItemProperties(id, all = false, recursive = false) {
+        return this.properties.getItemProperties(id, all, recursive);
+    }
+
+    getSpatialStructure() {
+        return this.properties.getSpatialStructure();
+    }
+}
 
 class IFCLoader extends Loader {
-
-	constructor( manager ) {
-		super( manager );
-		this.modelID = 0;
-		this.ifcAPI = new IfcAPI();
-		this.mapFaceindexID = {};
-		this.mapIDFaceindex = {};
-		this.mapIDGeometry = {};
-		this.selectedObjects = [];
-		this.highlightMaterial = new MeshBasicMaterial({ color: 0xff0000, depthTest: false, side: DoubleSide });
-		this.parser = new IFCParser(this.ifcAPI, this.mapFaceindexID, this.mapIDFaceindex);
-	}
-
-	load( url, onLoad, onProgress, onError ) {
-
-		const scope = this;
-
-		const loader = new FileLoader( scope.manager );
-		loader.setPath( scope.path );
-		loader.setResponseType( 'arraybuffer' );
-		loader.setRequestHeader( scope.requestHeader );
-		loader.setWithCredentials( scope.withCredentials );
-		loader.load(
-			url,
-			async function ( buffer ) {
-
-				try {
-
-					onLoad( await scope.parse( buffer ) );
-
-				} catch ( e ) {
-
-					if ( onError ) {
-
-						onError( e );
-
-					} else {
-
-						console.error( e );
-
-					}
-
-					scope.manager.itemError( url );
-
-				}
-
-			},
-			onProgress,
-			onError
-		);
-
-	}
-
-	parse(buffer){
-		return this.parser.parse(buffer);
-	}
-
-	setWasmPath( path ) {
-
-		this.ifcAPI.SetWasmPath( path );
-
-	}
-
-	getExpressId( faceIndex ) {
-
-		for (let index in this.mapFaceindexID) {
-
-		  if (parseInt(index) > faceIndex) return this.mapFaceindexID[index];
-
-		}
-
-		return -1;
-	}
-
-	pickItem( items, geometry, pickTransparent = true ){
-
-		this.setupVisibility(geometry);
-
-		for (let i = 0; i < items.length; i++) {
-
-			const index = items[i].faceIndex;
-			const trueIndex = geometry.index.array[index * 3];
-			const visible = geometry.getAttribute(display.a).array[trueIndex];
-			if(pickTransparent && visible != 0) return items[i];
-			else if(visible == 1) return items[i];
-			
-		}
-
-		return null;
-
-	}
-
-	setItemsVisibility( expressIds, mesh, state, scene ) {
-
-		const geometry = mesh.geometry;
-		this.setupVisibility(geometry);
-
-		const faceIndicesArray = expressIds.map(id => this.mapIDFaceindex[id]);
-		var faceIndices = [].concat.apply([], faceIndicesArray);
-		faceIndices.forEach(faceIndex => this.setFaceDisplay(geometry, faceIndex, state));
-
-		geometry.attributes[display.r].needsUpdate = true;
-		geometry.attributes[display.g].needsUpdate = true;
-		geometry.attributes[display.b].needsUpdate = true;
-		geometry.attributes[display.a].needsUpdate = true;
-		geometry.attributes[display.highlighted].needsUpdate = true;
-
-		if(state.a != 1) this.updateTransparency(mesh, scene, state);
-
-	}
-
-	setFaceDisplay( geometry, index, state ) {
-
-		const geoIndex = geometry.index.array;
-		this.setFaceAttribute(geometry, display.r, state.r, index, geoIndex);
-		this.setFaceAttribute(geometry, display.g, state.g, index, geoIndex);
-		this.setFaceAttribute(geometry, display.b, state.b, index, geoIndex);
-		this.setFaceAttribute(geometry, display.a, state.a, index, geoIndex);
-		this.setFaceAttribute(geometry, display.highlighted, state.h, index, geoIndex);
-		
-	}
-
-	setFaceAttribute( geometry, attribute, state, index, geoIndex ){
-
-		geometry.attributes[attribute].setX(geoIndex[3 * index], state);
-		geometry.attributes[attribute].setX(geoIndex[3 * index + 1], state);
-		geometry.attributes[attribute].setX(geoIndex[3 * index + 2], state);
-
-	}
-
-	setupVisibility( geometry ) {
-
-		if (!geometry.attributes[display.r]) {
-
-		  const zeros = new Float32Array(geometry.getAttribute('position').count);
-		  geometry.setAttribute(display.r, new BufferAttribute(zeros.slice(), 1));
-		  geometry.setAttribute(display.g, new BufferAttribute(zeros.slice(), 1));
-		  geometry.setAttribute(display.b, new BufferAttribute(zeros.slice(), 1));
-		  geometry.setAttribute(display.a, new BufferAttribute(zeros.slice().fill(1), 1));
-		  geometry.setAttribute(display.highlighted, new BufferAttribute(zeros, 1));
-
-		}
-
-	}
-
-	updateTransparency(mesh, scene, state){
-		if(!mesh.geometry._transparentMesh) this.setupTransparency(mesh, scene);
-	}
-
-	setupTransparency(mesh, scene){
-		const transparentMesh = mesh.clone();
-
-		const transparentMaterials = [];
-		transparentMesh.material.forEach(mat => {
-			const newMat = mat.clone();
-			newMat.transparent = true;
-			// newMat.depthTest = false;
-			newMat.onBeforeCompile = materialTransparentDisplay;
-			transparentMaterials.push(newMat);
-		});
-		transparentMesh.material = transparentMaterials;
-
-		scene.add(transparentMesh);
-		mesh.geometry._transparentMesh = transparentMesh;
-
-		function materialTransparentDisplay(shader) {
-			shader.vertexShader = `
-			attribute float sizes;
-			attribute float r;
-			attribute float g;
-			attribute float b;
-			attribute float a;
-			attribute float h;
-			varying float vr;
-			varying float vg;
-			varying float vb;
-			varying float va;
-			varying float vh;
-		  ${shader.vertexShader}`.replace(
-			  `#include <fog_vertex>`,
-			  `#include <fog_vertex>
-			  vr = r;
-			  vg = g;
-			  vb = b;
-			  va = a;
-			  vh = h;
-			`
-			);
-			shader.fragmentShader = `
-			varying float vr;
-			varying float vg;
-			varying float vb;
-			varying float va;
-			varying float vh;
-		  ${shader.fragmentShader}`.replace(
-			  `	vec4 diffuseColor = vec4( diffuse, opacity );`,
-			  `
-			  vec4 diffuseColor = vec4( diffuse, opacity );
-			  if(vh > 0.0){
-				if (va == 0.0) discard;
-				diffuseColor = vec4( vr, vg, vb, va );
-			  } else discard;
-			  `
-			);
-		}
-
-	}
-
-	getItemProperties( elementID, all = false, recursive = false ) {
-
-		const properties = this.ifcAPI.GetLine(this.modelID, elementID, recursive);
-	
-		if (all) {
-
-		  const propSetIds = this.getAllRelatedItemsOfType(elementID, IFCRELDEFINESBYPROPERTIES, "RelatedObjects", "RelatingPropertyDefinition");
-		  properties.hasPropertySets = propSetIds.map((id) => this.ifcAPI.GetLine(this.modelID, id, recursive));
-	
-		  const typeId = this.getAllRelatedItemsOfType(elementID, IFCRELDEFINESBYTYPE, "RelatedObjects", "RelatingType");
-		  properties.hasType = typeId.map((id) => this.ifcAPI.GetLine(this.modelID, id, recursive));
-		  
-		}
-	
-		// properties.type = properties.constructor.name;
-		return properties;
-
-	}
-
-	getSpatialStructure() {
-
-		let lines = this.ifcAPI.GetLineIDsWithType(this.modelID, IFCPROJECT);
-		let ifcProjectId = lines.get(0);
-		let ifcProject = this.ifcAPI.GetLine(this.modelID, ifcProjectId);
-		this.getAllSpatialChildren(ifcProject);
-		return ifcProject;
-
-	}
-	
-	getAllSpatialChildren( spatialElement ) {
-
-		const id = spatialElement.expressID;
-		const spatialChildrenID = this.getAllRelatedItemsOfType(id, IFCRELAGGREGATES, "RelatingObject", "RelatedObjects");
-		spatialElement.hasSpatialChildren = spatialChildrenID.map((id) => this.ifcAPI.GetLine(this.modelID, id, false));
-		spatialElement.hasChildren = this.getAllRelatedItemsOfType(id, IFCRELCONTAINEDINSPATIALSTRUCTURE, "RelatingStructure", "RelatedElements");
-		spatialElement.hasSpatialChildren.forEach(child => this.getAllSpatialChildren(child));
-		
-	}
-	
-	getAllRelatedItemsOfType ( elementID, type, relation, relatedProperty ) {
-
-		const lines = this.ifcAPI.GetLineIDsWithType(this.modelID, type);
-		const IDs = [];
-
-		for (let i = 0; i < lines.size(); i++) {
-
-		  	const relID = lines.get(i);
-		  	const rel = this.ifcAPI.GetLine(this.modelID, relID);
-		  	const relatedItems = rel[relation];
-		  	let foundElement = false;
-	
-		  	if (Array.isArray(relatedItems)){
-
-				const values = relatedItems.map(item => item.value);
- 			    foundElement = values.includes(elementID);
-			}
-			else foundElement = (relatedItems.value === elementID);
-	
-		  	if (foundElement) {
-
-				const element = rel[relatedProperty];
-				if (!Array.isArray(element)) IDs.push(element.value);
-				else element.forEach(ele => IDs.push(ele.value));
-			
-		  	}
-		}
-		return IDs;
-	}
+    constructor(manager) {
+        super(manager);
+        this.ifcManager = new IFCManager();
+    }
+
+    load(url, onLoad, onProgress, onError) {
+        const scope = this;
+
+        const loader = new FileLoader(scope.manager);
+        loader.setPath(scope.path);
+        loader.setResponseType('arraybuffer');
+        loader.setRequestHeader(scope.requestHeader);
+        loader.setWithCredentials(scope.withCredentials);
+        loader.load(
+            url,
+            async function (buffer) {
+                try {
+                    onLoad(await scope.parse(buffer));
+                } catch (e) {
+                    if (onError) {
+                        onError(e);
+                    } else {
+                        console.error(e);
+                    }
+
+                    scope.manager.itemError(url);
+                }
+            },
+            onProgress,
+            onError
+        );
+    }
+
+    parse(buffer) {
+        return this.ifcManager.parse(buffer);
+    }
+
+    setWasmPath(path) {
+        this.ifcManager.setWasmPath(path);
+    }
+
+    getExpressId(faceIndex) {
+        return this.ifcManager.getExpressId(faceIndex);
+    }
+
+    pickItem(items, geometry, pickTransparent = true) {
+        return this.ifcManager.pickItem(items, geometry, pickTransparent);
+    }
+
+    setItemsVisibility(id, mesh, state, scene) {
+        this.ifcManager.setItemsDisplay(id, mesh, state, scene);
+    }
+
+    getItemProperties(id, all = false, recursive = false) {
+        return this.ifcManager.getItemProperties(id, all, recursive);
+    }
+
+    getSpatialStructure() {
+        return this.ifcManager.getSpatialStructure();
+    }
 }
 
 // This set of controls performs orbiting, dollying (zooming), and panning.
@@ -72206,6 +72203,7 @@ function AnimationLoop() {
 }
 
 const ifcLoader = new IFCLoader();
+ifcLoader.setWasmPath("wasm/");
 
 AnimationLoop();
 
@@ -72251,8 +72249,8 @@ function selectObject(event) {
     const id = ifcLoader.getExpressId(item.faceIndex);
     previousSelection = id;
 
-    // const ifcProject = ifcLoader.getSpatialStructure();
-    // console.log(ifcProject);
+    const ifcProject = ifcLoader.getSpatialStructure();
+    console.log(ifcProject);
 
     const properties = ifcLoader.getItemProperties(id);
     console.log(properties);
