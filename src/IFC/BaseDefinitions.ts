@@ -1,12 +1,13 @@
-import { BufferGeometry, Material, Mesh } from "three";
+import { BufferGeometry, Material, Mesh } from 'three';
+import { IfcAPI } from 'web-ifc';
 
 export const VertexProps = {
-    r: "red",
-    g: "green",
-    b: "blue",
-    a: "alfa",
-    h: "highlighted"
-}
+    r: 'red',
+    g: 'green',
+    b: 'blue',
+    a: 'alfa',
+    h: 'highlighted'
+};
 
 export interface Display {
     r: number;
@@ -16,19 +17,42 @@ export interface Display {
     h: 0 | 1;
 }
 
-export interface TransparentMesh extends Mesh {
+export type MapFaceIndexID = { [key: number]: number };
+export type MapIDFaceIndex = { [key: number]: number[] };
+
+export interface IfcModel {
+    modelID: number;
+    ids: MapFaceIndexID;
+    faces: MapIDFaceIndex;
+}
+
+export interface IfcState {
+    models: { [modelID: number]: IfcModel };
+    api: IfcAPI;
+}
+
+export interface IfcMesh extends Mesh {
+    modelID: number;
+}
+
+export interface TransparentMesh extends IfcMesh {
     transparentMesh: Mesh;
 }
+
+// export interface IfcSelection {
+//     items: number[],
+//     modelID: number;
+// }
 
 export type GeometryByMaterial = {
     material: Material;
     geometry: BufferGeometry[];
-    indices: {[keys: number]: number};
+    indices: { [keys: number]: number };
     lastIndex: number;
 };
 
 export interface GeometriesByMaterial {
-    [key: string]: GeometryByMaterial
+    [key: string]: GeometryByMaterial;
 }
 
 export interface Item {
@@ -36,6 +60,3 @@ export interface Item {
     hasSpatialChildren: Item[];
     hasChildren: Item[];
 }
-
-export type MapFaceIndexID = { [key: number]: number };
-export type MapIDFaceIndex = { [key: number]: number[] };

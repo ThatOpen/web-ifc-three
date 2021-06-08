@@ -70253,11 +70253,11 @@ var BufferGeometryUtils = {
 };
 
 const VertexProps = {
-  r: "red",
-  g: "green",
-  b: "blue",
-  a: "alfa",
-  h: "highlighted"
+  r: 'red',
+  g: 'green',
+  b: 'blue',
+  a: 'alfa',
+  h: 'highlighted'
 };
 
 function OpaqueShader(shader) {
@@ -70319,21 +70319,28 @@ ${shader.vertexShader}`.replace(`#include <fog_vertex>`, `#include <fog_vertex>
 
 class IFCParser {
 
-  constructor(ifcAPI, mapFaceindexID, mapIDFaceindex) {
-    this.modelID = -1;
-    this.mapFaceindexID = mapFaceindexID;
-    this.mapIDFaceindex = mapIDFaceindex;
+  constructor(state) {
     this.geometryByMaterials = {};
-    this.ifcAPI = ifcAPI;
+    this.currentID = -1;
+    this.state = state;
   }
 
   async parse(buffer) {
-    if (this.ifcAPI.wasmModule === undefined) {
-      await this.ifcAPI.Init();
-    }
-    const data = new Uint8Array(buffer);
-    this.modelID = this.ifcAPI.OpenModel(data);
+    if (this.state.api.wasmModule === undefined)
+      await this.state.api.Init();
+    this.currentID = this.newIfcModel(buffer);
     return this.loadAllGeometry();
+  }
+
+  newIfcModel(buffer) {
+    const data = new Uint8Array(buffer);
+    const modelID = this.state.api.OpenModel(data);
+    this.state.models[modelID] = {
+      modelID,
+      faces: [],
+      ids: []
+    };
+    return modelID;
   }
 
   loadAllGeometry() {
@@ -70345,22 +70352,25 @@ class IFCParser {
     const {materials, geometries} = this.getMaterialsAndGeometries();
     const allGeometry = BufferGeometryUtils.mergeBufferGeometries(geometries, true);
     this.storeFaceindicesByExpressIDs();
-    return new Mesh(allGeometry, materials);
+    const result = new Mesh(allGeometry, materials);
+    result.modelID = this.currentID;
+    return result;
   }
 
   storeFaceindicesByExpressIDs() {
     let previous = 0;
-    for (let index in this.mapFaceindexID) {
+    for (let index in this.state.models[this.currentID].ids) {
       const current = parseInt(index);
-      const id = this.mapFaceindexID[current];
+      const id = this.state.models[this.currentID].ids[current];
       var faceIndices = [];
       for (let j = previous; j < current; j++) {
         faceIndices.push(j);
       }
       previous = current;
-      if (!this.mapIDFaceindex[id])
-        this.mapIDFaceindex[id] = [];
-      this.mapIDFaceindex[id].push(...faceIndices);
+      if (!this.state.models[this.currentID].faces[id]) {
+        this.state.models[this.currentID].faces[id] = [];
+      }
+      this.state.models[this.currentID].faces[id].push(...faceIndices);
     }
   }
 
@@ -70374,10 +70384,12 @@ class IFCParser {
       geometries.push(BufferGeometryUtils.mergeBufferGeometries(currentGeometries));
       for (let j in this.geometryByMaterials[i].indices) {
         const globalIndex = parseInt(j, 10) + totalFaceCount;
-        this.mapFaceindexID[globalIndex] = this.geometryByMaterials[i].indices[j];
+        const currentIndex = this.geometryByMaterials[i].indices[j];
+        this.state.models[this.currentID].ids[globalIndex] = currentIndex;
       }
       totalFaceCount += this.geometryByMaterials[i].lastIndex;
     }
+    this.geometryByMaterials = {};
     return {
       materials,
       geometries
@@ -70385,7 +70397,7 @@ class IFCParser {
   }
 
   saveAllPlacedGeometriesByMaterial() {
-    const flatMeshes = this.ifcAPI.LoadAllGeometry(this.modelID);
+    const flatMeshes = this.state.api.LoadAllGeometry(this.currentID);
     for (let i = 0; i < flatMeshes.size(); i++) {
       const flatMesh = flatMeshes.get(i);
       const productId = flatMesh.expressID;
@@ -70405,9 +70417,9 @@ class IFCParser {
   }
 
   getBufferGeometry(placedGeometry) {
-    const geometry = this.ifcAPI.GetGeometry(this.modelID, placedGeometry.geometryExpressID);
-    const verts = this.ifcAPI.GetVertexArray(geometry.GetVertexData(), geometry.GetVertexDataSize());
-    const indices = this.ifcAPI.GetIndexArray(geometry.GetIndexData(), geometry.GetIndexDataSize());
+    const geometry = this.state.api.GetGeometry(this.currentID, placedGeometry.geometryExpressID);
+    const verts = this.state.api.GetVertexArray(geometry.GetVertexData(), geometry.GetVertexDataSize());
+    const indices = this.state.api.GetIndexArray(geometry.GetIndexData(), geometry.GetIndexDataSize());
     return this.ifcGeometryToBuffer(verts, indices);
   }
 
@@ -70441,16 +70453,16 @@ class IFCParser {
     };
   }
 
-  saveGeometryByMaterial(geometry, placedGeometry, productId) {
-    if (!geometry.index)
+  saveGeometryByMaterial(geom, placedGeom, id) {
+    if (!geom.index)
       return;
-    const color = placedGeometry.color;
+    const color = placedGeom.color;
     const colorID = `${color.x}${color.y}${color.z}${color.w}`;
     this.createMaterial(colorID, color);
     const currentGeometry = this.geometryByMaterials[colorID];
-    currentGeometry.geometry.push(geometry);
-    currentGeometry.lastIndex += geometry.index.count / 3;
-    currentGeometry.indices[currentGeometry.lastIndex] = productId;
+    currentGeometry.geometry.push(geom);
+    currentGeometry.lastIndex += geom.index.count / 3;
+    currentGeometry.indices[currentGeometry.lastIndex] = id;
   }
 
   createMaterial(colorID, color) {
@@ -70481,14 +70493,15 @@ class IFCParser {
 
 class DisplayManager {
 
-  constructor(mapIDFaceindex) {
-    this.mapIDFaceindex = mapIDFaceindex;
+  constructor(state) {
+    this.state = state;
   }
 
   setItemsDisplay(ids, mesh, state, scene) {
     const geometry = mesh.geometry;
     this.setupVisibility(geometry);
-    const faceIndicesArray = ids.map((id) => this.mapIDFaceindex[id]);
+    const current = mesh.modelID;
+    const faceIndicesArray = ids.map((id) => this.state.models[current].faces[id]);
     const faceIndices = [].concat(...faceIndicesArray);
     faceIndices.forEach((faceIndex) => this.setFaceDisplay(geometry, faceIndex, state));
     geometry.attributes[VertexProps.r].needsUpdate = true;
@@ -70515,17 +70528,17 @@ class DisplayManager {
     if (!geometry.index)
       return;
     const geoIndex = geometry.index.array;
-    this.setFaceAttribute(geometry, VertexProps.r, state.r, index, geoIndex);
-    this.setFaceAttribute(geometry, VertexProps.g, state.g, index, geoIndex);
-    this.setFaceAttribute(geometry, VertexProps.b, state.b, index, geoIndex);
-    this.setFaceAttribute(geometry, VertexProps.a, state.a, index, geoIndex);
-    this.setFaceAttribute(geometry, VertexProps.h, state.h, index, geoIndex);
+    this.setFaceAttr(geometry, VertexProps.r, state.r, index, geoIndex);
+    this.setFaceAttr(geometry, VertexProps.g, state.g, index, geoIndex);
+    this.setFaceAttr(geometry, VertexProps.b, state.b, index, geoIndex);
+    this.setFaceAttr(geometry, VertexProps.a, state.a, index, geoIndex);
+    this.setFaceAttr(geometry, VertexProps.h, state.h, index, geoIndex);
   }
 
-  setFaceAttribute(geometry, attr, state, index, geoIndex) {
-    geometry.attributes[attr].setX(geoIndex[3 * index], state);
-    geometry.attributes[attr].setX(geoIndex[3 * index + 1], state);
-    geometry.attributes[attr].setX(geoIndex[3 * index + 2], state);
+  setFaceAttr(geom, attr, state, index, geoIndex) {
+    geom.attributes[attr].setX(geoIndex[3 * index], state);
+    geom.attributes[attr].setX(geoIndex[3 * index + 1], state);
+    geom.attributes[attr].setX(geoIndex[3 * index + 2], state);
   }
 
   setupTransparency(mesh, scene) {
@@ -70560,13 +70573,13 @@ class ItemPicker {
     this.display = displayManager;
   }
 
-  pickItem(items, geometry, pickTransparent = true) {
-    if (!geometry.index)
-      return;
-    this.display.setupVisibility(geometry);
+  pickItem(items, pickTransparent = true) {
     for (let i = 0; i < items.length; i++) {
+      const mesh = items[i].object;
+      const geometry = mesh.geometry;
+      this.display.setupVisibility(geometry);
       const index = items[i].faceIndex;
-      if (!index)
+      if (!index || !geometry.index)
         continue;
       const trueIndex = geometry.index.array[index * 3];
       const visible = geometry.getAttribute(VertexProps.a).array[trueIndex];
@@ -70582,74 +70595,72 @@ class ItemPicker {
 
 class PropertyManager {
 
-  constructor(modelID, ifcAPI, mapFaceindexID, mapIDFaceindex) {
-    this.modelID = modelID;
-    this.mapFaceindexID = mapFaceindexID;
-    this.mapIDFaceindex = mapIDFaceindex;
-    this.ifcAPI = ifcAPI;
+  constructor(state) {
+    this.state = state;
   }
 
-  getExpressId(faceIndex) {
-    for (let index in this.mapFaceindexID) {
+  getExpressId(modelID, faceIndex) {
+    const ids = this.state.models[modelID].ids;
+    for (let index in ids) {
       if (parseInt(index) > faceIndex)
-        return this.mapFaceindexID[index];
+        return ids[index];
     }
     return -1;
   }
 
-  getItemProperties(elementID, recursive = false) {
-    return this.ifcAPI.GetLine(this.modelID, elementID, recursive);
+  getItemProperties(modelID, id, recursive = false) {
+    return this.state.api.GetLine(modelID, id, recursive);
   }
 
-  getAllItemsOfType(type) {
+  getAllItemsOfType(modelID, type) {
     const props = [];
-    const lines = this.ifcAPI.GetLineIDsWithType(this.modelID, type);
+    const lines = this.state.api.GetLineIDsWithType(modelID, type);
     for (let i = 0; i < lines.size(); i++) {
-      const item = this.ifcAPI.GetLine(this.modelID, lines.get(i));
+      const item = this.state.api.GetLine(modelID, lines.get(i));
       props.push(item);
     }
     return props;
   }
 
-  getPropertySets(elementID, recursive = false) {
-    const propSetIds = this.getAllRelatedItemsOfType(elementID, IFCRELDEFINESBYPROPERTIES, 'RelatedObjects', 'RelatingPropertyDefinition');
-    return propSetIds.map((id) => this.ifcAPI.GetLine(this.modelID, id, recursive));
+  getPropertySets(modelID, elementID, recursive = false) {
+    const propSetIds = this.getAllRelatedItemsOfType(modelID, elementID, IFCRELDEFINESBYPROPERTIES, 'RelatedObjects', 'RelatingPropertyDefinition');
+    return propSetIds.map((id) => this.state.api.GetLine(modelID, id, recursive));
   }
 
-  getTypeProperties(elementID, recursive = false) {
-    const typeId = this.getAllRelatedItemsOfType(elementID, IFCRELDEFINESBYTYPE, 'RelatedObjects', 'RelatingType');
-    return typeId.map((id) => this.ifcAPI.GetLine(this.modelID, id, recursive));
+  getTypeProperties(modelID, elementID, recursive = false) {
+    const typeId = this.getAllRelatedItemsOfType(modelID, elementID, IFCRELDEFINESBYTYPE, 'RelatedObjects', 'RelatingType');
+    return typeId.map((id) => this.state.api.GetLine(modelID, id, recursive));
   }
 
-  getSpatialStructure() {
-    let lines = this.ifcAPI.GetLineIDsWithType(this.modelID, IFCPROJECT);
+  getSpatialStructure(modelID) {
+    let lines = this.state.api.GetLineIDsWithType(modelID, IFCPROJECT);
     let ifcProjectId = lines.get(0);
-    let ifcProject = this.ifcAPI.GetLine(this.modelID, ifcProjectId);
-    this.getAllSpatialChildren(ifcProject);
+    let ifcProject = this.state.api.GetLine(modelID, ifcProjectId);
+    this.getAllSpatialChildren(modelID, ifcProject);
     return ifcProject;
   }
 
-  async getAllSpatialChildren(item) {
+  async getAllSpatialChildren(modelID, item) {
     item.hasChildren = [];
     item.hasSpatialChildren = [];
-    this.getChildren(item.expressID, item.hasSpatialChildren, 'RelatingObject', 'RelatedObjects', IFCRELAGGREGATES);
-    this.getChildren(item.expressID, item.hasChildren, 'RelatingStructure', 'RelatedElements', IFCRELCONTAINEDINSPATIALSTRUCTURE);
+    this.getChildren(modelID, item.expressID, item.hasSpatialChildren, 'RelatingObject', 'RelatedObjects', IFCRELAGGREGATES);
+    this.getChildren(modelID, item.expressID, item.hasChildren, 'RelatingStructure', 'RelatedElements', IFCRELCONTAINEDINSPATIALSTRUCTURE);
   }
 
-  getChildren(id, prop, relating, rel, relProp) {
-    const childrenID = this.getAllRelatedItemsOfType(id, relProp, relating, rel);
+  getChildren(modelID, id, prop, relating, rel, relProp) {
+    const childrenID = this.getAllRelatedItemsOfType(modelID, id, relProp, relating, rel);
     childrenID
-      .map((id) => this.ifcAPI.GetLine(this.modelID, id, false))
+      .map((id) => this.state.api.GetLine(modelID, id, false))
       .forEach((item) => prop.push(item));
-    prop.forEach((child) => this.getAllSpatialChildren(child));
+    prop.forEach((child) => this.getAllSpatialChildren(modelID, child));
   }
 
-  getAllRelatedItemsOfType(id, type, relation, related) {
-    const lines = this.ifcAPI.GetLineIDsWithType(this.modelID, type);
+  getAllRelatedItemsOfType(modelID, id, type, relation, related) {
+    const lines = this.state.api.GetLineIDsWithType(modelID, type);
     const IDs = [];
     for (let i = 0; i < lines.size(); i++) {
       const relID = lines.get(i);
-      const rel = this.ifcAPI.GetLine(this.modelID, relID);
+      const rel = this.state.api.GetLine(modelID, relID);
       const relatedItems = rel[relation];
       let foundElement = false;
       if (Array.isArray(relatedItems)) {
@@ -70674,13 +70685,13 @@ class PropertyManager {
 class IFCManager {
 
   constructor() {
-    this.modelID = 0;
-    this.ifcAPI = new IfcAPI();
-    this.mapFaceindexID = {};
-    this.mapIDFaceindex = {};
-    this.parser = new IFCParser(this.ifcAPI, this.mapFaceindexID, this.mapIDFaceindex);
-    this.display = new DisplayManager(this.mapIDFaceindex);
-    this.properties = new PropertyManager(this.modelID, this.ifcAPI, this.mapFaceindexID, this.mapIDFaceindex);
+    this.state = {
+      models: [],
+      api: new IfcAPI()
+    };
+    this.parser = new IFCParser(this.state);
+    this.display = new DisplayManager(this.state);
+    this.properties = new PropertyManager(this.state);
     this.picker = new ItemPicker(this.display);
   }
 
@@ -70689,39 +70700,44 @@ class IFCManager {
   }
 
   setWasmPath(path) {
-    this.ifcAPI.SetWasmPath(path);
+    this.state.api.SetWasmPath(path);
   }
 
-  pickItem(items, geometry, pickTransparent = true) {
-    return this.picker.pickItem(items, geometry, pickTransparent);
+  close(modelID, mesh, scene) {
+    this.state.api.CloseModel(modelID);
+    scene.remove(mesh);
+  }
+
+  getExpressId(modelID, faceIndex) {
+    return this.properties.getExpressId(modelID, faceIndex);
+  }
+
+  getAllItemsOfType(modelID, type) {
+    return this.properties.getAllItemsOfType(modelID, type);
+  }
+
+  getItemProperties(modelID, id, recursive = false) {
+    return this.properties.getItemProperties(modelID, id, recursive);
+  }
+
+  getPropertySets(modelID, id, recursive = false) {
+    return this.properties.getPropertySets(modelID, id, recursive);
+  }
+
+  getTypeProperties(modelID, id, recursive = false) {
+    return this.properties.getTypeProperties(modelID, id, recursive);
+  }
+
+  getSpatialStructure(modelID) {
+    return this.properties.getSpatialStructure(modelID);
+  }
+
+  pickItem(items, pickTransparent = true) {
+    return this.picker.pickItem(items, pickTransparent);
   }
 
   setItemsDisplay(items, mesh, state, scene) {
     this.display.setItemsDisplay(items, mesh, state, scene);
-  }
-
-  getExpressId(faceIndex) {
-    return this.properties.getExpressId(faceIndex);
-  }
-
-  getAllItemsOfType(type) {
-    return this.properties.getAllItemsOfType(type);
-  }
-
-  getItemProperties(id, recursive = false) {
-    return this.properties.getItemProperties(id, recursive);
-  }
-
-  getPropertySets(id, recursive = false) {
-    return this.properties.getPropertySets(id, recursive);
-  }
-
-  getTypeProperties(id, recursive = false) {
-    return this.properties.getTypeProperties(id, recursive);
-  }
-
-  getSpatialStructure() {
-    return this.properties.getSpatialStructure();
   }
 
 }
@@ -70762,36 +70778,36 @@ class IFCLoader extends Loader {
     this.ifcManager.setWasmPath(path);
   }
 
-  getExpressId(faceIndex) {
-    return this.ifcManager.getExpressId(faceIndex);
+  getExpressId(modelID, faceIndex) {
+    return this.ifcManager.getExpressId(modelID, faceIndex);
   }
 
-  getAllItemsOfType(type) {
-    return this.ifcManager.getAllItemsOfType(type);
+  getAllItemsOfType(modelID, type) {
+    return this.ifcManager.getAllItemsOfType(modelID, type);
   }
 
-  pickItem(items, geometry, transparent = true) {
-    return this.ifcManager.pickItem(items, geometry, transparent);
+  getItemProperties(modelID, id, recursive = false) {
+    return this.ifcManager.getItemProperties(modelID, id, recursive);
+  }
+
+  getPropertySets(modelID, id, recursive = false) {
+    return this.ifcManager.getPropertySets(modelID, id, recursive);
+  }
+
+  getTypeProperties(modelID, id, recursive = false) {
+    return this.ifcManager.getTypeProperties(modelID, id, recursive);
+  }
+
+  getSpatialStructure(modelID) {
+    return this.ifcManager.getSpatialStructure(modelID);
+  }
+
+  pickItem(items, transparent = true) {
+    return this.ifcManager.pickItem(items, transparent);
   }
 
   setItemsDisplay(ids, mesh, state, scene) {
     this.ifcManager.setItemsDisplay(ids, mesh, state, scene);
-  }
-
-  getItemProperties(id, recursive = false) {
-    return this.ifcManager.getItemProperties(id, recursive);
-  }
-
-  getPropertySets(id, recursive = false) {
-    return this.ifcManager.getPropertySets(id, recursive);
-  }
-
-  getTypeProperties(id, recursive = false) {
-    return this.ifcManager.getTypeProperties(id, recursive);
-  }
-
-  getSpatialStructure() {
-    return this.ifcManager.getSpatialStructure();
   }
 
 }
@@ -72224,8 +72240,6 @@ function AnimationLoop() {
 const ifcLoader = new IFCLoader();
 
 AnimationLoop();
-
-//Setup IFC Loader
 (function readIfcFile() {
   const input = document.querySelector('input[type="file"]');
   if (!input) return;
@@ -72234,8 +72248,7 @@ AnimationLoop();
     (changed) => {
       var ifcURL = URL.createObjectURL(changed.target.files[0]);
       ifcLoader.load(ifcURL, (geometry) => {
-        ifcMesh = geometry;
-        scene.add(ifcMesh);
+        scene.add(geometry);
       });
     },
     false
@@ -72243,9 +72256,7 @@ AnimationLoop();
 })();
 
 //Setup object picking
-
-let ifcMesh = {};
-let previousSelection;
+let previous = {id: -1, mesh: {}};
 const resetDisplayState = { r: 0, g: 0, b: 0, a: 1, h: 0 };
 
 function selectObject(event) {
@@ -72261,23 +72272,26 @@ function selectObject(event) {
   const intersected = raycaster.intersectObjects(scene.children);
   if (intersected.length){
 
-    if(previousSelection) ifcLoader.setItemsDisplay([previousSelection], ifcMesh, resetDisplayState, scene);
+    if(previous.id != -1) ifcLoader.setItemsDisplay([previous.id], previous.mesh, resetDisplayState, scene);
 
-    const item = ifcLoader.pickItem(intersected, ifcMesh.geometry);
-    const id = ifcLoader.getExpressId(item.faceIndex);
-    previousSelection = id;
+    const item = ifcLoader.pickItem(intersected);
+    const modelID = item.object.modelID;
+    const id = ifcLoader.getExpressId(modelID, item.faceIndex);
+    console.log('Model ID: ', modelID);
+    previous.id = id;
+    previous.mesh = item.object;
 
-    // const ifcProject = ifcLoader.getSpatialStructure();
-    // console.log(ifcProject);
+    const ifcProject = ifcLoader.getSpatialStructure(modelID);
+    console.log(ifcProject);
 
-    // const items = ifcLoader.getAllItemsOfType(IFCWALLSTANDARDCASE);
+    // const items = ifcLoader.getAllItemsOfType(modelID, IFCSLAB);
     // console.log(items);
 
-    const properties = ifcLoader.getItemProperties(id);
-    console.log(properties);
+    // const properties = ifcLoader.getItemProperties(modelID, id);
+    // console.log(properties);
 
     const state = { r: 1, g: 0, b: 1, a: 0.2, h: 1 };
-    ifcLoader.setItemsDisplay([id], ifcMesh, state, scene);
+    ifcLoader.setItemsDisplay([id], previous.mesh, state, scene);
 
   } 
 }

@@ -6,79 +6,72 @@ import {
     IFCRELDEFINESBYPROPERTIES,
     IFCRELDEFINESBYTYPE
 } from 'web-ifc';
-import { MapFaceIndexID, MapIDFaceIndex, Item } from './BaseDefinitions';
+import { Item, IfcState } from './BaseDefinitions';
 
 export class PropertyManager {
-    private modelID: number;
-    private ifcAPI: IfcAPI;
-    private mapFaceindexID: MapFaceIndexID;
-    private mapIDFaceindex: MapIDFaceIndex;
+    private state: IfcState;
 
-    constructor(
-        modelID: number,
-        ifcAPI: IfcAPI,
-        mapFaceindexID: MapFaceIndexID,
-        mapIDFaceindex: MapIDFaceIndex
-    ) {
-        this.modelID = modelID;
-        this.mapFaceindexID = mapFaceindexID;
-        this.mapIDFaceindex = mapIDFaceindex;
-        this.ifcAPI = ifcAPI;
+    constructor(state: IfcState) {
+        this.state = state;
     }
 
-    getExpressId(faceIndex: Number) {
-        for (let index in this.mapFaceindexID) {
-            if (parseInt(index) > faceIndex) return this.mapFaceindexID[index];
+    getExpressId(modelID: number, faceIndex: Number) {
+        const ids = this.state.models[modelID].ids;
+        for (let index in ids) {
+            if (parseInt(index) > faceIndex) return ids[index];
         }
         return -1;
     }
 
-    getItemProperties(elementID: number, recursive = false) {
-        return this.ifcAPI.GetLine(this.modelID, elementID, recursive);
+    getItemProperties(modelID: number, id: number, recursive = false) {
+        return this.state.api.GetLine(modelID, id, recursive);
     }
 
-    getAllItemsOfType(type: number) {
+    getAllItemsOfType(modelID: number, type: number) {
         const props: object[] = [];
-        const lines = this.ifcAPI.GetLineIDsWithType(this.modelID, type);
+        const lines = this.state.api.GetLineIDsWithType(modelID, type);
         for (let i = 0; i < lines.size(); i++) {
-            const item = this.ifcAPI.GetLine(this.modelID, lines.get(i));
+            const item = this.state.api.GetLine(modelID, lines.get(i));
             props.push(item);
         }
         return props;
     }
 
-    getPropertySets(elementID: number, recursive = false) {
+    getPropertySets(modelID: number, elementID: number, recursive = false) {
         const propSetIds = this.getAllRelatedItemsOfType(
+            modelID,
             elementID,
             IFCRELDEFINESBYPROPERTIES,
             'RelatedObjects',
             'RelatingPropertyDefinition'
         );
-        return propSetIds.map((id) => this.ifcAPI.GetLine(this.modelID, id, recursive));
+        return propSetIds.map((id) => this.state.api.GetLine(modelID, id, recursive));
     }
 
-    getTypeProperties(elementID: number, recursive = false) {
+    getTypeProperties(modelID: number, elementID: number, recursive = false) {
         const typeId = this.getAllRelatedItemsOfType(
+            modelID,
             elementID,
             IFCRELDEFINESBYTYPE,
             'RelatedObjects',
             'RelatingType'
         );
-        return typeId.map((id) => this.ifcAPI.GetLine(this.modelID, id, recursive));
+        return typeId.map((id) => this.state.api.GetLine(modelID, id, recursive));
     }
 
-    getSpatialStructure() {
-        let lines = this.ifcAPI.GetLineIDsWithType(this.modelID, IFCPROJECT);
+    getSpatialStructure(modelID: number) {
+        let lines = this.state.api.GetLineIDsWithType(modelID, IFCPROJECT);
         let ifcProjectId = lines.get(0);
-        let ifcProject = this.ifcAPI.GetLine(this.modelID, ifcProjectId);
-        this.getAllSpatialChildren(ifcProject);
+        let ifcProject = this.state.api.GetLine(modelID, ifcProjectId);
+        this.getAllSpatialChildren(modelID, ifcProject);
         return ifcProject;
     }
 
-    private async getAllSpatialChildren(item: Item) {
+    private async getAllSpatialChildren(modelID: number, item: Item) {
         item.hasChildren = [];
         item.hasSpatialChildren = [];
         this.getChildren(
+            modelID,
             item.expressID,
             item.hasSpatialChildren,
             'RelatingObject',
@@ -86,6 +79,7 @@ export class PropertyManager {
             IFCRELAGGREGATES
         );
         this.getChildren(
+            modelID,
             item.expressID,
             item.hasChildren,
             'RelatingStructure',
@@ -94,21 +88,28 @@ export class PropertyManager {
         );
     }
 
-    private getChildren(id: number, prop: Item[], relating: string, rel: string, relProp: number) {
-        const childrenID = this.getAllRelatedItemsOfType(id, relProp, relating, rel);
+    private getChildren(
+        modelID: number,
+        id: number,
+        prop: Item[],
+        relating: string,
+        rel: string,
+        relProp: number
+    ) {
+        const childrenID = this.getAllRelatedItemsOfType(modelID, id, relProp, relating, rel);
         childrenID
-            .map((id) => this.ifcAPI.GetLine(this.modelID, id, false))
+            .map((id) => this.state.api.GetLine(modelID, id, false))
             .forEach((item) => prop.push(item));
-        prop.forEach((child: any) => this.getAllSpatialChildren(child));
+        prop.forEach((child: any) => this.getAllSpatialChildren(modelID, child));
     }
 
-    private getAllRelatedItemsOfType(id: number, type: any, relation: string, related: string) {
-        const lines = this.ifcAPI.GetLineIDsWithType(this.modelID, type);
+    private getAllRelatedItemsOfType(modelID: number, id: number, type: any, relation: string, related: string) {
+        const lines = this.state.api.GetLineIDsWithType(modelID, type);
         const IDs = [];
 
         for (let i = 0; i < lines.size(); i++) {
             const relID = lines.get(i);
-            const rel = this.ifcAPI.GetLine(this.modelID, relID);
+            const rel = this.state.api.GetLine(modelID, relID);
             const relatedItems = rel[relation];
             let foundElement = false;
 

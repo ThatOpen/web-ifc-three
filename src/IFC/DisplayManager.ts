@@ -1,19 +1,27 @@
-import { Display, MapIDFaceIndex, TransparentMesh, VertexProps } from './BaseDefinitions';
+import {
+    Display,
+    IfcState,
+    MapIDFaceIndex,
+    TransparentMesh,
+    VertexProps,
+    IfcMesh
+} from './BaseDefinitions';
 import { BufferAttribute, BufferGeometry, Material, Mesh, Scene } from 'three';
 import { TransparentShader } from './Shaders';
 
 export class DisplayManager {
-    private mapIDFaceindex: MapIDFaceIndex;
+    private state: IfcState;
 
-    constructor(mapIDFaceindex: MapIDFaceIndex) {
-        this.mapIDFaceindex = mapIDFaceindex;
+    constructor(state: IfcState) {
+        this.state = state;
     }
 
-    setItemsDisplay(ids: number[], mesh: Mesh, state: Display, scene: Scene) {
+    setItemsDisplay(ids: number[], mesh: IfcMesh, state: Display, scene: Scene) {
         const geometry = mesh.geometry;
         this.setupVisibility(geometry);
 
-        const faceIndicesArray = ids.map((id) => this.mapIDFaceindex[id]);
+        const current = mesh.modelID;
+        const faceIndicesArray = ids.map((id) => this.state.models[current].faces[id]);
         const faceIndices = ([] as number[]).concat(...faceIndicesArray);
         faceIndices.forEach((faceIndex) => this.setFaceDisplay(geometry, faceIndex, state));
 
@@ -40,23 +48,23 @@ export class DisplayManager {
     private setFaceDisplay(geometry: BufferGeometry, index: number, state: Display) {
         if (!geometry.index) return;
         const geoIndex = geometry.index.array;
-        this.setFaceAttribute(geometry, VertexProps.r, state.r, index, geoIndex);
-        this.setFaceAttribute(geometry, VertexProps.g, state.g, index, geoIndex);
-        this.setFaceAttribute(geometry, VertexProps.b, state.b, index, geoIndex);
-        this.setFaceAttribute(geometry, VertexProps.a, state.a, index, geoIndex);
-        this.setFaceAttribute(geometry, VertexProps.h, state.h, index, geoIndex);
+        this.setFaceAttr(geometry, VertexProps.r, state.r, index, geoIndex);
+        this.setFaceAttr(geometry, VertexProps.g, state.g, index, geoIndex);
+        this.setFaceAttr(geometry, VertexProps.b, state.b, index, geoIndex);
+        this.setFaceAttr(geometry, VertexProps.a, state.a, index, geoIndex);
+        this.setFaceAttr(geometry, VertexProps.h, state.h, index, geoIndex);
     }
 
-    private setFaceAttribute(
-        geometry: BufferGeometry,
+    private setFaceAttr(
+        geom: BufferGeometry,
         attr: string,
         state: number,
         index: number,
         geoIndex: ArrayLike<number>
     ) {
-        geometry.attributes[attr].setX(geoIndex[3 * index], state);
-        geometry.attributes[attr].setX(geoIndex[3 * index + 1], state);
-        geometry.attributes[attr].setX(geoIndex[3 * index + 2], state);
+        geom.attributes[attr].setX(geoIndex[3 * index], state);
+        geom.attributes[attr].setX(geoIndex[3 * index + 1], state);
+        geom.attributes[attr].setX(geoIndex[3 * index + 2], state);
     }
 
     private setupTransparency(mesh: TransparentMesh, scene: Scene) {

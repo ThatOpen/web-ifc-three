@@ -15,7 +15,7 @@ import {
   Vector3,
   Vector2
 } from 'three';
-import { IFCWALLSTANDARDCASE } from 'web-ifc';
+import { IFCSLAB, IFCWALLSTANDARDCASE } from 'web-ifc';
 
 //Scene
 const scene = new Scene();
@@ -75,6 +75,7 @@ const ifcLoader = new IFCLoader();
 AnimationLoop();
 
 //Setup IFC Loader
+const ifcMeshes = [];
 (function readIfcFile() {
   const input = document.querySelector('input[type="file"]');
   if (!input) return;
@@ -83,8 +84,8 @@ AnimationLoop();
     (changed) => {
       var ifcURL = URL.createObjectURL(changed.target.files[0]);
       ifcLoader.load(ifcURL, (geometry) => {
-        ifcMesh = geometry;
-        scene.add(ifcMesh);
+        ifcMeshes.push(geometry);
+        scene.add(geometry);
       });
     },
     false
@@ -92,9 +93,7 @@ AnimationLoop();
 })();
 
 //Setup object picking
-
-let ifcMesh = {};
-let previousSelection;
+let previous = {id: -1, mesh: {}};
 const resetDisplayState = { r: 0, g: 0, b: 0, a: 1, h: 0 };
 
 function selectObject(event) {
@@ -110,23 +109,26 @@ function selectObject(event) {
   const intersected = raycaster.intersectObjects(scene.children);
   if (intersected.length){
 
-    if(previousSelection) ifcLoader.setItemsDisplay([previousSelection], ifcMesh, resetDisplayState, scene);
+    if(previous.id != -1) ifcLoader.setItemsDisplay([previous.id], previous.mesh, resetDisplayState, scene);
 
-    const item = ifcLoader.pickItem(intersected, ifcMesh.geometry);
-    const id = ifcLoader.getExpressId(item.faceIndex);
-    previousSelection = id;
+    const item = ifcLoader.pickItem(intersected);
+    const modelID = item.object.modelID;
+    const id = ifcLoader.getExpressId(modelID, item.faceIndex);
+    console.log('Model ID: ', modelID);
+    previous.id = id;
+    previous.mesh = item.object;
 
-    // const ifcProject = ifcLoader.getSpatialStructure();
-    // console.log(ifcProject);
+    const ifcProject = ifcLoader.getSpatialStructure(modelID);
+    console.log(ifcProject);
 
-    // const items = ifcLoader.getAllItemsOfType(IFCWALLSTANDARDCASE);
+    // const items = ifcLoader.getAllItemsOfType(modelID, IFCSLAB);
     // console.log(items);
 
-    const properties = ifcLoader.getItemProperties(id);
-    console.log(properties);
+    // const properties = ifcLoader.getItemProperties(modelID, id);
+    // console.log(properties);
 
     const state = { r: 1, g: 0, b: 1, a: 0.2, h: 1 }
-    ifcLoader.setItemsDisplay([id], ifcMesh, state, scene);
+    ifcLoader.setItemsDisplay([id], previous.mesh, state, scene);
 
   } 
 }
