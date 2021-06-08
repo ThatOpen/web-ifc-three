@@ -1,16 +1,21 @@
 import { IFCManager } from './IFC/IFCManager';
-import { BufferGeometry, FileLoader, Intersection, Loader, Mesh, Scene } from 'three';
+import { BufferGeometry, FileLoader, Intersection, Loader, LoadingManager, Mesh, Object3D, Scene } from 'three';
 import { Display } from './IFC/BaseDefinitions';
+
+// tslint:disable-next-line:interface-name
+export interface IFC extends Object3D {
+    [key: string]: any;
+}
 
 class IFCLoader extends Loader {
     private ifcManager;
 
-    constructor(manager: any) {
+    constructor(manager?: LoadingManager) {
         super(manager);
         this.ifcManager = new IFCManager();
     }
 
-    load(url: any, onLoad: any, onProgress: any, onError: any) {
+    load(url: any, onLoad: (ifc: IFC) => void, onProgress?: (event: ProgressEvent) => void, onError?: (event: ErrorEvent) => void) {
         const scope = this;
 
         const loader = new FileLoader(scope.manager);
