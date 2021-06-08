@@ -15,6 +15,7 @@ import {
   Vector3,
   Vector2
 } from 'three';
+import { IFCWALLSTANDARDCASE } from 'web-ifc';
 
 //Scene
 const scene = new Scene();
@@ -115,11 +116,14 @@ function selectObject(event) {
     const id = ifcLoader.getExpressId(item.faceIndex);
     previousSelection = id;
 
-    const properties = ifcLoader.getItemProperties(id);
-    console.log(properties);
-
     // const ifcProject = ifcLoader.getSpatialStructure();
     // console.log(ifcProject);
+
+    // const items = ifcLoader.getAllItemsOfType(IFCWALLSTANDARDCASE);
+    // console.log(items);
+
+    const properties = ifcLoader.getItemProperties(id);
+    console.log(properties);
 
     const state = { r: 0, g: 0, b: 1, a: 0.2, h: 1 }
     ifcLoader.setItemsDisplay([id], ifcMesh, state, scene);

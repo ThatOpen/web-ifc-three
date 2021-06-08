@@ -48,6 +48,10 @@ export class IFCManager {
         return this.properties.getExpressId(faceIndex);
     }
 
+    getAllItemsOfType(type: number) {
+        return this.properties.getAllItemsOfType(type);
+    }
+
     getItemProperties(id: number, recursive = false) {
         return this.properties.getItemProperties(id, recursive);
     }

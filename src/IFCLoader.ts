@@ -76,6 +76,21 @@ class IFCLoader extends Loader {
         return this.ifcManager.getExpressId(faceIndex);
     }
 
+        /**
+     * Returns all items of the specified type. You can import
+     * the types from *web-ifc*.
+     * 
+     * Example to get all the standard walls of a project:
+     * ```js
+     * import { IFCWALLSTANDARDCASE } from 'web-ifc';
+     * const walls = ifcLoader.getAllItemsOfType(IFCWALLSTANDARDCASE);
+     * ```
+     * @type The type of IFC items to get.
+     */
+    getAllItemsOfType(type: number){
+        return this.ifcManager.getAllItemsOfType(type);
+    }
+
     /**
      * Returns the first visible or transparent Intersection of the given array.
      * If you you use the

@@ -70601,6 +70601,16 @@ class PropertyManager {
     return this.ifcAPI.GetLine(this.modelID, elementID, recursive);
   }
 
+  getAllItemsOfType(type) {
+    const props = [];
+    const lines = this.ifcAPI.GetLineIDsWithType(this.modelID, type);
+    for (let i = 0; i < lines.size(); i++) {
+      const item = this.ifcAPI.GetLine(this.modelID, lines.get(i));
+      props.push(item);
+    }
+    return props;
+  }
+
   getPropertySets(elementID, recursive = false) {
     const propSetIds = this.getAllRelatedItemsOfType(elementID, IFCRELDEFINESBYPROPERTIES, 'RelatedObjects', 'RelatingPropertyDefinition');
     return propSetIds.map((id) => this.ifcAPI.GetLine(this.modelID, id, recursive));
@@ -70687,6 +70697,10 @@ class IFCManager {
     return this.properties.getExpressId(faceIndex);
   }
 
+  getAllItemsOfType(type) {
+    return this.properties.getAllItemsOfType(type);
+  }
+
   getItemProperties(id, recursive = false) {
     return this.properties.getItemProperties(id, recursive);
   }
@@ -70743,6 +70757,10 @@ class IFCLoader extends Loader {
 
   getExpressId(faceIndex) {
     return this.ifcManager.getExpressId(faceIndex);
+  }
+
+  getAllItemsOfType(type) {
+    return this.ifcManager.getAllItemsOfType(type);
   }
 
   pickItem(items, geometry, transparent = true) {
@@ -72242,11 +72260,14 @@ function selectObject(event) {
     const id = ifcLoader.getExpressId(item.faceIndex);
     previousSelection = id;
 
-    const properties = ifcLoader.getItemProperties(id);
-    console.log(properties);
+    // const properties = ifcLoader.getItemProperties(id);
+    // console.log(properties);
 
     // const ifcProject = ifcLoader.getSpatialStructure();
     // console.log(ifcProject);
+
+    const items = ifcLoader.getAllItemsOfType(IFCWALLSTANDARDCASE);
+    console.log(items);
 
     const state = { r: 0, g: 0, b: 1, a: 0.2, h: 1 };
     ifcLoader.setItemsDisplay([id], ifcMesh, state, scene);

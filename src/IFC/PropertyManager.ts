@@ -37,6 +37,16 @@ export class PropertyManager {
         return this.ifcAPI.GetLine(this.modelID, elementID, recursive);
     }
 
+    getAllItemsOfType(type: number){
+        const props: object[] = [];
+        const lines = this.ifcAPI.GetLineIDsWithType(this.modelID, type);
+        for (let i = 0; i < lines.size(); i++) {
+            const item = this.ifcAPI.GetLine(this.modelID, lines.get(i));
+            props.push(item);
+        }
+        return props;
+    }
+
     getPropertySets(elementID: number, recursive = false) {
         const propSetIds = this.getAllRelatedItemsOfType(
             elementID,
