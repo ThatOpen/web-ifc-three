@@ -70499,19 +70499,30 @@ class DisplayManager {
     this.state = state;
   }
 
-  setItemsDisplay(modelID, ids, state, scene) {
+  setModelDisplay(modelID, state, scene) {
     const mesh = this.state.models[modelID].mesh;
     const geometry = mesh.geometry;
     this.setupVisibility(geometry);
+    const zeros = new Float32Array(geometry.getAttribute('position').count);
+    geometry.setAttribute(VertexProps.r, new BufferAttribute(zeros.slice().fill(state.r), 1));
+    geometry.setAttribute(VertexProps.g, new BufferAttribute(zeros.slice().fill(state.g), 1));
+    geometry.setAttribute(VertexProps.b, new BufferAttribute(zeros.slice().fill(state.b), 1));
+    geometry.setAttribute(VertexProps.a, new BufferAttribute(zeros.slice().fill(state.a), 1));
+    geometry.setAttribute(VertexProps.h, new BufferAttribute(zeros.slice().fill(1), 1));
+    this.updateAttributes(geometry);
+    if (state.a != 1)
+      this.setupTransparency(mesh, scene);
+  }
+
+  setItemsDisplay(modelID, ids, state, scene) {
+    const mesh = this.state.models[modelID].mesh;
+    const geometry = mesh.geometry;
     const current = mesh.modelID;
+    this.setupVisibility(geometry);
     const faceIndicesArray = ids.map((id) => this.state.models[current].faces[id]);
     const faceIndices = [].concat(...faceIndicesArray);
     faceIndices.forEach((faceIndex) => this.setFaceDisplay(geometry, faceIndex, state));
-    geometry.attributes[VertexProps.r].needsUpdate = true;
-    geometry.attributes[VertexProps.g].needsUpdate = true;
-    geometry.attributes[VertexProps.b].needsUpdate = true;
-    geometry.attributes[VertexProps.a].needsUpdate = true;
-    geometry.attributes[VertexProps.h].needsUpdate = true;
+    this.updateAttributes(geometry);
     if (state.a != 1)
       this.setupTransparency(mesh, scene);
   }
@@ -70525,6 +70536,10 @@ class DisplayManager {
       geometry.setAttribute(VertexProps.a, new BufferAttribute(zeros.slice().fill(1), 1));
       geometry.setAttribute(VertexProps.h, new BufferAttribute(zeros, 1));
     }
+  }
+
+  updateAttributes(geometry) {
+    Object.values(VertexProps).forEach((val) => (geometry.attributes[val].needsUpdate = true));
   }
 
   setFaceDisplay(geometry, index, state) {
@@ -70565,6 +70580,7 @@ class DisplayManager {
   newTransparent(mat) {
     const newMat = mat.clone();
     newMat.transparent = true;
+    newMat.depthTest = false;
     newMat.onBeforeCompile = TransparentShader;
     return newMat;
   }
@@ -70746,6 +70762,10 @@ class IFCManager {
     this.display.setItemsDisplay(modelID, items, state, scene);
   }
 
+  setModelDisplay(modelID, state, scene) {
+    this.display.setModelDisplay(modelID, state, scene);
+  }
+
 }
 
 class IFCLoader extends Loader {
@@ -70818,6 +70838,10 @@ class IFCLoader extends Loader {
 
   setItemsDisplay(modelID, ids, state, scene) {
     this.ifcManager.setItemsDisplay(modelID, ids, state, scene);
+  }
+
+  setModelDisplay(modelID, state, scene) {
+    this.ifcManager.setModelDisplay(modelID, state, scene);
   }
 
 }
@@ -72300,11 +72324,14 @@ function selectObject(event) {
     // const items = ifcLoader.getAllItemsOfType(modelID, IFCSLAB);
     // console.log(items);
 
-    // const properties = ifcLoader.getItemProperties(modelID, id);
-    // console.log(properties);
+    const properties = ifcLoader.getItemProperties(modelID, id);
+    console.log(properties);
 
-    const state = { r: 1, g: 0, b: 1, a: 0.2, h: 1 };
-    ifcLoader.setItemsDisplay(modelID, [id], state, scene);
+    if(event.ctrlKey){
+      const state = { r: 1, g: 0, b: 1, a: 0.02, h: 1 };
+      ifcLoader.setModelDisplay(modelID, state, scene);
+    }
+    // ifcLoader.setItemsDisplay(modelID, [id], state, scene);
 
   } 
 }

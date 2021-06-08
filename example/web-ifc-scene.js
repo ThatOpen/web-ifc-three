@@ -127,11 +127,14 @@ function selectObject(event) {
     // const items = ifcLoader.getAllItemsOfType(modelID, IFCSLAB);
     // console.log(items);
 
-    // const properties = ifcLoader.getItemProperties(modelID, id);
-    // console.log(properties);
+    const properties = ifcLoader.getItemProperties(modelID, id);
+    console.log(properties);
 
-    const state = { r: 1, g: 0, b: 1, a: 0.2, h: 1 }
-    ifcLoader.setItemsDisplay(modelID, [id], state, scene);
+    if(event.ctrlKey){
+      const state = { r: 1, g: 0, b: 1, a: 0.02, h: 1 }
+      ifcLoader.setModelDisplay(modelID, state, scene);
+    }
+    // ifcLoader.setItemsDisplay(modelID, [id], state, scene);
 
   } 
 }

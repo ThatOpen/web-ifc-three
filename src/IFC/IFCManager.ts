@@ -66,4 +66,8 @@ export class IFCManager {
     setItemsDisplay(modelID: number, items: number[], state: Display, scene: Scene) {
         this.display.setItemsDisplay(modelID, items, state, scene);
     }
+
+    setModelDisplay(modelID: number, state: Display, scene: Scene){
+        this.display.setModelDisplay(modelID, state, scene);
+    }
 }

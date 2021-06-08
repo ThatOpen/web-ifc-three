@@ -16,22 +16,34 @@ export class DisplayManager {
         this.state = state;
     }
 
-    setItemsDisplay(modelID: number, ids: number[], state: Display, scene: Scene) {
+    setModelDisplay(modelID: number, state: Display, scene: Scene) {
         const mesh = this.state.models[modelID].mesh;
         const geometry = mesh.geometry;
         this.setupVisibility(geometry);
 
+        const zeros = new Float32Array(geometry.getAttribute('position').count);
+
+        geometry.setAttribute(VertexProps.r, new BufferAttribute(zeros.slice().fill(state.r), 1));
+        geometry.setAttribute(VertexProps.g, new BufferAttribute(zeros.slice().fill(state.g), 1));
+        geometry.setAttribute(VertexProps.b, new BufferAttribute(zeros.slice().fill(state.b), 1));
+        geometry.setAttribute(VertexProps.a, new BufferAttribute(zeros.slice().fill(state.a), 1));
+        geometry.setAttribute(VertexProps.h, new BufferAttribute(zeros.slice().fill(1), 1));
+
+        this.updateAttributes(geometry);
+        if (state.a != 1) this.setupTransparency(mesh, scene);
+    }
+
+    setItemsDisplay(modelID: number, ids: number[], state: Display, scene: Scene) {
+        const mesh = this.state.models[modelID].mesh;
+        const geometry = mesh.geometry;
         const current = mesh.modelID;
+        this.setupVisibility(geometry);
+
         const faceIndicesArray = ids.map((id) => this.state.models[current].faces[id]);
         const faceIndices = ([] as number[]).concat(...faceIndicesArray);
         faceIndices.forEach((faceIndex) => this.setFaceDisplay(geometry, faceIndex, state));
 
-        geometry.attributes[VertexProps.r].needsUpdate = true;
-        geometry.attributes[VertexProps.g].needsUpdate = true;
-        geometry.attributes[VertexProps.b].needsUpdate = true;
-        geometry.attributes[VertexProps.a].needsUpdate = true;
-        geometry.attributes[VertexProps.h].needsUpdate = true;
-
+        this.updateAttributes(geometry);
         if (state.a != 1) this.setupTransparency(mesh, scene);
     }
 
@@ -44,6 +56,10 @@ export class DisplayManager {
             geometry.setAttribute(VertexProps.a, new BufferAttribute(zeros.slice().fill(1), 1));
             geometry.setAttribute(VertexProps.h, new BufferAttribute(zeros, 1));
         }
+    }
+
+    private updateAttributes(geometry: BufferGeometry) {
+        Object.values(VertexProps).forEach((val) => (geometry.attributes[val].needsUpdate = true));
     }
 
     private setFaceDisplay(geometry: BufferGeometry, index: number, state: Display) {
@@ -91,7 +107,7 @@ export class DisplayManager {
     private newTransparent(mat: Material) {
         const newMat = mat.clone();
         newMat.transparent = true;
-        // newMat.depthTest = false;
+        newMat.depthTest = false;
         newMat.onBeforeCompile = TransparentShader;
         return newMat;
     }

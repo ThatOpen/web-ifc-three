@@ -86,13 +86,14 @@ class IFCLoader extends Loader {
      * @modelID The ID of the model to close.
      * @scene The scene where the model is (if it's located in a scene).
      */
-    close(modelID: number, scene?: Scene){
+    close(modelID: number, scene?: Scene) {
         return this.ifcManager.close(modelID, scene);
     }
 
     /**
      * Gets the **Express ID** to which the given face belongs.
      * This ID uniquely identifies this entity within this IFC file.
+     * @modelID The ID of the IFC model.
      * @faceIndex The index of the face of a geometry.You can easily get this index using the [Raycaster](https://threejs.org/docs/#api/en/core/Raycaster).
      */
     getExpressId(modelID: number, faceIndex: number) {
@@ -108,6 +109,7 @@ class IFCLoader extends Loader {
      * import { IFCWALLSTANDARDCASE } from 'web-ifc';
      * const walls = ifcLoader.getAllItemsOfType(IFCWALLSTANDARDCASE);
      * ```
+     * @modelID The ID of the IFC model.
      * @type The type of IFC items to get.
      */
     getAllItemsOfType(modelID: number, type: number) {
@@ -116,6 +118,7 @@ class IFCLoader extends Loader {
 
     /**
      * Gets the native properties of the given element.
+     * @modelID The ID of the IFC model.
      * @id The express ID of the element.
      * @recursive Wether you want to get the information of the referenced elements recursively.
      */
@@ -126,6 +129,7 @@ class IFCLoader extends Loader {
     /**
      * Gets the [property sets](https://standards.buildingsmart.org/IFC/DEV/IFC4_2/FINAL/HTML/schema/ifckernel/lexical/ifcpropertyset.htm)
      * assigned to the given element.
+     * @modelID The ID of the IFC model.
      * @id The express ID of the element.
      * @recursive Wether you want to get the information of the referenced elements recursively.
      */
@@ -137,6 +141,7 @@ class IFCLoader extends Loader {
      * Gets the properties of the type assigned to the element.
      * For example, if applied to a wall (IfcWall), this would get back the information
      * contained in the IfcWallType assigned to it, if any.
+     * @modelID The ID of the IFC model.
      * @id The express ID of the element.
      * @recursive Wether you want to get the information of the referenced elements recursively.
      */
@@ -152,6 +157,7 @@ class IFCLoader extends Loader {
      * one IfcProject that contains one or more IfcSites, that contain one or more
      * IfcBuildings, that contain one or more IfcBuildingStoreys, that contain
      * one or more IfcSpaces.
+     * @modelID The ID of the IFC model.
      */
     getSpatialStructure(modelID: number) {
         return this.ifcManager.getSpatialStructure(modelID);
@@ -165,7 +171,6 @@ class IFCLoader extends Loader {
      * intersection to the camera. This is complex because due to the geometry
      * optimizations of IFC.js. Use this method to get it right away.
      * @items The items you get with [raycaster.intersectObjects()](https://threejs.org/docs/#api/en/core/Raycaster.intersectObjects).
-     * @geometry The geometry of the IFC model.
      * @all If true, it picks the translucent items as well.
      *
      */
@@ -175,13 +180,24 @@ class IFCLoader extends Loader {
 
     /**
      * Sets the RGB color and transparency of the specified items.
+     * @modelID The ID of the IFC model.
      * @ids The items whose visibility to change.
-     * @mesh The mesh of the IFC model.
      * @state The state of view to apply. This is an object of type `Display`, which has the properties `r`, `g` and `b`(red, green and blue), which can have a value between 0 (pure black) and 1 (pure color); `a` (alfa), which can have a value between 0 * (transparent) and 1 (opaque), and `h` (highlighted), which can be either 0 (not highlighted) * or 1 (highlighted). Only highlighted elements will display the specified color + transparency.
      * @scene The current Three scene.
      */
     setItemsDisplay(modelID: number, ids: number[], state: Display, scene: Scene) {
         this.ifcManager.setItemsDisplay(modelID, ids, state, scene);
+    }
+
+    /**
+     * Sets the RGB color and transparency of the specified model.
+     * @modelID The ID of the IFC model.
+     * @ids The items whose visibility to change.
+     * @state The state of view to apply. This is an object of type `Display`, which has the properties `r`, `g` and `b`(red, green and blue), which can have a value between 0 (pure black) and 1 (pure color); `a` (alfa), which can have a value between 0 * (transparent) and 1 (opaque), and `h` (highlighted), which can be either 0 (not highlighted) * or 1 (highlighted). Only highlighted elements will display the specified color + transparency.
+     * @scene The current Three scene.
+     */
+    setModelDisplay(modelID: number, state: Display, scene: Scene) {
+        this.ifcManager.setModelDisplay(modelID, state, scene);
     }
 }
 
