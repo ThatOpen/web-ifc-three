@@ -31,5 +31,11 @@ export interface GeometriesByMaterial {
     [key: string]: GeometryByMaterial
 }
 
+export interface Item {
+    expressID: number;
+    hasSpatialChildren: Item[];
+    hasChildren: Item[];
+}
+
 export type MapFaceIndexID = { [key: number]: number };
 export type MapIDFaceIndex = { [key: number]: number[] };

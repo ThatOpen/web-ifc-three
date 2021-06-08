@@ -70629,15 +70629,22 @@ class PropertyManager {
     return ifcProject;
   }
 
-  getAllSpatialChildren(spatialElement) {
-    const id = spatialElement.expressID;
-    const spatialChildrenID = this.getAllRelatedItemsOfType(id, IFCRELAGGREGATES, 'RelatingObject', 'RelatedObjects');
-    spatialElement.hasSpatialChildren = spatialChildrenID.map((id) => this.ifcAPI.GetLine(this.modelID, id, false));
-    spatialElement.hasChildren = this.getAllRelatedItemsOfType(id, IFCRELCONTAINEDINSPATIALSTRUCTURE, 'RelatingStructure', 'RelatedElements');
-    spatialElement.hasSpatialChildren.forEach((child) => this.getAllSpatialChildren(child));
+  async getAllSpatialChildren(item) {
+    item.hasChildren = [];
+    item.hasSpatialChildren = [];
+    this.getChildren(item.expressID, item.hasSpatialChildren, 'RelatingObject', 'RelatedObjects', IFCRELAGGREGATES);
+    this.getChildren(item.expressID, item.hasChildren, 'RelatingStructure', 'RelatedElements', IFCRELCONTAINEDINSPATIALSTRUCTURE);
   }
 
-  getAllRelatedItemsOfType(elementID, type, relation, relatedProperty) {
+  getChildren(id, prop, relating, rel, relProp) {
+    const childrenID = this.getAllRelatedItemsOfType(id, relProp, relating, rel);
+    childrenID
+      .map((id) => this.ifcAPI.GetLine(this.modelID, id, false))
+      .forEach((item) => prop.push(item));
+    prop.forEach((child) => this.getAllSpatialChildren(child));
+  }
+
+  getAllRelatedItemsOfType(id, type, relation, related) {
     const lines = this.ifcAPI.GetLineIDsWithType(this.modelID, type);
     const IDs = [];
     for (let i = 0; i < lines.size(); i++) {
@@ -70647,12 +70654,12 @@ class PropertyManager {
       let foundElement = false;
       if (Array.isArray(relatedItems)) {
         const values = relatedItems.map((item) => item.value);
-        foundElement = values.includes(elementID);
+        foundElement = values.includes(id);
       }
       else
-        foundElement = relatedItems.value === elementID;
+        foundElement = relatedItems.value === id;
       if (foundElement) {
-        const element = rel[relatedProperty];
+        const element = rel[related];
         if (!Array.isArray(element))
           IDs.push(element.value);
         else
@@ -72260,16 +72267,16 @@ function selectObject(event) {
     const id = ifcLoader.getExpressId(item.faceIndex);
     previousSelection = id;
 
-    // const properties = ifcLoader.getItemProperties(id);
-    // console.log(properties);
-
     // const ifcProject = ifcLoader.getSpatialStructure();
     // console.log(ifcProject);
 
-    const items = ifcLoader.getAllItemsOfType(IFCWALLSTANDARDCASE);
-    console.log(items);
+    // const items = ifcLoader.getAllItemsOfType(IFCWALLSTANDARDCASE);
+    // console.log(items);
 
-    const state = { r: 0, g: 0, b: 1, a: 0.2, h: 1 };
+    const properties = ifcLoader.getItemProperties(id);
+    console.log(properties);
+
+    const state = { r: 1, g: 0, b: 1, a: 0.2, h: 1 };
     ifcLoader.setItemsDisplay([id], ifcMesh, state, scene);
 
   } 

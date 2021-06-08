@@ -125,7 +125,7 @@ function selectObject(event) {
     const properties = ifcLoader.getItemProperties(id);
     console.log(properties);
 
-    const state = { r: 0, g: 0, b: 1, a: 0.2, h: 1 }
+    const state = { r: 1, g: 0, b: 1, a: 0.2, h: 1 }
     ifcLoader.setItemsDisplay([id], ifcMesh, state, scene);
 
   } 

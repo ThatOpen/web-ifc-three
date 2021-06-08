@@ -6,7 +6,7 @@ import {
     IFCRELDEFINESBYPROPERTIES,
     IFCRELDEFINESBYTYPE
 } from 'web-ifc';
-import { MapFaceIndexID, MapIDFaceIndex } from './BaseDefinitions';
+import { MapFaceIndexID, MapIDFaceIndex, Item } from './BaseDefinitions';
 
 export class PropertyManager {
     private modelID: number;
@@ -37,7 +37,7 @@ export class PropertyManager {
         return this.ifcAPI.GetLine(this.modelID, elementID, recursive);
     }
 
-    getAllItemsOfType(type: number){
+    getAllItemsOfType(type: number) {
         const props: object[] = [];
         const lines = this.ifcAPI.GetLineIDsWithType(this.modelID, type);
         for (let i = 0; i < lines.size(); i++) {
@@ -75,34 +75,34 @@ export class PropertyManager {
         return ifcProject;
     }
 
-    private getAllSpatialChildren(spatialElement: any) {
-        const id = spatialElement.expressID;
-        const spatialChildrenID = this.getAllRelatedItemsOfType(
-            id,
-            IFCRELAGGREGATES,
+    private async getAllSpatialChildren(item: Item) {
+        item.hasChildren = [];
+        item.hasSpatialChildren = [];
+        this.getChildren(
+            item.expressID,
+            item.hasSpatialChildren,
             'RelatingObject',
-            'RelatedObjects'
+            'RelatedObjects',
+            IFCRELAGGREGATES
         );
-        spatialElement.hasSpatialChildren = spatialChildrenID.map((id) =>
-            this.ifcAPI.GetLine(this.modelID, id, false)
-        );
-        spatialElement.hasChildren = this.getAllRelatedItemsOfType(
-            id,
-            IFCRELCONTAINEDINSPATIALSTRUCTURE,
+        this.getChildren(
+            item.expressID,
+            item.hasChildren,
             'RelatingStructure',
-            'RelatedElements'
-        );
-        spatialElement.hasSpatialChildren.forEach((child: any) =>
-            this.getAllSpatialChildren(child)
+            'RelatedElements',
+            IFCRELCONTAINEDINSPATIALSTRUCTURE
         );
     }
 
-    private getAllRelatedItemsOfType(
-        elementID: number,
-        type: any,
-        relation: string,
-        relatedProperty: string
-    ) {
+    private getChildren(id: number, prop: Item[], relating: string, rel: string, relProp: number) {
+        const childrenID = this.getAllRelatedItemsOfType(id, relProp, relating, rel);
+        childrenID
+            .map((id) => this.ifcAPI.GetLine(this.modelID, id, false))
+            .forEach((item) => prop.push(item));
+        prop.forEach((child: any) => this.getAllSpatialChildren(child));
+    }
+
+    private getAllRelatedItemsOfType(id: number, type: any, relation: string, related: string) {
         const lines = this.ifcAPI.GetLineIDsWithType(this.modelID, type);
         const IDs = [];
 
@@ -114,11 +114,11 @@ export class PropertyManager {
 
             if (Array.isArray(relatedItems)) {
                 const values = relatedItems.map((item) => item.value);
-                foundElement = values.includes(elementID);
-            } else foundElement = relatedItems.value === elementID;
+                foundElement = values.includes(id);
+            } else foundElement = relatedItems.value === id;
 
             if (foundElement) {
-                const element = rel[relatedProperty];
+                const element = rel[related];
                 if (!Array.isArray(element)) IDs.push(element.value);
                 else element.forEach((ele) => IDs.push(ele.value));
             }
