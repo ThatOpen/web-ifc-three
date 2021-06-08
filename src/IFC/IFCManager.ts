@@ -29,9 +29,10 @@ export class IFCManager {
         this.state.api.SetWasmPath(path);
     }
 
-    close(modelID: number, mesh: IfcMesh, scene: Scene){
+    close(modelID: number, scene?: Scene){
         this.state.api.CloseModel(modelID);
-        scene.remove(mesh);
+        if(scene) scene.remove(this.state.models[modelID].mesh);
+        delete this.state.models[modelID];
     }
 
     getExpressId(modelID: number, faceIndex: number) {
@@ -62,7 +63,7 @@ export class IFCManager {
         return this.picker.pickItem(items, pickTransparent);
     }
 
-    setItemsDisplay(items: number[], mesh: IfcMesh, state: Display, scene: Scene) {
-        this.display.setItemsDisplay(items, mesh, state, scene);
+    setItemsDisplay(modelID: number, items: number[], state: Display, scene: Scene) {
+        this.display.setItemsDisplay(modelID, items, state, scene);
     }
 }

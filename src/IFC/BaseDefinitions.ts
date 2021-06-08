@@ -24,6 +24,7 @@ export interface IfcModel {
     modelID: number;
     ids: MapFaceIndexID;
     faces: MapIDFaceIndex;
+    mesh: IfcMesh;
 }
 
 export interface IfcState {

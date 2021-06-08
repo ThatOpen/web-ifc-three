@@ -33,7 +33,7 @@ export class IFCParser {
     private newIfcModel(buffer: any) {
         const data = new Uint8Array(buffer);
         const modelID = this.state.api.OpenModel(data);
-        this.state.models[modelID] = { modelID, faces: [], ids: [] };
+        this.state.models[modelID] = { modelID, faces: [], ids: [], mesh: {} as IfcMesh };
         return modelID;
     }
 
@@ -48,6 +48,7 @@ export class IFCParser {
         this.storeFaceindicesByExpressIDs();
         const result = new Mesh(allGeometry, materials) as IfcMesh;
         result.modelID = this.currentID;
+        this.state.models[this.currentID].mesh = result;
         return result;
     }
 

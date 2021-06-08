@@ -16,7 +16,8 @@ export class DisplayManager {
         this.state = state;
     }
 
-    setItemsDisplay(ids: number[], mesh: IfcMesh, state: Display, scene: Scene) {
+    setItemsDisplay(modelID: number, ids: number[], state: Display, scene: Scene) {
+        const mesh = this.state.models[modelID].mesh;
         const geometry = mesh.geometry;
         this.setupVisibility(geometry);
 
@@ -31,7 +32,7 @@ export class DisplayManager {
         geometry.attributes[VertexProps.a].needsUpdate = true;
         geometry.attributes[VertexProps.h].needsUpdate = true;
 
-        if (state.a != 1) this.setupTransparency(mesh as TransparentMesh, scene);
+        if (state.a != 1) this.setupTransparency(mesh, scene);
     }
 
     setupVisibility(geometry: BufferGeometry) {
@@ -67,7 +68,8 @@ export class DisplayManager {
         geom.attributes[attr].setX(geoIndex[3 * index + 2], state);
     }
 
-    private setupTransparency(mesh: TransparentMesh, scene: Scene) {
+    private setupTransparency(ifcMesh: IfcMesh, scene: Scene) {
+        const mesh = ifcMesh as TransparentMesh;
         if (mesh.transparentMesh) return;
         const transMesh = mesh.clone();
 

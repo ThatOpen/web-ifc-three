@@ -93,7 +93,7 @@ const ifcMeshes = [];
 })();
 
 //Setup object picking
-let previous = {id: -1, mesh: {}};
+let previous = {id: -1, modelID: {}};
 const resetDisplayState = { r: 0, g: 0, b: 0, a: 1, h: 0 };
 
 function selectObject(event) {
@@ -109,17 +109,20 @@ function selectObject(event) {
   const intersected = raycaster.intersectObjects(scene.children);
   if (intersected.length){
 
-    if(previous.id != -1) ifcLoader.setItemsDisplay([previous.id], previous.mesh, resetDisplayState, scene);
+    if(previous.id != -1) ifcLoader.setItemsDisplay(previous.modelID, [previous.id], resetDisplayState, scene);
 
     const item = ifcLoader.pickItem(intersected);
     const modelID = item.object.modelID;
     const id = ifcLoader.getExpressId(modelID, item.faceIndex);
     console.log('Model ID: ', modelID);
-    previous.id = id;
-    previous.mesh = item.object;
 
-    const ifcProject = ifcLoader.getSpatialStructure(modelID);
-    console.log(ifcProject);
+    // ifcLoader.close(modelID, scene);
+
+    previous.id = id;
+    previous.modelID = modelID;
+
+    // const ifcProject = ifcLoader.getSpatialStructure(modelID);
+    // console.log(ifcProject);
 
     // const items = ifcLoader.getAllItemsOfType(modelID, IFCSLAB);
     // console.log(items);
@@ -128,7 +131,7 @@ function selectObject(event) {
     // console.log(properties);
 
     const state = { r: 1, g: 0, b: 1, a: 0.2, h: 1 }
-    ifcLoader.setItemsDisplay([id], previous.mesh, state, scene);
+    ifcLoader.setItemsDisplay(modelID, [id], state, scene);
 
   } 
 }

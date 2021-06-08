@@ -17,7 +17,7 @@ export interface IFC extends Object3D {
 }
 
 class IFCLoader extends Loader {
-    private ifcManager;
+    private ifcManager: IFCManager;
 
     constructor(manager?: LoadingManager) {
         super(manager);
@@ -79,6 +79,15 @@ class IFCLoader extends Loader {
      */
     setWasmPath(path: string) {
         this.ifcManager.setWasmPath(path);
+    }
+
+    /**
+     * Closes the specified model and deletes it from the scene
+     * @modelID The ID of the model to close.
+     * @scene The scene where the model is (if it's located in a scene).
+     */
+    close(modelID: number, scene?: Scene){
+        return this.ifcManager.close(modelID, scene);
     }
 
     /**
@@ -171,8 +180,8 @@ class IFCLoader extends Loader {
      * @state The state of view to apply. This is an object of type `Display`, which has the properties `r`, `g` and `b`(red, green and blue), which can have a value between 0 (pure black) and 1 (pure color); `a` (alfa), which can have a value between 0 * (transparent) and 1 (opaque), and `h` (highlighted), which can be either 0 (not highlighted) * or 1 (highlighted). Only highlighted elements will display the specified color + transparency.
      * @scene The current Three scene.
      */
-    setItemsDisplay(ids: number[], mesh: IfcMesh, state: Display, scene: Scene) {
-        this.ifcManager.setItemsDisplay(ids, mesh, state, scene);
+    setItemsDisplay(modelID: number, ids: number[], state: Display, scene: Scene) {
+        this.ifcManager.setItemsDisplay(modelID, ids, state, scene);
     }
 }
 

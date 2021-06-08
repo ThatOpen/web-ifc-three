@@ -70338,7 +70338,8 @@ class IFCParser {
     this.state.models[modelID] = {
       modelID,
       faces: [],
-      ids: []
+      ids: [],
+      mesh: {}
     };
     return modelID;
   }
@@ -70354,6 +70355,7 @@ class IFCParser {
     this.storeFaceindicesByExpressIDs();
     const result = new Mesh(allGeometry, materials);
     result.modelID = this.currentID;
+    this.state.models[this.currentID].mesh = result;
     return result;
   }
 
@@ -70497,7 +70499,8 @@ class DisplayManager {
     this.state = state;
   }
 
-  setItemsDisplay(ids, mesh, state, scene) {
+  setItemsDisplay(modelID, ids, state, scene) {
+    const mesh = this.state.models[modelID].mesh;
     const geometry = mesh.geometry;
     this.setupVisibility(geometry);
     const current = mesh.modelID;
@@ -70541,7 +70544,8 @@ class DisplayManager {
     geom.attributes[attr].setX(geoIndex[3 * index + 2], state);
   }
 
-  setupTransparency(mesh, scene) {
+  setupTransparency(ifcMesh, scene) {
+    const mesh = ifcMesh;
     if (mesh.transparentMesh)
       return;
     const transMesh = mesh.clone();
@@ -70703,9 +70707,11 @@ class IFCManager {
     this.state.api.SetWasmPath(path);
   }
 
-  close(modelID, mesh, scene) {
+  close(modelID, scene) {
     this.state.api.CloseModel(modelID);
-    scene.remove(mesh);
+    if (scene)
+      scene.remove(this.state.models[modelID].mesh);
+    delete this.state.models[modelID];
   }
 
   getExpressId(modelID, faceIndex) {
@@ -70736,8 +70742,8 @@ class IFCManager {
     return this.picker.pickItem(items, pickTransparent);
   }
 
-  setItemsDisplay(items, mesh, state, scene) {
-    this.display.setItemsDisplay(items, mesh, state, scene);
+  setItemsDisplay(modelID, items, state, scene) {
+    this.display.setItemsDisplay(modelID, items, state, scene);
   }
 
 }
@@ -70778,6 +70784,10 @@ class IFCLoader extends Loader {
     this.ifcManager.setWasmPath(path);
   }
 
+  close(modelID, scene) {
+    return this.ifcManager.close(modelID, scene);
+  }
+
   getExpressId(modelID, faceIndex) {
     return this.ifcManager.getExpressId(modelID, faceIndex);
   }
@@ -70806,8 +70816,8 @@ class IFCLoader extends Loader {
     return this.ifcManager.pickItem(items, transparent);
   }
 
-  setItemsDisplay(ids, mesh, state, scene) {
-    this.ifcManager.setItemsDisplay(ids, mesh, state, scene);
+  setItemsDisplay(modelID, ids, state, scene) {
+    this.ifcManager.setItemsDisplay(modelID, ids, state, scene);
   }
 
 }
@@ -72256,7 +72266,7 @@ AnimationLoop();
 })();
 
 //Setup object picking
-let previous = {id: -1, mesh: {}};
+let previous = {id: -1, modelID: {}};
 const resetDisplayState = { r: 0, g: 0, b: 0, a: 1, h: 0 };
 
 function selectObject(event) {
@@ -72272,17 +72282,20 @@ function selectObject(event) {
   const intersected = raycaster.intersectObjects(scene.children);
   if (intersected.length){
 
-    if(previous.id != -1) ifcLoader.setItemsDisplay([previous.id], previous.mesh, resetDisplayState, scene);
+    if(previous.id != -1) ifcLoader.setItemsDisplay(previous.modelID, [previous.id], resetDisplayState, scene);
 
     const item = ifcLoader.pickItem(intersected);
     const modelID = item.object.modelID;
     const id = ifcLoader.getExpressId(modelID, item.faceIndex);
     console.log('Model ID: ', modelID);
-    previous.id = id;
-    previous.mesh = item.object;
 
-    const ifcProject = ifcLoader.getSpatialStructure(modelID);
-    console.log(ifcProject);
+    // ifcLoader.close(modelID, scene);
+
+    previous.id = id;
+    previous.modelID = modelID;
+
+    // const ifcProject = ifcLoader.getSpatialStructure(modelID);
+    // console.log(ifcProject);
 
     // const items = ifcLoader.getAllItemsOfType(modelID, IFCSLAB);
     // console.log(items);
@@ -72291,7 +72304,7 @@ function selectObject(event) {
     // console.log(properties);
 
     const state = { r: 1, g: 0, b: 1, a: 0.2, h: 1 };
-    ifcLoader.setItemsDisplay([id], previous.mesh, state, scene);
+    ifcLoader.setItemsDisplay(modelID, [id], state, scene);
 
   } 
 }
