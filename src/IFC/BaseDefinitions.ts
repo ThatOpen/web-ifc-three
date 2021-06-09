@@ -14,7 +14,7 @@ export interface Display {
     g: number;
     b: number;
     a: number;
-    h: 0 | 1;
+    h: -1 | 0 | 1;
 }
 
 export type MapFaceIndexID = { [key: number]: number };

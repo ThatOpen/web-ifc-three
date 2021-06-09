@@ -112,8 +112,8 @@ class IFCLoader extends Loader {
      * @modelID The ID of the IFC model.
      * @type The type of IFC items to get.
      */
-    getAllItemsOfType(modelID: number, type: number) {
-        return this.ifcManager.getAllItemsOfType(modelID, type);
+    getAllItemsOfType(modelID: number, type: number, properties = false) {
+        return this.ifcManager.getAllItemsOfType(modelID, type, properties);
     }
 
     /**
@@ -183,7 +183,9 @@ class IFCLoader extends Loader {
      * Sets the RGB color and transparency of the specified items.
      * @modelID The ID of the IFC model.
      * @ids The items whose visibility to change.
-     * @state The state of view to apply. This is an object of type `Display`, which has the properties `r`, `g` and `b`(red, green and blue), which can have a value between 0 (pure black) and 1 (pure color); `a` (alfa), which can have a value between 0 * (transparent) and 1 (opaque), and `h` (highlighted), which can be either 0 (not highlighted) * or 1 (highlighted). Only highlighted elements will display the specified color + transparency.
+     * @state The state of view to apply. This is an object of type `Display`, which has the properties `r`, `g` and `b`(red, green and blue), which can have a value between 0 (pure black) and 1 (pure color); `a` (alfa), which can have a value between 0 * (transparent) and 1 (opaque), and `h` (highlighted), which can be either 0 (not highlighted) * or 1 (highlighted). Only highlighted elements will display the specified color + transparency. 
+     * 
+     * If any of this attributes is -1, the property won't be updated, thus improving the performance of the operation.
      * @scene The current Three scene.
      */
     setItemsDisplay(modelID: number, ids: number[], state: Display, scene: Scene) {
@@ -195,6 +197,8 @@ class IFCLoader extends Loader {
      * @modelID The ID of the IFC model.
      * @ids The items whose visibility to change.
      * @state The state of view to apply. This is an object of type `Display`, which has the properties `r`, `g` and `b`(red, green and blue), which can have a value between 0 (pure black) and 1 (pure color); `a` (alfa), which can have a value between 0 * (transparent) and 1 (opaque), and `h` (highlighted), which can be either 0 (not highlighted) * or 1 (highlighted). Only highlighted elements will display the specified color + transparency.
+     * 
+     * If any of this attributes is -1, the property won't be updated, thus improving the performance of the operation.
      * @scene The current Three scene.
      */
     setModelDisplay(modelID: number, state: Display, scene: Scene) {

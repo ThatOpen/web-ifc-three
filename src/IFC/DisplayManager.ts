@@ -23,11 +23,11 @@ export class DisplayManager {
 
         const zeros = new Float32Array(geometry.getAttribute('position').count);
 
-        geometry.setAttribute(VertexProps.r, new BufferAttribute(zeros.slice().fill(state.r), 1));
-        geometry.setAttribute(VertexProps.g, new BufferAttribute(zeros.slice().fill(state.g), 1));
-        geometry.setAttribute(VertexProps.b, new BufferAttribute(zeros.slice().fill(state.b), 1));
-        geometry.setAttribute(VertexProps.a, new BufferAttribute(zeros.slice().fill(state.a), 1));
-        geometry.setAttribute(VertexProps.h, new BufferAttribute(zeros.slice().fill(1), 1));
+        if(state.r >= 0) geometry.setAttribute(VertexProps.r, new BufferAttribute(zeros.slice().fill(state.r), 1));
+        if(state.g >= 0) geometry.setAttribute(VertexProps.g, new BufferAttribute(zeros.slice().fill(state.g), 1));
+        if(state.b >= 0) geometry.setAttribute(VertexProps.b, new BufferAttribute(zeros.slice().fill(state.b), 1));
+        if(state.a >= 0) geometry.setAttribute(VertexProps.a, new BufferAttribute(zeros.slice().fill(state.a), 1));
+        if(state.h >= 0) geometry.setAttribute(VertexProps.h, new BufferAttribute(zeros.slice().fill(1), 1));
 
         this.updateAttributes(geometry);
         if (state.a != 1) this.setupTransparency(mesh, scene);
@@ -65,11 +65,11 @@ export class DisplayManager {
     private setFaceDisplay(geometry: BufferGeometry, index: number, state: Display) {
         if (!geometry.index) return;
         const geoIndex = geometry.index.array;
-        this.setFaceAttr(geometry, VertexProps.r, state.r, index, geoIndex);
-        this.setFaceAttr(geometry, VertexProps.g, state.g, index, geoIndex);
-        this.setFaceAttr(geometry, VertexProps.b, state.b, index, geoIndex);
-        this.setFaceAttr(geometry, VertexProps.a, state.a, index, geoIndex);
-        this.setFaceAttr(geometry, VertexProps.h, state.h, index, geoIndex);
+        if(state.r >= 0) this.setFaceAttr(geometry, VertexProps.r, state.r, index, geoIndex);
+        if(state.g >= 0) this.setFaceAttr(geometry, VertexProps.g, state.g, index, geoIndex);
+        if(state.b >= 0) this.setFaceAttr(geometry, VertexProps.b, state.b, index, geoIndex);
+        if(state.a >= 0) this.setFaceAttr(geometry, VertexProps.a, state.a, index, geoIndex);
+        if(state.h >= 0) this.setFaceAttr(geometry, VertexProps.h, state.h, index, geoIndex);
     }
 
     private setFaceAttr(

@@ -70504,11 +70504,16 @@ class DisplayManager {
     const geometry = mesh.geometry;
     this.setupVisibility(geometry);
     const zeros = new Float32Array(geometry.getAttribute('position').count);
-    geometry.setAttribute(VertexProps.r, new BufferAttribute(zeros.slice().fill(state.r), 1));
-    geometry.setAttribute(VertexProps.g, new BufferAttribute(zeros.slice().fill(state.g), 1));
-    geometry.setAttribute(VertexProps.b, new BufferAttribute(zeros.slice().fill(state.b), 1));
-    geometry.setAttribute(VertexProps.a, new BufferAttribute(zeros.slice().fill(state.a), 1));
-    geometry.setAttribute(VertexProps.h, new BufferAttribute(zeros.slice().fill(1), 1));
+    if (state.r >= 0)
+      geometry.setAttribute(VertexProps.r, new BufferAttribute(zeros.slice().fill(state.r), 1));
+    if (state.g >= 0)
+      geometry.setAttribute(VertexProps.g, new BufferAttribute(zeros.slice().fill(state.g), 1));
+    if (state.b >= 0)
+      geometry.setAttribute(VertexProps.b, new BufferAttribute(zeros.slice().fill(state.b), 1));
+    if (state.a >= 0)
+      geometry.setAttribute(VertexProps.a, new BufferAttribute(zeros.slice().fill(state.a), 1));
+    if (state.h >= 0)
+      geometry.setAttribute(VertexProps.h, new BufferAttribute(zeros.slice().fill(1), 1));
     this.updateAttributes(geometry);
     if (state.a != 1)
       this.setupTransparency(mesh, scene);
@@ -70546,11 +70551,16 @@ class DisplayManager {
     if (!geometry.index)
       return;
     const geoIndex = geometry.index.array;
-    this.setFaceAttr(geometry, VertexProps.r, state.r, index, geoIndex);
-    this.setFaceAttr(geometry, VertexProps.g, state.g, index, geoIndex);
-    this.setFaceAttr(geometry, VertexProps.b, state.b, index, geoIndex);
-    this.setFaceAttr(geometry, VertexProps.a, state.a, index, geoIndex);
-    this.setFaceAttr(geometry, VertexProps.h, state.h, index, geoIndex);
+    if (state.r >= 0)
+      this.setFaceAttr(geometry, VertexProps.r, state.r, index, geoIndex);
+    if (state.g >= 0)
+      this.setFaceAttr(geometry, VertexProps.g, state.g, index, geoIndex);
+    if (state.b >= 0)
+      this.setFaceAttr(geometry, VertexProps.b, state.b, index, geoIndex);
+    if (state.a >= 0)
+      this.setFaceAttr(geometry, VertexProps.a, state.a, index, geoIndex);
+    if (state.h >= 0)
+      this.setFaceAttr(geometry, VertexProps.h, state.h, index, geoIndex);
   }
 
   setFaceAttr(geom, attr, state, index, geoIndex) {
@@ -70632,14 +70642,14 @@ class PropertyManager {
     return this.state.api.GetLine(modelID, id, recursive);
   }
 
-  getAllItemsOfType(modelID, type) {
-    const props = [];
+  getAllItemsOfType(modelID, type, properties) {
+    const items = [];
     const lines = this.state.api.GetLineIDsWithType(modelID, type);
-    for (let i = 0; i < lines.size(); i++) {
-      const item = this.state.api.GetLine(modelID, lines.get(i));
-      props.push(item);
-    }
-    return props;
+    for (let i = 0; i < lines.size(); i++)
+      items.push(lines.get(i));
+    if (properties)
+      return items.map((id) => this.state.api.GetLine(modelID, id));
+    return items;
   }
 
   getPropertySets(modelID, elementID, recursive = false) {
@@ -70735,8 +70745,8 @@ class IFCManager {
     return this.properties.getExpressId(modelID, faceIndex);
   }
 
-  getAllItemsOfType(modelID, type) {
-    return this.properties.getAllItemsOfType(modelID, type);
+  getAllItemsOfType(modelID, type, properties) {
+    return this.properties.getAllItemsOfType(modelID, type, properties);
   }
 
   getItemProperties(modelID, id, recursive = false) {
@@ -70813,8 +70823,8 @@ class IFCLoader extends Loader {
     return this.ifcManager.getExpressId(modelID, faceIndex);
   }
 
-  getAllItemsOfType(modelID, type) {
-    return this.ifcManager.getAllItemsOfType(modelID, type);
+  getAllItemsOfType(modelID, type, properties = false) {
+    return this.ifcManager.getAllItemsOfType(modelID, type, properties);
   }
 
   getItemProperties(modelID, id, recursive = false) {
@@ -72252,9 +72262,9 @@ scene.add(ambientLight);
 
 //Window resize support
 window.addEventListener('resize', () => {
-  camera.aspect = window.innerWidth / window.innerHeight;
-  camera.updateProjectionMatrix();
-  renderer.setSize(window.innerWidth, window.innerHeight);
+    camera.aspect = window.innerWidth / window.innerHeight;
+    camera.updateProjectionMatrix();
+    renderer.setSize(window.innerWidth, window.innerHeight);
 });
 
 //Monitoring
@@ -72262,81 +72272,76 @@ const stats = new Stats();
 stats.showPanel(0);
 document.body.appendChild(stats.dom);
 
-
 //Animation
 function AnimationLoop() {
-  stats.begin();
-  controls.update();
-  renderer.render(scene, camera);
-  stats.end();
-  requestAnimationFrame(AnimationLoop);
+    stats.begin();
+    controls.update();
+    renderer.render(scene, camera);
+    stats.end();
+    requestAnimationFrame(AnimationLoop);
 }
 
 const ifcLoader = new IFCLoader();
 
 AnimationLoop();
 (function readIfcFile() {
-  const input = document.querySelector('input[type="file"]');
-  if (!input) return;
-  input.addEventListener(
-    'change',
-    (changed) => {
-      var ifcURL = URL.createObjectURL(changed.target.files[0]);
-      ifcLoader.load(ifcURL, (geometry) => {
-        scene.add(geometry);
-      });
-    },
-    false
-  );
+    const input = document.querySelector('input[type="file"]');
+    if (!input) return;
+    input.addEventListener(
+        'change',
+        (changed) => {
+            var ifcURL = URL.createObjectURL(changed.target.files[0]);
+            ifcLoader.load(ifcURL, (geometry) => {
+                scene.add(geometry);
+            });
+        },
+        false
+    );
 })();
 
-//Setup object picking
-let previous = {id: -1, modelID: {}};
-const resetDisplayState = { r: 0, g: 0, b: 0, a: 1, h: 0 };
-
 function selectObject(event) {
-  if (event.button != 0) return;
+    if (event.button != 0) return;
 
-  const mouse = new Vector2();
-  mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
-  mouse.y = -(event.clientY / window.innerHeight) * 2 + 1;
+    const mouse = new Vector2();
+    mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
+    mouse.y = -(event.clientY / window.innerHeight) * 2 + 1;
 
-  const raycaster = new Raycaster();
-  raycaster.setFromCamera(mouse, camera);
+    const raycaster = new Raycaster();
+    raycaster.setFromCamera(mouse, camera);
 
-  const intersected = raycaster.intersectObjects(scene.children);
-  if (intersected.length){
+    const intersected = raycaster.intersectObjects(scene.children);
+    if (intersected.length) {
+        // if (previous.id != -1)
+        //     ifcLoader.setItemsDisplay(previous.modelID, [previous.id], resetDisplayState, scene);
 
-    if(previous.id != -1) ifcLoader.setItemsDisplay(previous.modelID, [previous.id], resetDisplayState, scene);
+        const item = ifcLoader.pickItem(intersected);
+        const modelID = item.object.modelID;
+        // const id = ifcLoader.getExpressId(modelID, item.faceIndex);
+        // console.log('Model ID: ', modelID);
 
-    const item = ifcLoader.pickItem(intersected);
-    const modelID = item.object.modelID;
-    const id = ifcLoader.getExpressId(modelID, item.faceIndex);
-    console.log('Model ID: ', modelID);
+        // ifcLoader.close(modelID, scene);
 
-    // ifcLoader.close(modelID, scene);
+        // previous.id = id;
+        // previous.modelID = modelID;
 
-    previous.id = id;
-    previous.modelID = modelID;
 
-    const ifcProject = ifcLoader.getSpatialStructure(modelID, false);
-    console.log(ifcProject);
+        const transparent2 = { r: -1, g: -1, b: -1, a: 0.03, h: 1 };
+        ifcLoader.setModelDisplay(modelID, transparent2, scene);
 
-    // const items = ifcLoader.getAllItemsOfType(modelID, IFCSLAB);
-    // console.log(items);
+        const normalDisplay = { r: -1, g: -1, b: -1, a: -1, h: 0 };
+        const ifcProject = ifcLoader.getSpatialStructure(modelID, false);
+        const firstFloor = ifcProject.hasSpatialChildren[0].hasSpatialChildren[0].hasSpatialChildren[0];
+        const items = firstFloor.hasChildren;
 
-    // const properties = ifcLoader.getItemProperties(modelID, id);
-    // console.log(properties);
+        ifcLoader.setItemsDisplay(modelID, items, normalDisplay, scene);
 
-    const state = { r: 1, g: 0, b: 1, a: 0.02, h: 1 };
+        // const doors = ifcLoader.getAllItemsOfType(modelID, IFCDOOR);
+        // const red = { r: 1, g: 0, b: 0, a: 1, h: 1 };
+        // ifcLoader.setItemsDisplay(modelID, doors, red, scene);
 
-    if(event.ctrlKey){
-      ifcLoader.setModelDisplay(modelID, state, scene);
+        // const properties = ifcLoader.getItemProperties(modelID, id);
+        // console.log(properties);
     }
-
-    ifcLoader.setItemsDisplay(modelID, [id], state, scene);
-
-  } 
 }
 
 threeCanvas.ondblclick = selectObject;

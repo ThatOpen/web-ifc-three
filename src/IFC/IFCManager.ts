@@ -39,8 +39,8 @@ export class IFCManager {
         return this.properties.getExpressId(modelID, faceIndex);
     }
 
-    getAllItemsOfType(modelID: number, type: number) {
-        return this.properties.getAllItemsOfType(modelID, type);
+    getAllItemsOfType(modelID: number, type: number, properties: boolean) {
+        return this.properties.getAllItemsOfType(modelID, type, properties);
     }
 
     getItemProperties(modelID: number, id: number, recursive = false) {

@@ -27,14 +27,13 @@ export class PropertyManager {
         return this.state.api.GetLine(modelID, id, recursive);
     }
 
-    getAllItemsOfType(modelID: number, type: number) {
-        const props: object[] = [];
+    getAllItemsOfType(modelID: number, type: number, properties: boolean) {
+        const items: number[] = [];
         const lines = this.state.api.GetLineIDsWithType(modelID, type);
-        for (let i = 0; i < lines.size(); i++) {
-            const item = this.state.api.GetLine(modelID, lines.get(i));
-            props.push(item);
-        }
-        return props;
+        for (let i = 0; i < lines.size(); i++) items.push(lines.get(i));
+
+        if (properties) return items.map((id) => this.state.api.GetLine(modelID, id));
+        return items;
     }
 
     getPropertySets(modelID: number, elementID: number, recursive = false) {
@@ -103,7 +102,7 @@ export class PropertyManager {
         isSpatial: boolean
     ) {
         const childrenID = this.getAllRelatedItemsOfType(modelID, id, relProp, relating, rel);
-        if(!recursive && !isSpatial) return prop.push(...childrenID);
+        if (!recursive && !isSpatial) return prop.push(...childrenID);
         const items = childrenID.map((id) => this.state.api.GetLine(modelID, id, false));
         prop.push(...items);
         prop.forEach((child: any) => this.getAllSpatialChildren(modelID, child, recursive));
