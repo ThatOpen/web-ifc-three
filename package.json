@@ -28,6 +28,7 @@
   "dependencies": {
     "stats.js": "^0.17.0",
     "three": "^0.126.0",
+    "three-mesh-bvh": "^0.3.7",
     "web-ifc": "0.0.19"
   },
   "devDependencies": {

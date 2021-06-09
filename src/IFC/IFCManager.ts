@@ -18,7 +18,7 @@ export class IFCManager {
         this.parser = new IFCParser(this.state);
         this.display = new DisplayManager(this.state);
         this.properties = new PropertyManager(this.state);
-        this.picker = new ItemPicker(this.display);
+        this.picker = new ItemPicker(this.state, this.display);
     }
 
     parse(buffer: any) {
@@ -59,8 +59,12 @@ export class IFCManager {
         return this.properties.getSpatialStructure(modelID, recursive);
     }
 
-    pickItem(items: Intersection[], pickTransparent = true) {
-        return this.picker.pickItem(items, pickTransparent);
+    pickItems(items: Intersection[], pickTransparent = true) {
+        return this.picker.pickItems(items, pickTransparent);
+    }
+
+    pickItem(modelID: number, id: number, scene: Scene){
+        return this.picker.pickItem(modelID, id, scene);
     }
 
     setItemsDisplay(modelID: number, items: number[], state: Display, scene: Scene) {

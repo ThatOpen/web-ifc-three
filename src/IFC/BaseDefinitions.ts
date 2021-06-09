@@ -19,12 +19,14 @@ export interface Display {
 
 export type MapFaceIndexID = { [key: number]: number };
 export type MapIDFaceIndex = { [key: number]: number[] };
+export type MapIDGeometry = { [key: number]: BufferGeometry };
 
 export interface IfcModel {
     modelID: number;
     ids: MapFaceIndexID;
     faces: MapIDFaceIndex;
     mesh: IfcMesh;
+    items: MapIDGeometry;
 }
 
 export interface IfcState {

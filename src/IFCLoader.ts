@@ -175,8 +175,12 @@ class IFCLoader extends Loader {
      * @transparent If true, it picks the translucent items as well.
      *
      */
-    pickItem(items: Intersection[], transparent = true) {
-        return this.ifcManager.pickItem(items, transparent);
+    pickItems(items: Intersection[], transparent = true) {
+        return this.ifcManager.pickItems(items, transparent);
+    }
+
+    pickItem(modelID: number, id: number, scene: Scene) {
+        return this.ifcManager.pickItem(modelID, id, scene);
     }
 
     /**

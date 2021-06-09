@@ -33,7 +33,7 @@ export class IFCParser {
     private newIfcModel(buffer: any) {
         const data = new Uint8Array(buffer);
         const modelID = this.state.api.OpenModel(data);
-        this.state.models[modelID] = { modelID, faces: [], ids: [], mesh: {} as IfcMesh };
+        this.state.models[modelID] = { modelID, faces: [], ids: [], mesh: {} as IfcMesh, items: {} };
         return modelID;
     }
 
@@ -111,13 +111,24 @@ export class IFCParser {
         }
     }
 
-    private savePlacedGeometryByMaterial(placedGeometry: PlacedGeometry, productId: number) {
+    private savePlacedGeometryByMaterial(placedGeometry: PlacedGeometry, id: number) {
         const geometry = this.getBufferGeometry(placedGeometry);
         geometry.computeVertexNormals();
         const matrix = this.getMeshMatrix(placedGeometry.flatTransformation);
         geometry.applyMatrix4(matrix);
-        this.saveGeometryByMaterial(geometry, placedGeometry, productId);
+        this.storeGeometryForHighlight(id, geometry);
+        this.saveGeometryByMaterial(geometry, placedGeometry, id);
     }
+
+    private storeGeometryForHighlight(id: number, geometry: BufferGeometry) {
+        const currentGeometry = this.state.models[this.currentID].items;
+        if (!currentGeometry[id]) {
+          currentGeometry[id] = geometry;
+          return;
+        }
+        var geometries = [currentGeometry[id], geometry];
+        currentGeometry[id] = BufferGeometryUtils.mergeBufferGeometries(geometries, true);
+      }
 
     private getBufferGeometry(placedGeometry: PlacedGeometry) {
         const geometry = this.state.api.GetGeometry(

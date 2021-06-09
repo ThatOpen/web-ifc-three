@@ -13,9 +13,16 @@ import {
     AmbientLight,
     Raycaster,
     Vector3,
-    Vector2
+    Vector2,
+    BufferGeometry
 } from 'three';
 import { IFCDOOR, IFCSLAB, IFCWALLSTANDARDCASE } from 'web-ifc';
+// import { computeBoundsTree, disposeBoundsTree, acceleratedRaycast } from 'three-mesh-bvh';
+
+// Add the extension functions
+// BufferGeometry.prototype.computeBoundsTree = computeBoundsTree;
+// BufferGeometry.prototype.disposeBoundsTree = disposeBoundsTree;
+// Mesh.prototype.raycast = acceleratedRaycast;
 
 //Scene
 const scene = new Scene();
@@ -31,12 +38,6 @@ renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
 const camera = new PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 1000);
 camera.position.z = 5;
 let controls = new OrbitControls(camera, renderer.domElement);
-
-//Initial cube
-// const geometry = new BoxGeometry();
-// const material = new MeshPhongMaterial({ color: 0xffffff });
-// const cube = new Mesh(geometry, material);
-// scene.add(cube);
 
 //Lights
 const directionalLight1 = new DirectionalLight(0xffeeff, 0.8);
@@ -82,9 +83,10 @@ const ifcMeshes = [];
         'change',
         (changed) => {
             var ifcURL = URL.createObjectURL(changed.target.files[0]);
-            ifcLoader.load(ifcURL, (geometry) => {
-                ifcMeshes.push(geometry);
-                scene.add(geometry);
+            ifcLoader.load(ifcURL, (mesh) => {
+                // mesh.geometry.computeBoundsTree();
+                ifcMeshes.push(mesh);
+                scene.add(mesh);
             });
         },
         false
@@ -92,51 +94,66 @@ const ifcMeshes = [];
 })();
 
 //Setup object picking
-let previous = { id: -1, modelID: {} };
+let previous = {};
 const resetDisplayState = { r: 0, g: 0, b: 0, a: 1, h: 0 };
 
+const raycaster = new Raycaster();
+raycaster.firstHitOnly = true;
+
 function selectObject(event) {
-    if (event.button != 0) return;
 
     const mouse = new Vector2();
     mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
     mouse.y = -(event.clientY / window.innerHeight) * 2 + 1;
-
-    const raycaster = new Raycaster();
     raycaster.setFromCamera(mouse, camera);
 
-    const intersected = raycaster.intersectObjects(scene.children);
+    const intersected = raycaster.intersectObjects(ifcMeshes);
+
     if (intersected.length) {
         // if (previous.id != -1)
         //     ifcLoader.setItemsDisplay(previous.modelID, [previous.id], resetDisplayState, scene);
 
-        const item = ifcLoader.pickItem(intersected);
+        // const item = ifcLoader.pickItems(intersected);
+        const item = intersected[0];
+        console.log(item.faceIndex);
+        if(previous == item.faceIndex) return;
+        previous = item.faceIndex;
+
         const modelID = item.object.modelID;
-        // const id = ifcLoader.getExpressId(modelID, item.faceIndex);
-        // console.log('Model ID: ', modelID);
+        const id = ifcLoader.getExpressId(modelID, item.faceIndex);
 
-        // ifcLoader.close(modelID, scene);
+        ifcLoader.pickItem(modelID, id, scene);
 
-        // previous.id = id;
-        // previous.modelID = modelID;
+        // const ifcProject = ifcLoader.getSpatialStructure(modelID, true);
+        // console.log(ifcProject);
+
+        // const properties = ifcLoader.getItemProperties(modelID, id);
+        // console.log(properties);
+
+        // const psets = ifcLoader.getPropertySets(modelID, id);
+        // console.log(psets);
 
 
-        const transparent2 = { r: -1, g: -1, b: -1, a: 0.03, h: 1 };
-        ifcLoader.setModelDisplay(modelID, transparent2, scene);
 
-        const normalDisplay = { r: -1, g: -1, b: -1, a: -1, h: 0 };
-        const ifcProject = ifcLoader.getSpatialStructure(modelID, false);
-        const firstFloor = ifcProject.hasSpatialChildren[0].hasSpatialChildren[0].hasSpatialChildren[0];
-        const items = firstFloor.hasChildren;
 
-        ifcLoader.setItemsDisplay(modelID, items, normalDisplay, scene);
+        // const transparent = { r: 0, g: 0, b: 1, a: 0.02, h: 1 };
+        // ifcLoader.setModelDisplay(modelID, transparent, scene);
 
         // const doors = ifcLoader.getAllItemsOfType(modelID, IFCDOOR);
         // const red = { r: 1, g: 0, b: 0, a: 1, h: 1 };
         // ifcLoader.setItemsDisplay(modelID, doors, red, scene);
 
-        // const properties = ifcLoader.getItemProperties(modelID, id);
-        // console.log(properties);
+
+
+
+        const transparent = { r: 0, g: 0, b: 1, a: 0.02, h: 1 };
+        ifcLoader.setModelDisplay(modelID, transparent, scene);
+
+        const normalDisplay = { r: 0, g: 0, b: 0, a: 1, h: 0 };
+        const ifcProject = ifcLoader.getSpatialStructure(modelID, false);
+        const firstFloor = ifcProject.hasSpatialChildren[0].hasSpatialChildren[0].hasSpatialChildren[0];
+        const items = firstFloor.hasChildren;
+        ifcLoader.setItemsDisplay(modelID, items, normalDisplay, scene);
     }
 }
 

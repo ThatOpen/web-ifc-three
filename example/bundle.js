@@ -70339,7 +70339,8 @@ class IFCParser {
       modelID,
       faces: [],
       ids: [],
-      mesh: {}
+      mesh: {},
+      items: {}
     };
     return modelID;
   }
@@ -70410,12 +70411,23 @@ class IFCParser {
     }
   }
 
-  savePlacedGeometryByMaterial(placedGeometry, productId) {
+  savePlacedGeometryByMaterial(placedGeometry, id) {
     const geometry = this.getBufferGeometry(placedGeometry);
     geometry.computeVertexNormals();
     const matrix = this.getMeshMatrix(placedGeometry.flatTransformation);
     geometry.applyMatrix4(matrix);
-    this.saveGeometryByMaterial(geometry, placedGeometry, productId);
+    this.storeGeometryForHighlight(id, geometry);
+    this.saveGeometryByMaterial(geometry, placedGeometry, id);
+  }
+
+  storeGeometryForHighlight(id, geometry) {
+    const currentGeometry = this.state.models[this.currentID].items;
+    if (!currentGeometry[id]) {
+      currentGeometry[id] = geometry;
+      return;
+    }
+    var geometries = [currentGeometry[id], geometry];
+    currentGeometry[id] = BufferGeometryUtils.mergeBufferGeometries(geometries, true);
   }
 
   getBufferGeometry(placedGeometry) {
@@ -70599,11 +70611,18 @@ class DisplayManager {
 
 class ItemPicker {
 
-  constructor(displayManager) {
+  constructor(state, displayManager) {
+    this.state = state;
     this.display = displayManager;
+    this.previousSelection = {};
+    this.highlightMaterial = new MeshBasicMaterial({
+      color: 0xff0000,
+      depthTest: false,
+      side: DoubleSide
+    });
   }
 
-  pickItem(items, pickTransparent = true) {
+  pickItems(items, pickTransparent = true) {
     for (let i = 0; i < items.length; i++) {
       const mesh = items[i].object;
       const geometry = mesh.geometry;
@@ -70619,6 +70638,19 @@ class ItemPicker {
         return items[i];
     }
     return null;
+  }
+
+  pickItem(modelID, id, scene) {
+    if (!this.state.models[modelID].items[id])
+      return;
+    const geometry = this.state.models[modelID].items[id];
+    const mesh = new Mesh(geometry, this.highlightMaterial);
+    mesh.renderOrder = 1;
+    scene.add(mesh);
+    if (this.previousSelection)
+      scene.remove(this.previousSelection);
+    this.previousSelection = mesh;
+    return id;
   }
 
 }
@@ -70723,7 +70755,7 @@ class IFCManager {
     this.parser = new IFCParser(this.state);
     this.display = new DisplayManager(this.state);
     this.properties = new PropertyManager(this.state);
-    this.picker = new ItemPicker(this.display);
+    this.picker = new ItemPicker(this.state, this.display);
   }
 
   parse(buffer) {
@@ -70765,8 +70797,12 @@ class IFCManager {
     return this.properties.getSpatialStructure(modelID, recursive);
   }
 
-  pickItem(items, pickTransparent = true) {
-    return this.picker.pickItem(items, pickTransparent);
+  pickItems(items, pickTransparent = true) {
+    return this.picker.pickItems(items, pickTransparent);
+  }
+
+  pickItem(modelID, id, scene) {
+    return this.picker.pickItem(modelID, id, scene);
   }
 
   setItemsDisplay(modelID, items, state, scene) {
@@ -70843,8 +70879,12 @@ class IFCLoader extends Loader {
     return this.ifcManager.getSpatialStructure(modelID, recursive);
   }
 
-  pickItem(items, transparent = true) {
-    return this.ifcManager.pickItem(items, transparent);
+  pickItems(items, transparent = true) {
+    return this.ifcManager.pickItems(items, transparent);
+  }
+
+  pickItem(modelID, id, scene) {
+    return this.ifcManager.pickItem(modelID, id, scene);
   }
 
   setItemsDisplay(modelID, ids, state, scene) {
@@ -72229,6 +72269,13 @@ Stats.Panel = function ( name, fg, bg ) {
 
 };
 
+// import { computeBoundsTree, disposeBoundsTree, acceleratedRaycast } from 'three-mesh-bvh';
+
+// Add the extension functions
+// BufferGeometry.prototype.computeBoundsTree = computeBoundsTree;
+// BufferGeometry.prototype.disposeBoundsTree = disposeBoundsTree;
+// Mesh.prototype.raycast = acceleratedRaycast;
+
 //Scene
 const scene = new Scene();
 scene.background = new Color(0x8cc7de);
@@ -72243,12 +72290,6 @@ renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
 const camera = new PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 1000);
 camera.position.z = 5;
 let controls = new OrbitControls(camera, renderer.domElement);
-
-//Initial cube
-// const geometry = new BoxGeometry();
-// const material = new MeshPhongMaterial({ color: 0xffffff });
-// const cube = new Mesh(geometry, material);
-// scene.add(cube);
 
 //Lights
 const directionalLight1 = new DirectionalLight(0xffeeff, 0.8);
@@ -72284,6 +72325,9 @@ function AnimationLoop() {
 const ifcLoader = new IFCLoader();
 
 AnimationLoop();
+
+//Setup IFC Loader
+const ifcMeshes = [];
 (function readIfcFile() {
     const input = document.querySelector('input[type="file"]');
     if (!input) return;
@@ -72291,56 +72335,76 @@ AnimationLoop();
         'change',
         (changed) => {
             var ifcURL = URL.createObjectURL(changed.target.files[0]);
-            ifcLoader.load(ifcURL, (geometry) => {
-                scene.add(geometry);
+            ifcLoader.load(ifcURL, (mesh) => {
+                // mesh.geometry.computeBoundsTree();
+                ifcMeshes.push(mesh);
+                scene.add(mesh);
             });
         },
         false
     );
 })();
 
+//Setup object picking
+let previous = {};
+
+const raycaster = new Raycaster();
+raycaster.firstHitOnly = true;
+
 function selectObject(event) {
-    if (event.button != 0) return;
 
     const mouse = new Vector2();
     mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
     mouse.y = -(event.clientY / window.innerHeight) * 2 + 1;
-
-    const raycaster = new Raycaster();
     raycaster.setFromCamera(mouse, camera);
 
-    const intersected = raycaster.intersectObjects(scene.children);
+    const intersected = raycaster.intersectObjects(ifcMeshes);
+
     if (intersected.length) {
         // if (previous.id != -1)
         //     ifcLoader.setItemsDisplay(previous.modelID, [previous.id], resetDisplayState, scene);
 
-        const item = ifcLoader.pickItem(intersected);
+        // const item = ifcLoader.pickItems(intersected);
+        const item = intersected[0];
+        console.log(item.faceIndex);
+        if(previous == item.faceIndex) return;
+        previous = item.faceIndex;
+
         const modelID = item.object.modelID;
-        // const id = ifcLoader.getExpressId(modelID, item.faceIndex);
-        // console.log('Model ID: ', modelID);
+        const id = ifcLoader.getExpressId(modelID, item.faceIndex);
 
-        // ifcLoader.close(modelID, scene);
+        ifcLoader.pickItem(modelID, id, scene);
 
-        // previous.id = id;
-        // previous.modelID = modelID;
+        // const ifcProject = ifcLoader.getSpatialStructure(modelID, true);
+        // console.log(ifcProject);
+
+        // const properties = ifcLoader.getItemProperties(modelID, id);
+        // console.log(properties);
+
+        // const psets = ifcLoader.getPropertySets(modelID, id);
+        // console.log(psets);
 
 
-        const transparent2 = { r: -1, g: -1, b: -1, a: 0.03, h: 1 };
-        ifcLoader.setModelDisplay(modelID, transparent2, scene);
 
-        const normalDisplay = { r: -1, g: -1, b: -1, a: -1, h: 0 };
-        const ifcProject = ifcLoader.getSpatialStructure(modelID, false);
-        const firstFloor = ifcProject.hasSpatialChildren[0].hasSpatialChildren[0].hasSpatialChildren[0];
-        const items = firstFloor.hasChildren;
 
-        ifcLoader.setItemsDisplay(modelID, items, normalDisplay, scene);
+        // const transparent = { r: 0, g: 0, b: 1, a: 0.02, h: 1 };
+        // ifcLoader.setModelDisplay(modelID, transparent, scene);
 
         // const doors = ifcLoader.getAllItemsOfType(modelID, IFCDOOR);
         // const red = { r: 1, g: 0, b: 0, a: 1, h: 1 };
         // ifcLoader.setItemsDisplay(modelID, doors, red, scene);
 
-        // const properties = ifcLoader.getItemProperties(modelID, id);
-        // console.log(properties);
+
+
+
+        const transparent = { r: 0, g: 0, b: 1, a: 0.02, h: 1 };
+        ifcLoader.setModelDisplay(modelID, transparent, scene);
+
+        const normalDisplay = { r: 0, g: 0, b: 0, a: 1, h: 0 };
+        const ifcProject = ifcLoader.getSpatialStructure(modelID, false);
+        const firstFloor = ifcProject.hasSpatialChildren[0].hasSpatialChildren[0].hasSpatialChildren[0];
+        const items = firstFloor.hasChildren;
+        ifcLoader.setItemsDisplay(modelID, items, normalDisplay, scene);
     }
 }
 
