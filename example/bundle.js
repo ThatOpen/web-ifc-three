@@ -70652,27 +70652,28 @@ class PropertyManager {
     return typeId.map((id) => this.state.api.GetLine(modelID, id, recursive));
   }
 
-  getSpatialStructure(modelID) {
+  getSpatialStructure(modelID, recursive) {
     let lines = this.state.api.GetLineIDsWithType(modelID, IFCPROJECT);
     let ifcProjectId = lines.get(0);
     let ifcProject = this.state.api.GetLine(modelID, ifcProjectId);
-    this.getAllSpatialChildren(modelID, ifcProject);
+    this.getAllSpatialChildren(modelID, ifcProject, recursive);
     return ifcProject;
   }
 
-  async getAllSpatialChildren(modelID, item) {
+  getAllSpatialChildren(modelID, item, recursive) {
     item.hasChildren = [];
     item.hasSpatialChildren = [];
-    this.getChildren(modelID, item.expressID, item.hasSpatialChildren, 'RelatingObject', 'RelatedObjects', IFCRELAGGREGATES);
-    this.getChildren(modelID, item.expressID, item.hasChildren, 'RelatingStructure', 'RelatedElements', IFCRELCONTAINEDINSPATIALSTRUCTURE);
+    this.getChildren(modelID, item.expressID, item.hasSpatialChildren, 'RelatingObject', 'RelatedObjects', IFCRELAGGREGATES, recursive, true);
+    this.getChildren(modelID, item.expressID, item.hasChildren, 'RelatingStructure', 'RelatedElements', IFCRELCONTAINEDINSPATIALSTRUCTURE, recursive, false);
   }
 
-  getChildren(modelID, id, prop, relating, rel, relProp) {
+  getChildren(modelID, id, prop, relating, rel, relProp, recursive, isSpatial) {
     const childrenID = this.getAllRelatedItemsOfType(modelID, id, relProp, relating, rel);
-    childrenID
-      .map((id) => this.state.api.GetLine(modelID, id, false))
-      .forEach((item) => prop.push(item));
-    prop.forEach((child) => this.getAllSpatialChildren(modelID, child));
+    if (!recursive && !isSpatial)
+      return prop.push(...childrenID);
+    const items = childrenID.map((id) => this.state.api.GetLine(modelID, id, false));
+    prop.push(...items);
+    prop.forEach((child) => this.getAllSpatialChildren(modelID, child, recursive));
   }
 
   getAllRelatedItemsOfType(modelID, id, type, relation, related) {
@@ -70750,8 +70751,8 @@ class IFCManager {
     return this.properties.getTypeProperties(modelID, id, recursive);
   }
 
-  getSpatialStructure(modelID) {
-    return this.properties.getSpatialStructure(modelID);
+  getSpatialStructure(modelID, recursive) {
+    return this.properties.getSpatialStructure(modelID, recursive);
   }
 
   pickItem(items, pickTransparent = true) {
@@ -70828,8 +70829,8 @@ class IFCLoader extends Loader {
     return this.ifcManager.getTypeProperties(modelID, id, recursive);
   }
 
-  getSpatialStructure(modelID) {
-    return this.ifcManager.getSpatialStructure(modelID);
+  getSpatialStructure(modelID, recursive = false) {
+    return this.ifcManager.getSpatialStructure(modelID, recursive);
   }
 
   pickItem(items, transparent = true) {
@@ -72318,20 +72319,22 @@ function selectObject(event) {
     previous.id = id;
     previous.modelID = modelID;
 
-    // const ifcProject = ifcLoader.getSpatialStructure(modelID);
-    // console.log(ifcProject);
+    const ifcProject = ifcLoader.getSpatialStructure(modelID, false);
+    console.log(ifcProject);
 
     // const items = ifcLoader.getAllItemsOfType(modelID, IFCSLAB);
     // console.log(items);
 
-    const properties = ifcLoader.getItemProperties(modelID, id);
-    console.log(properties);
+    // const properties = ifcLoader.getItemProperties(modelID, id);
+    // console.log(properties);
+
+    const state = { r: 1, g: 0, b: 1, a: 0.02, h: 1 };
 
     if(event.ctrlKey){
-      const state = { r: 1, g: 0, b: 1, a: 0.02, h: 1 };
       ifcLoader.setModelDisplay(modelID, state, scene);
     }
-    // ifcLoader.setItemsDisplay(modelID, [id], state, scene);
+
+    ifcLoader.setItemsDisplay(modelID, [id], state, scene);
 
   } 
 }

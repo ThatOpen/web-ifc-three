@@ -55,8 +55,8 @@ export class IFCManager {
         return this.properties.getTypeProperties(modelID, id, recursive);
     }
 
-    getSpatialStructure(modelID: number) {
-        return this.properties.getSpatialStructure(modelID);
+    getSpatialStructure(modelID: number, recursive: boolean) {
+        return this.properties.getSpatialStructure(modelID, recursive);
     }
 
     pickItem(items: Intersection[], pickTransparent = true) {

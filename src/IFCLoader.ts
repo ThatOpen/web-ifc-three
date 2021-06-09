@@ -158,9 +158,10 @@ class IFCLoader extends Loader {
      * IfcBuildings, that contain one or more IfcBuildingStoreys, that contain
      * one or more IfcSpaces.
      * @modelID The ID of the IFC model.
+     * @recursive Wether you want to get the information of the referenced elements recursively.
      */
-    getSpatialStructure(modelID: number) {
-        return this.ifcManager.getSpatialStructure(modelID);
+    getSpatialStructure(modelID: number, recursive = false) {
+        return this.ifcManager.getSpatialStructure(modelID, recursive);
     }
 
     /**
@@ -171,7 +172,7 @@ class IFCLoader extends Loader {
      * intersection to the camera. This is complex because due to the geometry
      * optimizations of IFC.js. Use this method to get it right away.
      * @items The items you get with [raycaster.intersectObjects()](https://threejs.org/docs/#api/en/core/Raycaster.intersectObjects).
-     * @all If true, it picks the translucent items as well.
+     * @transparent If true, it picks the translucent items as well.
      *
      */
     pickItem(items: Intersection[], transparent = true) {

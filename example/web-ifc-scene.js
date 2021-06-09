@@ -121,20 +121,22 @@ function selectObject(event) {
     previous.id = id;
     previous.modelID = modelID;
 
-    // const ifcProject = ifcLoader.getSpatialStructure(modelID);
-    // console.log(ifcProject);
+    const ifcProject = ifcLoader.getSpatialStructure(modelID, false);
+    console.log(ifcProject);
 
     // const items = ifcLoader.getAllItemsOfType(modelID, IFCSLAB);
     // console.log(items);
 
-    const properties = ifcLoader.getItemProperties(modelID, id);
-    console.log(properties);
+    // const properties = ifcLoader.getItemProperties(modelID, id);
+    // console.log(properties);
+
+    const state = { r: 1, g: 0, b: 1, a: 0.02, h: 1 }
 
     if(event.ctrlKey){
-      const state = { r: 1, g: 0, b: 1, a: 0.02, h: 1 }
       ifcLoader.setModelDisplay(modelID, state, scene);
     }
-    // ifcLoader.setItemsDisplay(modelID, [id], state, scene);
+
+    ifcLoader.setItemsDisplay(modelID, [id], state, scene);
 
   } 
 }
