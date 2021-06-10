@@ -70512,6 +70512,7 @@ class IFCParser {
 
   constructor(state) {
     this.geometryByMaterials = {};
+    this.mapIdItems = {};
     this.currentID = -1;
     this.state = state;
   }
@@ -70545,11 +70546,22 @@ class IFCParser {
     const {materials, geometries} = this.getMaterialsAndGeometries();
     const allGeometry = BufferGeometryUtils.mergeBufferGeometries(geometries, true);
     this.storeIdsInVertexAttribute(allGeometry);
-    this.storeFaceindicesByExpressIDs();
+    this.processIndividualGeometries();
     const result = new Mesh(allGeometry, materials);
     result.modelID = this.currentID;
     this.state.models[this.currentID].mesh = result;
     return result;
+  }
+
+  processIndividualGeometries() {
+    for (let i in this.mapIdItems) {
+      const item = this.mapIdItems[i];
+      const components = Object.values(item);
+      const geoms = components.map(comp => comp.geom);
+      const mats = components.map(comp => comp.mat);
+      const allGeometry = BufferGeometryUtils.mergeBufferGeometries(geoms, true);
+      this.state.models[this.currentID].items[i] = new Mesh(allGeometry, mats);
+    }
   }
 
   storeIdsInVertexAttribute(geometry) {
@@ -70566,7 +70578,6 @@ class IFCParser {
       if (counter > currentIndex)
         current++;
     }
-    console.log(geometry.attributes[IdAttr]);
   }
 
   setFaceAttr(geom, attr, state, index) {
@@ -70634,18 +70645,7 @@ class IFCParser {
     geometry.computeVertexNormals();
     const matrix = this.getMeshMatrix(placedGeometry.flatTransformation);
     geometry.applyMatrix4(matrix);
-    this.storeGeometryForHighlight(id, geometry);
     this.saveGeometryByMaterial(geometry, placedGeometry, id);
-  }
-
-  storeGeometryForHighlight(id, geometry) {
-    const currentGeometry = this.state.models[this.currentID].items;
-    if (!currentGeometry[id]) {
-      currentGeometry[id] = geometry;
-      return;
-    }
-    var geometries = [currentGeometry[id], geometry];
-    currentGeometry[id] = BufferGeometryUtils.mergeBufferGeometries(geometries, true);
   }
 
   getBufferGeometry(placedGeometry) {
@@ -70691,10 +70691,27 @@ class IFCParser {
     const color = placedGeom.color;
     const colorID = `${color.x}${color.y}${color.z}${color.w}`;
     this.createMaterial(colorID, color);
+    this.storeIndividualGeometries(id, geom, colorID);
     const currentGeometry = this.geometryByMaterials[colorID];
     currentGeometry.geometry.push(geom);
     currentGeometry.lastIndex += geom.index.count / 3;
     currentGeometry.indices[currentGeometry.lastIndex] = id;
+  }
+
+  storeIndividualGeometries(id, newGeometry, colorID) {
+    const material = this.geometryByMaterials[colorID].material;
+    if (!this.mapIdItems[id])
+      this.mapIdItems[id] = {};
+    const item = this.mapIdItems[id];
+    if (!item[colorID]) {
+      item[colorID] = {
+        geom: newGeometry,
+        mat: material
+      };
+      return;
+    }
+    const geometries = [item[colorID].geom, newGeometry];
+    item[colorID].geom = BufferGeometryUtils.mergeBufferGeometries(geometries);
   }
 
   createMaterial(colorID, color) {
@@ -70863,9 +70880,9 @@ class ItemPicker {
   pickItem(modelID, id, scene) {
     if (!this.state.models[modelID].items[id])
       return;
-    const geometries = Object.values(this.state.models[modelID].items);
-    const allGeometry = BufferGeometryUtils.mergeBufferGeometries(geometries);
-    const mesh = new Mesh(allGeometry, this.highlightMaterial);
+    const mesh = this.state.models[modelID].items[id];
+    if (this.previousSelection == mesh)
+      return;
     mesh.renderOrder = 1;
     scene.add(mesh);
     if (this.previousSelection)
@@ -76075,6 +76092,7 @@ const ifcMeshes = [];
             var ifcURL = URL.createObjectURL(changed.target.files[0]);
             ifcLoader.load(ifcURL, (mesh) => {
                 mesh.geometry.computeBoundsTree();
+                mesh.material = new MeshLambertMaterial({transparent: true, opacity: 0.2});
                 ifcMeshes.push(mesh);
                 scene.add(mesh);
             });
@@ -76145,4 +76163,4 @@ function selectObject(event) {
     }
 }
 
-threeCanvas.ondblclick = selectObject;
+threeCanvas.onmousemove = selectObject;

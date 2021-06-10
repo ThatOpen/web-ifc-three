@@ -14,7 +14,8 @@ import {
     Raycaster,
     Vector3,
     Vector2,
-    BufferGeometry
+    BufferGeometry,
+    MeshLambertMaterial
 } from 'three';
 import { IFCDOOR, IFCSLAB, IFCWALLSTANDARDCASE } from 'web-ifc';
 import { computeBoundsTree, disposeBoundsTree, acceleratedRaycast } from 'three-mesh-bvh';
@@ -85,6 +86,7 @@ const ifcMeshes = [];
             var ifcURL = URL.createObjectURL(changed.target.files[0]);
             ifcLoader.load(ifcURL, (mesh) => {
                 mesh.geometry.computeBoundsTree();
+                mesh.material = new MeshLambertMaterial({transparent: true, opacity: 0.2})
                 ifcMeshes.push(mesh);
                 scene.add(mesh);
             });
@@ -156,4 +158,4 @@ function selectObject(event) {
     }
 }
 
-threeCanvas.ondblclick = selectObject;
+threeCanvas.onmousemove = selectObject;

@@ -43,10 +43,11 @@ export class ItemPicker {
         if(!this.state.models[modelID].items[id]) return;
 
         // const geometry = this.state.models[modelID].items[id];
-        const geometries = Object.values(this.state.models[modelID].items);
-        const allGeometry = BufferGeometryUtils.mergeBufferGeometries(geometries);
+        // const geometries = Object.values(this.state.models[modelID].items);
+        // const allGeometry = BufferGeometryUtils.mergeBufferGeometries(geometries);
 
-        const mesh = new Mesh(allGeometry, this.highlightMaterial);
+        const mesh = this.state.models[modelID].items[id];
+        if(this.previousSelection == mesh) return;
         mesh.renderOrder = 1;
 
         scene.add(mesh);
