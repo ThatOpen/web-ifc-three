@@ -1,13 +1,15 @@
 import { BufferGeometry, Material, Mesh } from 'three';
 import { IfcAPI } from 'web-ifc';
 
-export const VertexProps = {
+export const DisplayAttr = {
     r: 'red',
     g: 'green',
     b: 'blue',
     a: 'alfa',
     h: 'highlighted'
 };
+
+export const IdAttr = 'expressID';
 
 export interface Display {
     r: number;

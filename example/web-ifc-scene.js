@@ -17,12 +17,12 @@ import {
     BufferGeometry
 } from 'three';
 import { IFCDOOR, IFCSLAB, IFCWALLSTANDARDCASE } from 'web-ifc';
-// import { computeBoundsTree, disposeBoundsTree, acceleratedRaycast } from 'three-mesh-bvh';
+import { computeBoundsTree, disposeBoundsTree, acceleratedRaycast } from 'three-mesh-bvh';
 
 // Add the extension functions
-// BufferGeometry.prototype.computeBoundsTree = computeBoundsTree;
-// BufferGeometry.prototype.disposeBoundsTree = disposeBoundsTree;
-// Mesh.prototype.raycast = acceleratedRaycast;
+BufferGeometry.prototype.computeBoundsTree = computeBoundsTree;
+BufferGeometry.prototype.disposeBoundsTree = disposeBoundsTree;
+Mesh.prototype.raycast = acceleratedRaycast;
 
 //Scene
 const scene = new Scene();
@@ -84,7 +84,7 @@ const ifcMeshes = [];
         (changed) => {
             var ifcURL = URL.createObjectURL(changed.target.files[0]);
             ifcLoader.load(ifcURL, (mesh) => {
-                // mesh.geometry.computeBoundsTree();
+                mesh.geometry.computeBoundsTree();
                 ifcMeshes.push(mesh);
                 scene.add(mesh);
             });
@@ -115,7 +115,6 @@ function selectObject(event) {
 
         // const item = ifcLoader.pickItems(intersected);
         const item = intersected[0];
-        console.log(item.faceIndex);
         if(previous == item.faceIndex) return;
         previous = item.faceIndex;
 
@@ -146,14 +145,14 @@ function selectObject(event) {
 
 
 
-        const transparent = { r: 0, g: 0, b: 1, a: 0.02, h: 1 };
-        ifcLoader.setModelDisplay(modelID, transparent, scene);
+        // const transparent = { r: 0, g: 0, b: 1, a: 0.02, h: 1 };
+        // ifcLoader.setModelDisplay(modelID, transparent, scene);
 
-        const normalDisplay = { r: 0, g: 0, b: 0, a: 1, h: 0 };
-        const ifcProject = ifcLoader.getSpatialStructure(modelID, false);
-        const firstFloor = ifcProject.hasSpatialChildren[0].hasSpatialChildren[0].hasSpatialChildren[0];
-        const items = firstFloor.hasChildren;
-        ifcLoader.setItemsDisplay(modelID, items, normalDisplay, scene);
+        // const normalDisplay = { r: 0, g: 0, b: 0, a: 1, h: 0 };
+        // const ifcProject = ifcLoader.getSpatialStructure(modelID, false);
+        // const firstFloor = ifcProject.hasSpatialChildren[0].hasSpatialChildren[0].hasSpatialChildren[0];
+        // const items = firstFloor.hasChildren;
+        // ifcLoader.setItemsDisplay(modelID, items, normalDisplay, scene);
     }
 }
 

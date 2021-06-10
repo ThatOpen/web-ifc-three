@@ -11,7 +11,7 @@ import {
     BufferAttribute,
     Material
 } from 'three';
-import { GeometriesByMaterial, IfcState, IfcModel, IfcMesh } from './BaseDefinitions';
+import { GeometriesByMaterial, IfcState, IfcModel, IfcMesh, IdAttr } from './BaseDefinitions';
 
 export class IFCParser {
     private geometryByMaterials: GeometriesByMaterial;
@@ -33,7 +33,13 @@ export class IFCParser {
     private newIfcModel(buffer: any) {
         const data = new Uint8Array(buffer);
         const modelID = this.state.api.OpenModel(data);
-        this.state.models[modelID] = { modelID, faces: [], ids: [], mesh: {} as IfcMesh, items: {} };
+        this.state.models[modelID] = {
+            modelID,
+            faces: [],
+            ids: [],
+            mesh: {} as IfcMesh,
+            items: {}
+        };
         return modelID;
     }
 
@@ -45,11 +51,40 @@ export class IFCParser {
     private generateAllGeometriesByMaterial() {
         const { materials, geometries } = this.getMaterialsAndGeometries();
         const allGeometry = BufferGeometryUtils.mergeBufferGeometries(geometries, true);
+        this.storeIdsInVertexAttribute(allGeometry);
         this.storeFaceindicesByExpressIDs();
         const result = new Mesh(allGeometry, materials) as IfcMesh;
         result.modelID = this.currentID;
         this.state.models[this.currentID].mesh = result;
         return result;
+    }
+
+    private storeIdsInVertexAttribute(geometry: BufferGeometry) {
+        const zeros = new Float32Array(geometry.getAttribute('position').count);
+        geometry.setAttribute(IdAttr, new BufferAttribute(zeros, 1));
+
+        
+        const indicesIdsMap = this.state.models[this.currentID].ids;
+        const indices = Object.keys(indicesIdsMap).map((k) => parseInt(k, 10));
+        let current = 0;
+        let counter = 0;
+
+        while (counter <= indices[indices.length - 1]) {
+            const currentIndex =  indices[current];
+            this.setFaceAttr(geometry, IdAttr, indicesIdsMap[currentIndex], counter);
+            counter++;
+            if (counter > currentIndex) current++;
+        }
+
+        console.log(geometry.attributes[IdAttr]);
+    }
+
+    private setFaceAttr(geom: BufferGeometry, attr: string, state: number, index: number) {
+        if (!geom.index) return;
+        const geoIndex = geom.index.array;
+        geom.attributes[attr].setX(geoIndex[3 * index], state);
+        geom.attributes[attr].setX(geoIndex[3 * index + 1], state);
+        geom.attributes[attr].setX(geoIndex[3 * index + 2], state);
     }
 
     private storeFaceindicesByExpressIDs() {
@@ -123,12 +158,12 @@ export class IFCParser {
     private storeGeometryForHighlight(id: number, geometry: BufferGeometry) {
         const currentGeometry = this.state.models[this.currentID].items;
         if (!currentGeometry[id]) {
-          currentGeometry[id] = geometry;
-          return;
+            currentGeometry[id] = geometry;
+            return;
         }
         var geometries = [currentGeometry[id], geometry];
         currentGeometry[id] = BufferGeometryUtils.mergeBufferGeometries(geometries, true);
-      }
+    }
 
     private getBufferGeometry(placedGeometry: PlacedGeometry) {
         const geometry = this.state.api.GetGeometry(

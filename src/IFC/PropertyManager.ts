@@ -6,7 +6,8 @@ import {
     IFCRELDEFINESBYPROPERTIES,
     IFCRELDEFINESBYTYPE
 } from 'web-ifc';
-import { Item, IfcState, VertexProps } from './BaseDefinitions';
+import { IdAttr } from './BaseDefinitions';
+import { Item, IfcState } from './BaseDefinitions';
 
 export class PropertyManager {
     private state: IfcState;
@@ -15,12 +16,15 @@ export class PropertyManager {
         this.state = state;
     }
 
-    getExpressId(modelID: number, faceIndex: Number) {
-        const ids = this.state.models[modelID].ids;
-        for (let index in ids) {
-            if (parseInt(index) > faceIndex) return ids[index];
-        }
-        return -1;
+    getExpressId(modelID: number, faceIndex: number) {
+        const geometry = this.state.models[modelID].mesh.geometry;
+        if(!geometry.index) return;
+        const geoIndex = geometry.index.array;
+        return geometry.attributes[IdAttr].getX(geoIndex[3 * faceIndex]);
+        // for (let index in ids) {
+        //     if (parseInt(index) > faceIndex) return ids[index];
+        // }
+        // return -1;
     }
 
     getItemProperties(modelID: number, id: number, recursive = false) {

@@ -1,5 +1,5 @@
 import { Shader } from 'three';
-import { VertexProps } from './BaseDefinitions';
+import { DisplayAttr } from './BaseDefinitions';
 
 export function OpaqueShader(shader: Shader) {
     shader.vertexShader = getVertexShader(shader);
@@ -47,11 +47,11 @@ ${shader.fragmentShader}`.replace(config.before, config.after);
 function getVertexShader(shader: Shader) {
     return `
   attribute float sizes;
-  attribute float ${VertexProps.r};
-  attribute float ${VertexProps.g};
-  attribute float ${VertexProps.b};
-  attribute float ${VertexProps.a};
-  attribute float ${VertexProps.h};
+  attribute float ${DisplayAttr.r};
+  attribute float ${DisplayAttr.g};
+  attribute float ${DisplayAttr.b};
+  attribute float ${DisplayAttr.a};
+  attribute float ${DisplayAttr.h};
   varying float vr;
   varying float vg;
   varying float vb;
@@ -60,10 +60,10 @@ function getVertexShader(shader: Shader) {
 ${shader.vertexShader}`.replace(
     `#include <fog_vertex>`,
     `#include <fog_vertex>
-    vr = ${VertexProps.r};
-    vg = ${VertexProps.g};
-    vb = ${VertexProps.b};
-    va = ${VertexProps.a};
-    vh = ${VertexProps.h};`
+    vr = ${DisplayAttr.r};
+    vg = ${DisplayAttr.g};
+    vb = ${DisplayAttr.b};
+    va = ${DisplayAttr.a};
+    vh = ${DisplayAttr.h};`
   );
 }
