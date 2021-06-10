@@ -1,7 +1,6 @@
 import {
     Display,
     IfcState,
-    MapIDFaceIndex,
     TransparentMesh,
     DisplayAttr,
     IfcMesh
@@ -34,17 +33,17 @@ export class DisplayManager {
     }
 
     setItemsDisplay(modelID: number, ids: number[], state: Display, scene: Scene) {
-        const mesh = this.state.models[modelID].mesh;
-        const geometry = mesh.geometry;
-        const current = mesh.modelID;
-        this.setupVisibility(geometry);
+        // const mesh = this.state.models[modelID].mesh;
+        // const geometry = mesh.geometry;
+        // const current = mesh.modelID;
+        // this.setupVisibility(geometry);
 
-        const faceIndicesArray = ids.map((id) => this.state.models[current].faces[id]);
-        const faceIndices = ([] as number[]).concat(...faceIndicesArray);
-        faceIndices.forEach((faceIndex) => this.setFaceDisplay(geometry, faceIndex, state));
+        // const faceIndicesArray = ids.map((id) => this.state.models[current].faces[id]);
+        // const faceIndices = ([] as number[]).concat(...faceIndicesArray);
+        // faceIndices.forEach((faceIndex) => this.setFaceDisplay(geometry, faceIndex, state));
 
-        this.updateAttributes(geometry);
-        if (state.a != 1) this.setupTransparency(mesh, scene);
+        // this.updateAttributes(geometry);
+        // if (state.a != 1) this.setupTransparency(mesh, scene);
     }
 
     setupVisibility(geometry: BufferGeometry) {

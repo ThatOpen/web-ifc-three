@@ -3,7 +3,7 @@ import { IFCParser } from './IFCParser';
 import { DisplayManager } from './DisplayManager';
 import { ItemPicker } from './ItemPicker';
 import { PropertyManager } from './PropertyManager';
-import { Display, IfcMesh, IfcState, MapFaceIndexID, MapIDFaceIndex } from './BaseDefinitions';
+import { Display, HighlightConfig, IfcMesh, IfcState, MapFaceIndexID } from './BaseDefinitions';
 import { BufferGeometry, Intersection, Mesh, Scene } from 'three';
 
 export class IFCManager {
@@ -18,7 +18,7 @@ export class IFCManager {
         this.parser = new IFCParser(this.state);
         this.display = new DisplayManager(this.state);
         this.properties = new PropertyManager(this.state);
-        this.picker = new ItemPicker(this.state, this.display);
+        this.picker = new ItemPicker(this.state);
     }
 
     parse(buffer: any) {
@@ -59,12 +59,11 @@ export class IFCManager {
         return this.properties.getSpatialStructure(modelID, recursive);
     }
 
-    pickItems(items: Intersection[], pickTransparent = true) {
-        return this.picker.pickItems(items, pickTransparent);
+    highlight(modelID: number, id: number[], scene: Scene, config: HighlightConfig) {
+        return this.picker.highlight(modelID, id, scene, config);
     }
 
-    pickItem(modelID: number, id: number, scene: Scene){
-        return this.picker.pickItem(modelID, id, scene);
+    pickItem(modelID: number, id: number[], scene: Scene, config: HighlightConfig){
     }
 
     setItemsDisplay(modelID: number, items: number[], state: Display, scene: Scene) {

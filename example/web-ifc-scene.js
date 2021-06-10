@@ -17,7 +17,7 @@ import {
     BufferGeometry,
     MeshLambertMaterial
 } from 'three';
-import { IFCDOOR, IFCSLAB, IFCWALLSTANDARDCASE } from 'web-ifc';
+import { IFCDOOR, IFCFURNISHINGELEMENT, IFCSLAB, IFCWALLSTANDARDCASE } from 'web-ifc';
 import { computeBoundsTree, disposeBoundsTree, acceleratedRaycast } from 'three-mesh-bvh';
 
 // Add the extension functions
@@ -112,18 +112,20 @@ function selectObject(event) {
     const intersected = raycaster.intersectObjects(ifcMeshes);
 
     if (intersected.length) {
-        // if (previous.id != -1)
-        //     ifcLoader.setItemsDisplay(previous.modelID, [previous.id], resetDisplayState, scene);
 
-        // const item = ifcLoader.pickItems(intersected);
         const item = intersected[0];
         if(previous == item.faceIndex) return;
         previous = item.faceIndex;
 
         const modelID = item.object.modelID;
-        const id = ifcLoader.getExpressId(modelID, item.faceIndex);
 
-        ifcLoader.pickItem(modelID, id, scene);
+        const id = ifcLoader.getExpressId(modelID, item.faceIndex);
+        ifcLoader.highlight(modelID, [id], scene, { removePrevious: true });
+
+
+
+        // const furnitures = ifcLoader.getAllItemsOfType(modelID, IFCFURNISHINGELEMENT);
+
 
         // const ifcProject = ifcLoader.getSpatialStructure(modelID, true);
         // console.log(ifcProject);

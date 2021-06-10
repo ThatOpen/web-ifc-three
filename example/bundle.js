@@ -70512,8 +70512,8 @@ class IFCParser {
 
   constructor(state) {
     this.geometryByMaterials = {};
-    this.mapIdItems = {};
     this.currentID = -1;
+    this.indicesIdsMap = {};
     this.state = state;
   }
 
@@ -70529,8 +70529,6 @@ class IFCParser {
     const modelID = this.state.api.OpenModel(data);
     this.state.models[modelID] = {
       modelID,
-      faces: [],
-      ids: [],
       mesh: {},
       items: {}
     };
@@ -70546,34 +70544,27 @@ class IFCParser {
     const {materials, geometries} = this.getMaterialsAndGeometries();
     const allGeometry = BufferGeometryUtils.mergeBufferGeometries(geometries, true);
     this.storeIdsInVertexAttribute(allGeometry);
-    this.processIndividualGeometries();
     const result = new Mesh(allGeometry, materials);
     result.modelID = this.currentID;
     this.state.models[this.currentID].mesh = result;
+    this.cleanup();
     return result;
   }
 
-  processIndividualGeometries() {
-    for (let i in this.mapIdItems) {
-      const item = this.mapIdItems[i];
-      const components = Object.values(item);
-      const geoms = components.map(comp => comp.geom);
-      const mats = components.map(comp => comp.mat);
-      const allGeometry = BufferGeometryUtils.mergeBufferGeometries(geoms, true);
-      this.state.models[this.currentID].items[i] = new Mesh(allGeometry, mats);
-    }
+  cleanup() {
+    this.geometryByMaterials = {};
+    this.indicesIdsMap = {};
   }
 
   storeIdsInVertexAttribute(geometry) {
     const zeros = new Float32Array(geometry.getAttribute('position').count);
     geometry.setAttribute(IdAttr, new BufferAttribute(zeros, 1));
-    const indicesIdsMap = this.state.models[this.currentID].ids;
-    const indices = Object.keys(indicesIdsMap).map((k) => parseInt(k, 10));
+    const indices = Object.keys(this.indicesIdsMap).map((k) => parseInt(k, 10));
     let current = 0;
     let counter = 0;
     while (counter <= indices[indices.length - 1]) {
       const currentIndex = indices[current];
-      this.setFaceAttr(geometry, IdAttr, indicesIdsMap[currentIndex], counter);
+      this.setFaceAttr(geometry, IdAttr, this.indicesIdsMap[currentIndex], counter);
       counter++;
       if (counter > currentIndex)
         current++;
@@ -70589,23 +70580,6 @@ class IFCParser {
     geom.attributes[attr].setX(geoIndex[3 * index + 2], state);
   }
 
-  storeFaceindicesByExpressIDs() {
-    let previous = 0;
-    for (let index in this.state.models[this.currentID].ids) {
-      const current = parseInt(index);
-      const id = this.state.models[this.currentID].ids[current];
-      var faceIndices = [];
-      for (let j = previous; j < current; j++) {
-        faceIndices.push(j);
-      }
-      previous = current;
-      if (!this.state.models[this.currentID].faces[id]) {
-        this.state.models[this.currentID].faces[id] = [];
-      }
-      this.state.models[this.currentID].faces[id].push(...faceIndices);
-    }
-  }
-
   getMaterialsAndGeometries() {
     const materials = [];
     const geometries = [];
@@ -70617,11 +70591,10 @@ class IFCParser {
       for (let j in this.geometryByMaterials[i].indices) {
         const globalIndex = parseInt(j, 10) + totalFaceCount;
         const currentIndex = this.geometryByMaterials[i].indices[j];
-        this.state.models[this.currentID].ids[globalIndex] = currentIndex;
+        this.indicesIdsMap[globalIndex] = currentIndex;
       }
       totalFaceCount += this.geometryByMaterials[i].lastIndex;
     }
-    this.geometryByMaterials = {};
     return {
       materials,
       geometries
@@ -70700,9 +70673,10 @@ class IFCParser {
 
   storeIndividualGeometries(id, newGeometry, colorID) {
     const material = this.geometryByMaterials[colorID].material;
-    if (!this.mapIdItems[id])
-      this.mapIdItems[id] = {};
-    const item = this.mapIdItems[id];
+    const items = this.state.models[this.currentID].items;
+    if (!items[id])
+      items[id] = {};
+    const item = items[id];
     if (!item[colorID]) {
       item[colorID] = {
         geom: newGeometry,
@@ -70766,18 +70740,7 @@ class DisplayManager {
       this.setupTransparency(mesh, scene);
   }
 
-  setItemsDisplay(modelID, ids, state, scene) {
-    const mesh = this.state.models[modelID].mesh;
-    const geometry = mesh.geometry;
-    const current = mesh.modelID;
-    this.setupVisibility(geometry);
-    const faceIndicesArray = ids.map((id) => this.state.models[current].faces[id]);
-    const faceIndices = [].concat(...faceIndicesArray);
-    faceIndices.forEach((faceIndex) => this.setFaceDisplay(geometry, faceIndex, state));
-    this.updateAttributes(geometry);
-    if (state.a != 1)
-      this.setupTransparency(mesh, scene);
-  }
+  setItemsDisplay(modelID, ids, state, scene) {}
 
   setupVisibility(geometry) {
     if (!geometry.attributes[DisplayAttr.r]) {
@@ -70846,49 +70809,54 @@ class DisplayManager {
 
 class ItemPicker {
 
-  constructor(state, displayManager) {
+  constructor(state) {
     this.state = state;
-    this.display = displayManager;
-    this.previousSelection = {};
-    this.highlightMaterial = new MeshLambertMaterial({
-      color: 0xff00ff,
-      depthTest: false,
-      side: DoubleSide,
-      transparent: true,
-      opacity: 0.2
-    });
+    this.previousSelection = {
+      mesh: {},
+      ids: []
+    };
   }
 
-  pickItems(items, pickTransparent = true) {
-    for (let i = 0; i < items.length; i++) {
-      const mesh = items[i].object;
-      const geometry = mesh.geometry;
-      this.display.setupVisibility(geometry);
-      const index = items[i].faceIndex;
-      if (!index || !geometry.index)
-        continue;
-      const trueIndex = geometry.index.array[index * 3];
-      const visible = geometry.getAttribute(DisplayAttr.a).array[trueIndex];
-      if (pickTransparent && visible != 0)
-        return items[i];
-      else if (visible == 1)
-        return items[i];
+  highlight(modelID, ids, scene, config) {
+    if (this.isPreviousSelection(ids))
+      return;
+    const selected = this.filter(modelID, ids);
+    const grouped = {};
+    for (let matItem of selected) {
+      for (let matID in matItem) {
+        if (!grouped[matID])
+          grouped[matID] = matItem[matID];
+        else
+          grouped[matID].geom = BufferGeometryUtils.mergeBufferGeometries([
+            grouped[matID].geom,
+            matItem[matID].geom
+          ]);
+      }
     }
-    return null;
+    const all = Object.values(grouped);
+    const geoms = all.map(i => i.geom);
+    const mats = all.map(i => i.mat);
+    const allGeometry = BufferGeometryUtils.mergeBufferGeometries(geoms, true);
+    const mesh = new Mesh(allGeometry, mats);
+    scene.add(mesh);
+    if (config === null || config === void 0 ? void 0 : config.material)
+      mesh.material = [config.material];
+    if (config === null || config === void 0 ? void 0 : config.removePrevious)
+      scene.remove(this.previousSelection.mesh);
+    this.previousSelection.mesh = mesh;
+    this.previousSelection.mesh = mesh;
+    this.previousSelection.ids = ids;
   }
 
-  pickItem(modelID, id, scene) {
-    if (!this.state.models[modelID].items[id])
-      return;
-    const mesh = this.state.models[modelID].items[id];
-    if (this.previousSelection == mesh)
-      return;
-    mesh.renderOrder = 1;
-    scene.add(mesh);
-    if (this.previousSelection)
-      scene.remove(this.previousSelection);
-    this.previousSelection = mesh;
-    return id;
+  isPreviousSelection(ids) {
+    return JSON.stringify(ids) === JSON.stringify(this.previousSelection.ids);
+  }
+
+  filter(modelID, ids) {
+    const items = this.state.models[modelID].items;
+    const filtered = [];
+    ids.forEach((id) => filtered.push(items[id]));
+    return filtered;
   }
 
 }
@@ -70992,7 +70960,7 @@ class IFCManager {
     this.parser = new IFCParser(this.state);
     this.display = new DisplayManager(this.state);
     this.properties = new PropertyManager(this.state);
-    this.picker = new ItemPicker(this.state, this.display);
+    this.picker = new ItemPicker(this.state);
   }
 
   parse(buffer) {
@@ -71034,13 +71002,11 @@ class IFCManager {
     return this.properties.getSpatialStructure(modelID, recursive);
   }
 
-  pickItems(items, pickTransparent = true) {
-    return this.picker.pickItems(items, pickTransparent);
+  highlight(modelID, id, scene, config) {
+    return this.picker.highlight(modelID, id, scene, config);
   }
 
-  pickItem(modelID, id, scene) {
-    return this.picker.pickItem(modelID, id, scene);
-  }
+  pickItem(modelID, id, scene, config) {}
 
   setItemsDisplay(modelID, items, state, scene) {
     this.display.setItemsDisplay(modelID, items, state, scene);
@@ -71116,12 +71082,8 @@ class IFCLoader extends Loader {
     return this.ifcManager.getSpatialStructure(modelID, recursive);
   }
 
-  pickItems(items, transparent = true) {
-    return this.ifcManager.pickItems(items, transparent);
-  }
-
-  pickItem(modelID, id, scene) {
-    return this.ifcManager.pickItem(modelID, id, scene);
+  highlight(modelID, id, scene, config) {
+    return this.ifcManager.highlight(modelID, id, scene, config);
   }
 
   setItemsDisplay(modelID, ids, state, scene) {
@@ -76117,18 +76079,20 @@ function selectObject(event) {
     const intersected = raycaster.intersectObjects(ifcMeshes);
 
     if (intersected.length) {
-        // if (previous.id != -1)
-        //     ifcLoader.setItemsDisplay(previous.modelID, [previous.id], resetDisplayState, scene);
 
-        // const item = ifcLoader.pickItems(intersected);
         const item = intersected[0];
         if(previous == item.faceIndex) return;
         previous = item.faceIndex;
 
         const modelID = item.object.modelID;
-        const id = ifcLoader.getExpressId(modelID, item.faceIndex);
 
-        ifcLoader.pickItem(modelID, id, scene);
+        const id = ifcLoader.getExpressId(modelID, item.faceIndex);
+        ifcLoader.highlight(modelID, [id], scene, { removePrevious: true });
+
+
+
+        // const furnitures = ifcLoader.getAllItemsOfType(modelID, IFCFURNISHINGELEMENT);
+
 
         // const ifcProject = ifcLoader.getSpatialStructure(modelID, true);
         // console.log(ifcProject);

@@ -1,58 +1,76 @@
-import { BufferGeometry, DoubleSide, Intersection, Material, Mesh, MeshBasicMaterial, MeshLambertMaterial, Scene } from 'three';
-import { IfcState, IfcModel } from './BaseDefinitions';
+import {
+    BufferGeometry,
+    DoubleSide,
+    Intersection,
+    Material,
+    Mesh,
+    MeshBasicMaterial,
+    MeshLambertMaterial,
+    Scene
+} from 'three';
+import { IfcState, IfcModel, HighlightConfig, MaterialItem } from './BaseDefinitions';
 import { DisplayAttr } from './BaseDefinitions';
 import { DisplayManager } from './DisplayManager';
 import { BufferGeometryUtils } from 'three/examples/jsm/utils/BufferGeometryUtils';
 
-export class ItemPicker {
-    private display: DisplayManager;
-    private state: IfcState;
-    private highlightMaterial: Material;
-    private previousSelection: Mesh;
+type PreviousSelection = {
+    ids: number[];
+    mesh: Mesh;
+};
 
-    constructor(state: IfcState, displayManager: DisplayManager) {
+export class ItemPicker {
+    private state: IfcState;
+    private previousSelection: PreviousSelection;
+
+    constructor(state: IfcState) {
         this.state = state;
-        this.display = displayManager;
-        this.previousSelection = {} as Mesh;
-        this.highlightMaterial = new MeshLambertMaterial({
-            color: 0xff00ff,
-            depthTest: false,
-            side: DoubleSide,
-            transparent: true,
-            opacity: 0.2
-        });
+        this.previousSelection = {
+            mesh: {} as Mesh,
+            ids: []
+        };
     }
 
-    pickItems(items: Intersection[], pickTransparent = true) {
-        for (let i = 0; i < items.length; i++) {
-            const mesh = items[i].object as Mesh;
-            const geometry = mesh.geometry;
-            this.display.setupVisibility(geometry);
-            const index = items[i].faceIndex;
-            if (!index || !geometry.index) continue;
-            const trueIndex = geometry.index.array[index * 3];
-            const visible = geometry.getAttribute(DisplayAttr.a).array[trueIndex];
-            if (pickTransparent && visible != 0) return items[i];
-            else if (visible == 1) return items[i];
+    highlight(modelID: number, ids: number[], scene: Scene, config: HighlightConfig) {
+        if (this.isPreviousSelection(ids)) return;
+
+        const selected = this.filter(modelID, ids);
+        const grouped: MaterialItem = {};
+        for (let matItem of selected) {
+            for (let matID in matItem) {
+                if (!grouped[matID]) grouped[matID] = matItem[matID];
+                else
+                    grouped[matID].geom = BufferGeometryUtils.mergeBufferGeometries([
+                        grouped[matID].geom,
+                        matItem[matID].geom
+                    ]);
+            }
         }
 
-        return null;
+        const all = Object.values(grouped);
+        const geoms = all.map(i => i.geom);
+        const mats = all.map(i => i.mat);
+        
+        const allGeometry = BufferGeometryUtils.mergeBufferGeometries(geoms, true);
+        const mesh = new Mesh(allGeometry, mats);
+        scene.add(mesh);
+
+        if (config?.material) mesh.material = [config.material];
+
+        if (config?.removePrevious) scene.remove(this.previousSelection.mesh);
+        this.previousSelection.mesh = mesh;
+
+        this.previousSelection.mesh = mesh;
+        this.previousSelection.ids = ids;
     }
 
-    pickItem(modelID: number, id: number, scene: Scene) {
-        if(!this.state.models[modelID].items[id]) return;
+    private isPreviousSelection(ids: number[]) {
+        return JSON.stringify(ids) === JSON.stringify(this.previousSelection.ids);
+    }
 
-        // const geometry = this.state.models[modelID].items[id];
-        // const geometries = Object.values(this.state.models[modelID].items);
-        // const allGeometry = BufferGeometryUtils.mergeBufferGeometries(geometries);
-
-        const mesh = this.state.models[modelID].items[id];
-        if(this.previousSelection == mesh) return;
-        mesh.renderOrder = 1;
-
-        scene.add(mesh);
-        if (this.previousSelection) scene.remove(this.previousSelection);
-        this.previousSelection = mesh;
-        return id;
+    private filter(modelID: number, ids: number[]) {
+        const items = this.state.models[modelID].items;
+        const filtered: MaterialItem[] = [];
+        ids.forEach((id) => filtered.push(items[id]));
+        return filtered;
     }
 }

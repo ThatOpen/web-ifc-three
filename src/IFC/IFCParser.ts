@@ -11,18 +11,18 @@ import {
     BufferAttribute,
     Material
 } from 'three';
-import { GeometriesByMaterial, IfcState, MapIdItems, IfcMesh, IdAttr } from './BaseDefinitions';
+import { GeometriesByMaterial, IfcState, IfcMesh, IdAttr, MapFaceIndexID } from './BaseDefinitions';
 
 export class IFCParser {
-    private geometryByMaterials: GeometriesByMaterial;
-    private currentID: number;
     private state: IfcState;
-    private mapIdItems: MapIdItems;
+    private currentID: number;
+    private indicesIdsMap: MapFaceIndexID;
+    private geometryByMaterials: GeometriesByMaterial;
 
     constructor(state: IfcState) {
         this.geometryByMaterials = {};
-        this.mapIdItems = {};
         this.currentID = -1;
+        this.indicesIdsMap = {};
         this.state = state;
     }
 
@@ -37,8 +37,6 @@ export class IFCParser {
         const modelID = this.state.api.OpenModel(data);
         this.state.models[modelID] = {
             modelID,
-            faces: [],
-            ids: [],
             mesh: {} as IfcMesh,
             items: {}
         };
@@ -54,38 +52,39 @@ export class IFCParser {
         const { materials, geometries } = this.getMaterialsAndGeometries();
         const allGeometry = BufferGeometryUtils.mergeBufferGeometries(geometries, true);
         this.storeIdsInVertexAttribute(allGeometry);
-        // this.storeFaceindicesByExpressIDs();
-        this.processIndividualGeometries();
         const result = new Mesh(allGeometry, materials) as IfcMesh;
         result.modelID = this.currentID;
         this.state.models[this.currentID].mesh = result;
+        this.cleanup();
         return result;
     }
 
-    private processIndividualGeometries() {
-        for (let i in this.mapIdItems) {
-            const item = this.mapIdItems[i];
-            const components = Object.values(item);
-            const geoms = components.map(comp => comp.geom);
-            const mats = components.map(comp => comp.mat);
-            const allGeometry = BufferGeometryUtils.mergeBufferGeometries(geoms, true);
-            this.state.models[this.currentID].items[i] = new Mesh(allGeometry, mats);
-        }
-        this.mapIdItems = {};
+    private cleanup() {
+        this.geometryByMaterials = {};
+        this.indicesIdsMap = {};
     }
+
+    // private processIndividualGeometries() {
+    //     for (let i in this.mapIdItems) {
+    //         const item = this.mapIdItems[i];
+    //         const components = Object.values(item);
+    //         const geoms = components.map((comp) => comp.geom);
+    //         const mats = components.map((comp) => comp.mat);
+    //         this.state.models[this.currentID].items[i] = {};
+    //     }
+    // }
 
     private storeIdsInVertexAttribute(geometry: BufferGeometry) {
         const zeros = new Float32Array(geometry.getAttribute('position').count);
         geometry.setAttribute(IdAttr, new BufferAttribute(zeros, 1));
 
-        const indicesIdsMap = this.state.models[this.currentID].ids;
-        const indices = Object.keys(indicesIdsMap).map((k) => parseInt(k, 10));
+        const indices = Object.keys(this.indicesIdsMap).map((k) => parseInt(k, 10));
         let current = 0;
         let counter = 0;
 
         while (counter <= indices[indices.length - 1]) {
             const currentIndex = indices[current];
-            this.setFaceAttr(geometry, IdAttr, indicesIdsMap[currentIndex], counter);
+            this.setFaceAttr(geometry, IdAttr, this.indicesIdsMap[currentIndex], counter);
             counter++;
             if (counter > currentIndex) current++;
         }
@@ -97,27 +96,6 @@ export class IFCParser {
         geom.attributes[attr].setX(geoIndex[3 * index], state);
         geom.attributes[attr].setX(geoIndex[3 * index + 1], state);
         geom.attributes[attr].setX(geoIndex[3 * index + 2], state);
-    }
-
-    private storeFaceindicesByExpressIDs() {
-        let previous = 0;
-
-        for (let index in this.state.models[this.currentID].ids) {
-            const current = parseInt(index);
-            const id = this.state.models[this.currentID].ids[current];
-
-            var faceIndices = [];
-            for (let j = previous; j < current; j++) {
-                faceIndices.push(j);
-            }
-
-            previous = current;
-
-            if (!this.state.models[this.currentID].faces[id]) {
-                this.state.models[this.currentID].faces[id] = [];
-            }
-            this.state.models[this.currentID].faces[id].push(...faceIndices);
-        }
     }
 
     private getMaterialsAndGeometries() {
@@ -133,14 +111,11 @@ export class IFCParser {
             for (let j in this.geometryByMaterials[i].indices) {
                 const globalIndex = parseInt(j, 10) + totalFaceCount;
                 const currentIndex = this.geometryByMaterials[i].indices[j];
-                this.state.models[this.currentID].ids[globalIndex] = currentIndex;
+                this.indicesIdsMap[globalIndex] = currentIndex;
             }
 
             totalFaceCount += this.geometryByMaterials[i].lastIndex;
         }
-
-        this.geometryByMaterials = {};
-
         return { materials, geometries };
     }
 
@@ -224,12 +199,13 @@ export class IFCParser {
 
     private storeIndividualGeometries(id: number, newGeometry: BufferGeometry, colorID: string) {
         const material = this.geometryByMaterials[colorID].material;
-        if (!this.mapIdItems[id]) this.mapIdItems[id] = {};
-        const item = this.mapIdItems[id];
-        if (!item[colorID]){
+        const items = this.state.models[this.currentID].items;
+        if (!items[id]) items[id] = {};
+        const item = items[id];
+        if (!item[colorID]) {
             item[colorID] = { geom: newGeometry, mat: material };
             return;
-        } 
+        }
         const geometries = [item[colorID].geom, newGeometry];
         item[colorID].geom = BufferGeometryUtils.mergeBufferGeometries(geometries);
     }

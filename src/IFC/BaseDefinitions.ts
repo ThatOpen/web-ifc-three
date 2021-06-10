@@ -19,21 +19,24 @@ export interface Display {
     h: -1 | 0 | 1;
 }
 
+export type HighlightConfig = {
+    material?: Material;
+    removePrevious?: boolean;
+};
+
 export type MapFaceIndexID = { [key: number]: number };
-export type MapIDFaceIndex = { [key: number]: number[] };
+// export type MapIDFaceIndex = { [key: number]: number[] };
 
-export type MapIdItems = { [expressID: number]: {
-    [matID: string]: { geom: BufferGeometry; mat: Material };
-} };
+export type MaterialItem = { [matID: string]: { geom: BufferGeometry; mat: Material } };
+export type IdMaterialItem = { [expressID: number]: MaterialItem };
 
-export type MapIdMeshes = { [expressID: number]: Mesh };
+// export type MeshByMat = { [materialID: number]: Mesh };
+// export type MapIdMeshes = { [expressID: number]: MeshByMat };
 
 export interface IfcModel {
     modelID: number;
-    ids: MapFaceIndexID;
-    faces: MapIDFaceIndex;
     mesh: IfcMesh;
-    items: MapIdMeshes;
+    items: IdMaterialItem;
 }
 
 export interface IfcState {

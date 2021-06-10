@@ -9,7 +9,7 @@ import {
     Object3D,
     Scene
 } from 'three';
-import { Display, IfcMesh } from './IFC/BaseDefinitions';
+import { Display, HighlightConfig, IfcMesh } from './IFC/BaseDefinitions';
 
 // tslint:disable-next-line:interface-name
 export interface IFC extends Object3D {
@@ -175,12 +175,8 @@ class IFCLoader extends Loader {
      * @transparent If true, it picks the translucent items as well.
      *
      */
-    pickItems(items: Intersection[], transparent = true) {
-        return this.ifcManager.pickItems(items, transparent);
-    }
-
-    pickItem(modelID: number, id: number, scene: Scene) {
-        return this.ifcManager.pickItem(modelID, id, scene);
+    highlight(modelID: number, id: number[], scene: Scene, config: HighlightConfig) {
+        return this.ifcManager.highlight(modelID, id, scene, config);
     }
 
     /**
