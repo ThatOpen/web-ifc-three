@@ -1,15 +1,6 @@
 import { IFCManager } from './IFC/IFCManager';
-import {
-    BufferGeometry,
-    FileLoader,
-    Intersection,
-    Loader,
-    LoadingManager,
-    Mesh,
-    Object3D,
-    Scene
-} from 'three';
-import { Display, HighlightConfig, IfcMesh } from './IFC/BaseDefinitions';
+import { FileLoader, Loader, LoadingManager, Object3D, Scene } from 'three';
+import { HighlightConfig } from './IFC/BaseDefinitions';
 
 // tslint:disable-next-line:interface-name
 export interface IFC extends Object3D {
@@ -177,32 +168,6 @@ class IFCLoader extends Loader {
      */
     highlight(modelID: number, id: number[], scene: Scene, config: HighlightConfig) {
         return this.ifcManager.highlight(modelID, id, scene, config);
-    }
-
-    /**
-     * Sets the RGB color and transparency of the specified items.
-     * @modelID The ID of the IFC model.
-     * @ids The items whose visibility to change.
-     * @state The state of view to apply. This is an object of type `Display`, which has the properties `r`, `g` and `b`(red, green and blue), which can have a value between 0 (pure black) and 1 (pure color); `a` (alfa), which can have a value between 0 * (transparent) and 1 (opaque), and `h` (highlighted), which can be either 0 (not highlighted) * or 1 (highlighted). Only highlighted elements will display the specified color + transparency. 
-     * 
-     * If any of this attributes is -1, the property won't be updated, thus improving the performance of the operation.
-     * @scene The current Three scene.
-     */
-    setItemsDisplay(modelID: number, ids: number[], state: Display, scene: Scene) {
-        this.ifcManager.setItemsDisplay(modelID, ids, state, scene);
-    }
-
-    /**
-     * Sets the RGB color and transparency of the specified model.
-     * @modelID The ID of the IFC model.
-     * @ids The items whose visibility to change.
-     * @state The state of view to apply. This is an object of type `Display`, which has the properties `r`, `g` and `b`(red, green and blue), which can have a value between 0 (pure black) and 1 (pure color); `a` (alfa), which can have a value between 0 * (transparent) and 1 (opaque), and `h` (highlighted), which can be either 0 (not highlighted) * or 1 (highlighted). Only highlighted elements will display the specified color + transparency.
-     * 
-     * If any of this attributes is -1, the property won't be updated, thus improving the performance of the operation.
-     * @scene The current Three scene.
-     */
-    setModelDisplay(modelID: number, state: Display, scene: Scene) {
-        this.ifcManager.setModelDisplay(modelID, state, scene);
     }
 }
 

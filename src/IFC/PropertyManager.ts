@@ -1,13 +1,12 @@
+import { IdAttr } from './BaseDefinitions';
+import { Node, IfcState } from './BaseDefinitions';
 import {
-    IfcAPI,
     IFCPROJECT,
     IFCRELAGGREGATES,
     IFCRELCONTAINEDINSPATIALSTRUCTURE,
     IFCRELDEFINESBYPROPERTIES,
     IFCRELDEFINESBYTYPE
 } from 'web-ifc';
-import { IdAttr } from './BaseDefinitions';
-import { Item, IfcState } from './BaseDefinitions';
 
 export class PropertyManager {
     private state: IfcState;
@@ -18,13 +17,9 @@ export class PropertyManager {
 
     getExpressId(modelID: number, faceIndex: number) {
         const geometry = this.state.models[modelID].mesh.geometry;
-        if(!geometry.index) return;
+        if (!geometry.index) return;
         const geoIndex = geometry.index.array;
         return geometry.attributes[IdAttr].getX(geoIndex[3 * faceIndex]);
-        // for (let index in ids) {
-        //     if (parseInt(index) > faceIndex) return ids[index];
-        // }
-        // return -1;
     }
 
     getItemProperties(modelID: number, id: number, recursive = false) {
@@ -70,7 +65,7 @@ export class PropertyManager {
         return ifcProject;
     }
 
-    private getAllSpatialChildren(modelID: number, item: Item, recursive: boolean) {
+    private getAllSpatialChildren(modelID: number, item: Node, recursive: boolean) {
         item.hasChildren = [];
         item.hasSpatialChildren = [];
         this.getChildren(
@@ -98,7 +93,7 @@ export class PropertyManager {
     private getChildren(
         modelID: number,
         id: number,
-        prop: Item[],
+        prop: Node[],
         relating: string,
         rel: string,
         relProp: number,

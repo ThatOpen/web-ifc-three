@@ -6,24 +6,15 @@ import {
     Color,
     WebGLRenderer,
     PerspectiveCamera,
-    BoxGeometry,
-    MeshPhongMaterial,
     Mesh,
     DirectionalLight,
     AmbientLight,
     Raycaster,
-    Vector3,
     Vector2,
     BufferGeometry,
     MeshLambertMaterial
 } from 'three';
-import { IFCDOOR, IFCFURNISHINGELEMENT, IFCSLAB, IFCWALLSTANDARDCASE } from 'web-ifc';
-import { computeBoundsTree, disposeBoundsTree, acceleratedRaycast } from 'three-mesh-bvh';
-
-// Add the extension functions
-BufferGeometry.prototype.computeBoundsTree = computeBoundsTree;
-BufferGeometry.prototype.disposeBoundsTree = disposeBoundsTree;
-Mesh.prototype.raycast = acceleratedRaycast;
+import { IFCCURTAINWALL, IFCDOOR, IFCFURNISHINGELEMENT, IFCPLATE, IFCWINDOW } from 'web-ifc';
 
 //Scene
 const scene = new Scene();
@@ -85,7 +76,6 @@ const ifcMeshes = [];
         (changed) => {
             var ifcURL = URL.createObjectURL(changed.target.files[0]);
             ifcLoader.load(ifcURL, (mesh) => {
-                mesh.geometry.computeBoundsTree();
                 mesh.material = new MeshLambertMaterial({transparent: true, opacity: 0.2})
                 ifcMeshes.push(mesh);
                 scene.add(mesh);
@@ -96,8 +86,7 @@ const ifcMeshes = [];
 })();
 
 //Setup object picking
-let previous = {};
-const resetDisplayState = { r: 0, g: 0, b: 0, a: 1, h: 0 };
+let previousSelection;
 
 const raycaster = new Raycaster();
 raycaster.firstHitOnly = true;
@@ -114,50 +103,29 @@ function selectObject(event) {
     if (intersected.length) {
 
         const item = intersected[0];
-        if(previous == item.faceIndex) return;
-        previous = item.faceIndex;
+        if(previousSelection == item.faceIndex) return;
+        previousSelection = item.faceIndex;
 
         const modelID = item.object.modelID;
 
         const id = ifcLoader.getExpressId(modelID, item.faceIndex);
+
         ifcLoader.highlight(modelID, [id], scene, { removePrevious: true });
 
-
-
-        // const furnitures = ifcLoader.getAllItemsOfType(modelID, IFCFURNISHINGELEMENT);
-
-
-        // const ifcProject = ifcLoader.getSpatialStructure(modelID, true);
-        // console.log(ifcProject);
-
-        // const properties = ifcLoader.getItemProperties(modelID, id);
-        // console.log(properties);
-
-        // const psets = ifcLoader.getPropertySets(modelID, id);
-        // console.log(psets);
-
-
-
-
-        // const transparent = { r: 0, g: 0, b: 1, a: 0.02, h: 1 };
-        // ifcLoader.setModelDisplay(modelID, transparent, scene);
-
-        // const doors = ifcLoader.getAllItemsOfType(modelID, IFCDOOR);
-        // const red = { r: 1, g: 0, b: 0, a: 1, h: 1 };
-        // ifcLoader.setItemsDisplay(modelID, doors, red, scene);
-
-
-
-
-        // const transparent = { r: 0, g: 0, b: 1, a: 0.02, h: 1 };
-        // ifcLoader.setModelDisplay(modelID, transparent, scene);
-
-        // const normalDisplay = { r: 0, g: 0, b: 0, a: 1, h: 0 };
-        // const ifcProject = ifcLoader.getSpatialStructure(modelID, false);
-        // const firstFloor = ifcProject.hasSpatialChildren[0].hasSpatialChildren[0].hasSpatialChildren[0];
-        // const items = firstFloor.hasChildren;
-        // ifcLoader.setItemsDisplay(modelID, items, normalDisplay, scene);
+        
     }
 }
 
-threeCanvas.onmousemove = selectObject;
+function getProps(){
+    const furnitures = ifcLoader.getAllItemsOfType(0, IFCFURNISHINGELEMENT);
+    const windows = ifcLoader.getAllItemsOfType(0, IFCWINDOW);
+    const doors = ifcLoader.getAllItemsOfType(0, IFCDOOR);
+    const cwalls = ifcLoader.getAllItemsOfType(0, IFCPLATE);
+
+    const allItems = [...furnitures, ...windows, ...doors, ...cwalls ];
+    ifcLoader.highlight(0, allItems, scene);
+
+}
+
+threeCanvas.ondblclick = getProps;
+// threeCanvas.onmousemove = selectObject;

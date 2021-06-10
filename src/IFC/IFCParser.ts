@@ -1,6 +1,8 @@
 import { BufferGeometryUtils } from 'three/examples/jsm/utils/BufferGeometryUtils';
-import { OpaqueShader } from './Shaders';
-import { IfcAPI, PlacedGeometry, Color as ifcColor } from 'web-ifc';
+import { PlacedGeometry, Color as ifcColor } from 'web-ifc';
+import { GeometriesByMaterial, IfcState, IfcMesh, IdAttr, MapFaceindexID } from './BaseDefinitions';
+//@ts-ignore
+import { computeBoundsTree, disposeBoundsTree, acceleratedRaycast } from 'three-mesh-bvh';
 import {
     Mesh,
     Color,
@@ -11,12 +13,11 @@ import {
     BufferAttribute,
     Material
 } from 'three';
-import { GeometriesByMaterial, IfcState, IfcMesh, IdAttr, MapFaceIndexID } from './BaseDefinitions';
 
 export class IFCParser {
     private state: IfcState;
     private currentID: number;
-    private indicesIdsMap: MapFaceIndexID;
+    private indicesIdsMap: MapFaceindexID;
     private geometryByMaterials: GeometriesByMaterial;
 
     constructor(state: IfcState) {
@@ -24,6 +25,7 @@ export class IFCParser {
         this.currentID = -1;
         this.indicesIdsMap = {};
         this.state = state;
+        this.setupThreeMeshBVH();
     }
 
     async parse(buffer: any) {
@@ -32,14 +34,24 @@ export class IFCParser {
         return this.loadAllGeometry();
     }
 
+    private setupThreeMeshBVH() {
+        //@ts-ignore
+        BufferGeometry.prototype.computeBoundsTree = computeBoundsTree;
+        //@ts-ignore
+        BufferGeometry.prototype.disposeBoundsTree = disposeBoundsTree;
+        Mesh.prototype.raycast = acceleratedRaycast;
+    }
+
+    private applyThreeMeshBVH(geometry: BufferGeometry) {
+        this.storeIdsInVertexAttribute(geometry);
+        //@ts-ignore
+        geometry.computeBoundsTree();
+    }
+
     private newIfcModel(buffer: any) {
         const data = new Uint8Array(buffer);
         const modelID = this.state.api.OpenModel(data);
-        this.state.models[modelID] = {
-            modelID,
-            mesh: {} as IfcMesh,
-            items: {}
-        };
+        this.state.models[modelID] = { modelID, mesh: {} as IfcMesh, items: {} };
         return modelID;
     }
 
@@ -51,28 +63,18 @@ export class IFCParser {
     private generateAllGeometriesByMaterial() {
         const { materials, geometries } = this.getMaterialsAndGeometries();
         const allGeometry = BufferGeometryUtils.mergeBufferGeometries(geometries, true);
-        this.storeIdsInVertexAttribute(allGeometry);
-        const result = new Mesh(allGeometry, materials) as IfcMesh;
-        result.modelID = this.currentID;
-        this.state.models[this.currentID].mesh = result;
+        this.applyThreeMeshBVH(allGeometry);
+        const mesh = new Mesh(allGeometry, materials) as IfcMesh;
+        mesh.modelID = this.currentID;
+        this.state.models[this.currentID].mesh = mesh;
         this.cleanup();
-        return result;
+        return mesh;
     }
 
     private cleanup() {
         this.geometryByMaterials = {};
         this.indicesIdsMap = {};
     }
-
-    // private processIndividualGeometries() {
-    //     for (let i in this.mapIdItems) {
-    //         const item = this.mapIdItems[i];
-    //         const components = Object.values(item);
-    //         const geoms = components.map((comp) => comp.geom);
-    //         const mats = components.map((comp) => comp.mat);
-    //         this.state.models[this.currentID].items[i] = {};
-    //     }
-    // }
 
     private storeIdsInVertexAttribute(geometry: BufferGeometry) {
         const zeros = new Float32Array(geometry.getAttribute('position').count);
@@ -214,7 +216,6 @@ export class IFCParser {
         if (!this.geometryByMaterials[colorID]) {
             const col = new Color(color.x, color.y, color.z);
             const newMaterial = new MeshLambertMaterial({ color: col, side: DoubleSide });
-            newMaterial.onBeforeCompile = OpaqueShader;
             newMaterial.transparent = color.w !== 1;
             if (newMaterial.transparent) newMaterial.opacity = color.w;
             this.geometryByMaterials[colorID] = this.newGeometryByMaterial(newMaterial);
