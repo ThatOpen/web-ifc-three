@@ -1,6 +1,6 @@
 {
   "name": "web-ifc-three",
-  "version": "0.0.2",
+  "version": "0.0.23",
   "description": "This library is the implementation of [web-ifc](https://github.com/tomvandig/web-ifc) for [THREE.js](https://github.com/mrdoob/three.js/). This is the official IFCLoader of Three.js.",
   "main": "index.js",
   "scripts": {
@@ -12,19 +12,19 @@
     "format-result": "esformatter --config config/esformatter.config.json dist/IFCLoader.js -i",
     "build-example": "rollup -c example/rollup.config.js && npm run copy-wasm",
     "copy-wasm": "cpy node_modules/web-ifc/web-ifc.wasm example",
-    "publish": "cpy package.json dist && cd dist && npm publish"
+    "publish-repo": "cpy package.json dist && cd dist && npm publish"
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/tomvandig/web-ifc-three.git"
+    "url": "git+https://github.com/agviegas/web-ifc-three.git"
   },
-  "keywords": [],
+  "keywords": ["bim", "openbim", "ifc", "architecture", "engineering", "construction", "aec"],
   "author": "",
-  "license": "ISC",
+  "license": "Mozilla Public License Version 2.0",
   "bugs": {
-    "url": "https://github.com/tomvandig/web-ifc-three/issues"
+    "url": "https://github.com/agviegas/web-ifc-three/issues"
   },
-  "homepage": "https://github.com/tomvandig/web-ifc-three#readme",
+  "homepage": "https://github.com/agviegas/web-ifc-three#readme",
   "dependencies": {
     "stats.js": "^0.17.0",
     "three": "^0.126.0",

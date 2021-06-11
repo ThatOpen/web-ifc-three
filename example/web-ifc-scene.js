@@ -76,7 +76,6 @@ const ifcMeshes = [];
         (changed) => {
             var ifcURL = URL.createObjectURL(changed.target.files[0]);
             ifcLoader.load(ifcURL, (mesh) => {
-                mesh.material = new MeshLambertMaterial({transparent: true, opacity: 0.2})
                 ifcMeshes.push(mesh);
                 scene.add(mesh);
             });
@@ -91,41 +90,39 @@ let previousSelection;
 const raycaster = new Raycaster();
 raycaster.firstHitOnly = true;
 
-function selectObject(event) {
-
+function castRay(event){
     const mouse = new Vector2();
     mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
     mouse.y = -(event.clientY / window.innerHeight) * 2 + 1;
     raycaster.setFromCamera(mouse, camera);
+    return raycaster.intersectObjects(ifcMeshes);
+}
 
-    const intersected = raycaster.intersectObjects(ifcMeshes);
-
+function selectObject(event) {
+    const intersected = castRay(event);
     if (intersected.length) {
-
         const item = intersected[0];
         if(previousSelection == item.faceIndex) return;
         previousSelection = item.faceIndex;
-
         const modelID = item.object.modelID;
-
         const id = ifcLoader.getExpressId(modelID, item.faceIndex);
-
-        ifcLoader.highlight(modelID, [id], scene, { removePrevious: true });
-
-        
+        const highlightMaterial = new MeshLambertMaterial({color: 0x666666, transparent: true, opacity: 0.6, depthTest: false})
+        ifcLoader.highlight(modelID, [id], scene, { removePrevious: true, material: highlightMaterial });
     }
 }
 
 function getProps(){
-    const furnitures = ifcLoader.getAllItemsOfType(0, IFCFURNISHINGELEMENT);
-    const windows = ifcLoader.getAllItemsOfType(0, IFCWINDOW);
-    const doors = ifcLoader.getAllItemsOfType(0, IFCDOOR);
-    const cwalls = ifcLoader.getAllItemsOfType(0, IFCPLATE);
-
-    const allItems = [...furnitures, ...windows, ...doors, ...cwalls ];
-    ifcLoader.highlight(0, allItems, scene);
-
+    const intersected = castRay(event);
+    if (intersected.length) {
+        const item = intersected[0];
+        const modelID = item.object.modelID;
+        const id = ifcLoader.getExpressId(modelID, item.faceIndex);
+        const props = ifcLoader.getItemProperties(modelID, id);
+        const psets = ifcLoader.getPropertySets(modelID, id);
+        props.propertySets = psets;
+        console.log(props);
+    }
 }
 
 threeCanvas.ondblclick = getProps;
-// threeCanvas.onmousemove = selectObject;
+threeCanvas.onmousemove = selectObject;

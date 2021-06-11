@@ -35,7 +35,15 @@ export class DisplayManager {
         const mesh = new Mesh(allGeometry, mats);
         scene.add(mesh);
 
-        if (config?.material) mesh.material = [config.material];
+        if (config?.material){
+            mesh.material = [config.material];
+            const groups = mesh.geometry.groups;
+            mesh.geometry.groups = [{
+                start: groups[0].start,
+                count: groups.map(g => g.count).reduce((a, b) => a + b, 0),
+                materialIndex: 0
+            }]
+        } 
 
         if (config?.removePrevious) scene.remove(this.previousSelection.mesh);
         this.previousSelection.mesh = mesh;

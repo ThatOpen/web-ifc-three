@@ -10,7 +10,7 @@ export default {
       sourcemap: true
     }
   ],
-  external: ['web-ifc', 'three', 'three/examples/jsm/utils/BufferGeometryUtils'],
+  external: ['web-ifc', 'three-mesh-bvh', 'three', 'three/examples/jsm/utils/BufferGeometryUtils'],
   plugins: [
     resolve(),
     typescript({
