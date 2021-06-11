@@ -74166,10 +74166,10 @@ class DisplayManager {
     const geomsByMaterial = [];
     const mats = [];
     for (let materialID in selected) {
-      mats.push(new MeshLambertMaterial({
-        color: 0xff0000
-      }));
       const geoms = Object.values(selected[materialID].geometries);
+      if (!geoms.length)
+        continue;
+      mats.push(selected[materialID].material);
       if (geoms.length > 1)
         geomsByMaterial.push(merge(geoms));
       else
@@ -74178,6 +74178,9 @@ class DisplayManager {
     const allGeometry = merge(geomsByMaterial, true);
     const mesh = new Mesh(allGeometry, mats);
     scene.add(mesh);
+    if (config === null || config === void 0 ? void 0 : config.removePrevious)
+      scene.remove(this.previousSelection.mesh);
+    this.previousSelection.mesh = mesh;
     this.previousSelection.mesh = mesh;
     this.previousSelection.ids = ids;
   }

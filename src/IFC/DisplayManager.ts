@@ -26,9 +26,9 @@ export class DisplayManager {
         const geomsByMaterial: BufferGeometry[] = [];
         const mats: Material[] = [];
         for(let materialID in selected){
-            // mats.push(selected[materialID].material)
-            mats.push(new MeshLambertMaterial({color: 0xff0000}))
             const geoms = Object.values(selected[materialID].geometries);
+            if(!geoms.length) continue;
+            mats.push(selected[materialID].material)
             if(geoms.length > 1) geomsByMaterial.push(merge(geoms));
             else geomsByMaterial.push(...geoms);
         }
@@ -48,8 +48,8 @@ export class DisplayManager {
         //     ];
         // }
 
-        // if (config?.removePrevious) scene.remove(this.previousSelection.mesh);
-        // this.previousSelection.mesh = mesh;
+        if (config?.removePrevious) scene.remove(this.previousSelection.mesh);
+        this.previousSelection.mesh = mesh;
 
         this.previousSelection.mesh = mesh;
         this.previousSelection.ids = ids;
