@@ -1,5 +1,12 @@
-import { Mesh, Scene } from 'three';
-import { IfcState, HighlightConfig, MaterialItem } from './BaseDefinitions';
+import { BufferGeometry, Material, Mesh, MeshLambertMaterial, Scene } from 'three';
+import {
+    IfcState,
+    HighlightConfig,
+    GeometriesByMaterial,
+    GeometriesByMaterials,
+    IdGeometries,
+    merge
+} from './BaseDefinitions';
 import { BufferGeometryUtils } from 'three/examples/jsm/utils/BufferGeometryUtils';
 
 export class DisplayManager {
@@ -15,38 +22,34 @@ export class DisplayManager {
         if (this.isPreviousSelection(ids)) return;
 
         const selected = this.filter(modelID, ids);
-        const grouped: MaterialItem = {};
-        for (let matItem of selected) {
-            for (let matID in matItem) {
-                if (!grouped[matID]) grouped[matID] = matItem[matID];
-                else
-                    grouped[matID].geom = BufferGeometryUtils.mergeBufferGeometries([
-                        grouped[matID].geom,
-                        matItem[matID].geom
-                    ]);
-            }
+       
+        const geomsByMaterial: BufferGeometry[] = [];
+        const mats: Material[] = [];
+        for(let materialID in selected){
+            // mats.push(selected[materialID].material)
+            mats.push(new MeshLambertMaterial({color: 0xff0000}))
+            const geoms = Object.values(selected[materialID].geometries);
+            if(geoms.length > 1) geomsByMaterial.push(merge(geoms));
+            else geomsByMaterial.push(...geoms);
         }
-
-        const all = Object.values(grouped);
-        const geoms = all.map((i) => i.geom);
-        const mats = all.map((i) => i.mat);
-
-        const allGeometry = BufferGeometryUtils.mergeBufferGeometries(geoms, true);
+        const allGeometry = merge(geomsByMaterial, true);
         const mesh = new Mesh(allGeometry, mats);
         scene.add(mesh);
 
-        if (config?.material){
-            mesh.material = [config.material];
-            const groups = mesh.geometry.groups;
-            mesh.geometry.groups = [{
-                start: groups[0].start,
-                count: groups.map(g => g.count).reduce((a, b) => a + b, 0),
-                materialIndex: 0
-            }]
-        } 
+        // if (config?.material) {
+        //     mesh.material = [config.material];
+        //     const groups = mesh.geometry.groups;
+        //     mesh.geometry.groups = [
+        //         {
+        //             start: groups[0].start,
+        //             count: groups.map((g) => g.count).reduce((a, b) => a + b, 0),
+        //             materialIndex: 0
+        //         }
+        //     ];
+        // }
 
-        if (config?.removePrevious) scene.remove(this.previousSelection.mesh);
-        this.previousSelection.mesh = mesh;
+        // if (config?.removePrevious) scene.remove(this.previousSelection.mesh);
+        // this.previousSelection.mesh = mesh;
 
         this.previousSelection.mesh = mesh;
         this.previousSelection.ids = ids;
@@ -58,8 +61,20 @@ export class DisplayManager {
 
     private filter(modelID: number, ids: number[]) {
         const items = this.state.models[modelID].items;
-        const filtered: MaterialItem[] = [];
-        ids.forEach((id) => filtered.push(items[id]));
+        const filtered: GeometriesByMaterials = {};
+        for (let materialID in items) {
+            filtered[materialID] = {
+                material: items[materialID].material,
+                geometries: this.filterGeometries(ids, items[materialID].geometries)
+            };
+        }
         return filtered;
+    }
+
+    private filterGeometries(ids: number[], geometries: IdGeometries) {
+        return Object.keys(geometries)
+            .filter((key) => ids.includes(parseInt(key, 10)))
+            //@ts-ignore
+            .reduce((obj, key) => { return { ...obj, [key]: geometries[key] };}, {});
     }
 }

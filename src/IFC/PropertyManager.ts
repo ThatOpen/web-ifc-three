@@ -1,4 +1,4 @@
-import { IdAttr } from './BaseDefinitions';
+import { IdAttrName } from './BaseDefinitions';
 import { Node, IfcState } from './BaseDefinitions';
 import {
     IFCPROJECT,
@@ -19,7 +19,7 @@ export class PropertyManager {
         const geometry = this.state.models[modelID].mesh.geometry;
         if (!geometry.index) return;
         const geoIndex = geometry.index.array;
-        return geometry.attributes[IdAttr].getX(geoIndex[3 * faceIndex]);
+        return geometry.attributes[IdAttrName].getX(geoIndex[3 * faceIndex]);
     }
 
     getItemProperties(modelID: number, id: number, recursive = false) {

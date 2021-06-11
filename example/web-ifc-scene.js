@@ -77,6 +77,7 @@ const ifcMeshes = [];
             var ifcURL = URL.createObjectURL(changed.target.files[0]);
             ifcLoader.load(ifcURL, (mesh) => {
                 ifcMeshes.push(mesh);
+                mesh.material = new MeshLambertMaterial({transparent: true, opacity: 0.2})
                 scene.add(mesh);
             });
         },

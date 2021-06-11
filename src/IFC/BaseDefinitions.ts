@@ -1,7 +1,23 @@
-import { BufferGeometry, Material, Mesh } from 'three';
+import { BufferAttribute, BufferGeometry, Material, Mesh } from 'three';
+import { BufferGeometryUtils } from 'three/examples/jsm/utils/BufferGeometryUtils';
 import { IfcAPI } from 'web-ifc';
 
-export const IdAttr = 'expressID';
+export const IdAttrName = 'expressID';
+
+export type IdAttributeByMaterial = { [id: number]: number };
+export type IdAttributesByMaterials = { [materialID: string]: IdAttributeByMaterial };
+
+export const merge = (geoms: BufferGeometry[], createGroups = false) => {
+    return BufferGeometryUtils.mergeBufferGeometries(geoms, createGroups);
+};
+
+export const newFloatAttr = (data: any[], size: number) => {
+    return new BufferAttribute(new Float32Array(data), size);
+};
+
+export const newIntAttr = (data: any[], size: number) => {
+    return new BufferAttribute(new Uint32Array(data), size);
+};
 
 export type HighlightConfig = {
     material?: Material;
@@ -10,13 +26,23 @@ export type HighlightConfig = {
 
 export type MapFaceindexID = { [key: number]: number };
 
-export type MaterialItem = { [matID: string]: { geom: BufferGeometry; mat: Material } };
-export type IdMaterialItem = { [expressID: number]: MaterialItem };
+export type IdGeometries = {
+    [expressID: number]: BufferGeometry;
+};
+
+export type GeometriesByMaterial = {
+    material: Material;
+    geometries: IdGeometries;
+};
+
+export interface GeometriesByMaterials {
+    [materialID: string]: GeometriesByMaterial;
+}
 
 export interface IfcModel {
     modelID: number;
     mesh: IfcMesh;
-    items: IdMaterialItem;
+    items: GeometriesByMaterials;
 }
 
 export interface IfcState {
@@ -26,17 +52,6 @@ export interface IfcState {
 
 export interface IfcMesh extends Mesh {
     modelID: number;
-}
-
-export type GeometryByMaterial = {
-    material: Material;
-    geometry: BufferGeometry[];
-    indices: { [keys: number]: number };
-    lastIndex: number;
-};
-
-export interface GeometriesByMaterial {
-    [key: string]: GeometryByMaterial;
 }
 
 export interface Node {
