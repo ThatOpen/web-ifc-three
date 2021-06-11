@@ -4,6 +4,8 @@ This library is the implementation of [web-ifc](https://github.com/tomvandig/web
 
 Note that you should use the IFCLoader of Three.js. Use this package only if you want to test the latest features that haven't been merged to three yet.
 
+[Try it here!](https://agviegas.github.io/web-ifc-three/example/)
+
 ## Content
 
 this project consists of the following folders:
