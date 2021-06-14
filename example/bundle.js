@@ -73972,6 +73972,7 @@ const newFloatAttr = (data, size) => {
 const newIntAttr = (data, size) => {
   return new BufferAttribute(new Uint32Array(data), size);
 };
+const DEFAULT = 'default';
 
 class IFCParser {
 
@@ -74115,10 +74116,8 @@ class IFCParser {
     this.createMaterial(colorID, color);
     const item = this.state.models[this.currentID].items[colorID];
     const currentGeom = item.geometries[id];
-    if (!currentGeom) {
-      item.geometries[id] = geom;
-      return;
-    }
+    if (!currentGeom)
+      return item.geometries[id] = geom;
     const merged = merge([currentGeom, geom]);
     item.geometries[id] = merged;
   }
@@ -74149,59 +74148,138 @@ class IFCParser {
 
 }
 
-class DisplayManager {
+class SubsetManager {
 
   constructor(state) {
     this.state = state;
-    this.previousSelection = {
-      mesh: {},
-      ids: []
-    };
+    this.selected = {};
   }
 
-  highlight(modelID, ids, scene, config) {
-    if (this.isPreviousSelection(ids))
+  getSubset(modelID, material) {
+    const currentMat = this.matIDNoConfig(modelID, material);
+    if (!this.selected[currentMat])
+      return null;
+    return this.selected[currentMat].mesh;
+  }
+
+  removeSubset(modelID, scene, material) {
+    const currentMat = this.matIDNoConfig(modelID, material);
+    if (!this.selected[currentMat])
       return;
-    const selected = this.filter(modelID, ids);
+    if (scene)
+      scene.remove(this.selected[currentMat].mesh);
+    delete this.selected[currentMat];
+  }
+
+  createSubset(config) {
+    if (!this.isConfigValid(config))
+      return;
+    if (this.isPreviousSelection(config))
+      return;
+    if (this.isEasySelection(config))
+      return this.addToPreviousSelection(config);
+    this.updatePreviousSelection(config.scene, config);
+    return this.createSelectionInScene(config);
+  }
+
+  createSelectionInScene(config) {
+    const filtered = this.filter(config);
+    const {geomsByMaterial, materials} = this.getGeomAndMat(filtered);
+    const hasDefaultMaterial = this.matID(config) == DEFAULT;
+    const geometry = merge(geomsByMaterial, hasDefaultMaterial);
+    const mats = hasDefaultMaterial ? materials : config.material;
+    const mesh = new Mesh(geometry, mats);
+    this.selected[this.matID(config)].mesh = mesh;
+    mesh.modelID = config.modelID;
+    config.scene.add(mesh);
+    return mesh;
+  }
+
+  isConfigValid(config) {
+    return (this.isValid(config.scene) &&
+      this.isValid(config.modelID) &&
+      this.isValid(config.ids) &&
+      this.isValid(config.removePrevious));
+  }
+
+  isValid(item) {
+    return item != undefined && item != null;
+  }
+
+  getGeomAndMat(filtered) {
     const geomsByMaterial = [];
-    const mats = [];
-    for (let materialID in selected) {
-      const geoms = Object.values(selected[materialID].geometries);
+    const materials = [];
+    for (let matID in filtered) {
+      const geoms = Object.values(filtered[matID].geometries);
       if (!geoms.length)
         continue;
-      mats.push(selected[materialID].material);
+      materials.push(filtered[matID].material);
       if (geoms.length > 1)
         geomsByMaterial.push(merge(geoms));
       else
         geomsByMaterial.push(...geoms);
     }
-    const allGeometry = merge(geomsByMaterial, true);
-    const mesh = new Mesh(allGeometry, mats);
-    scene.add(mesh);
-    if (config === null || config === void 0 ? void 0 : config.removePrevious)
-      scene.remove(this.previousSelection.mesh);
-    this.previousSelection.mesh = mesh;
-    this.previousSelection.mesh = mesh;
-    this.previousSelection.ids = ids;
+    return {
+      geomsByMaterial,
+      materials
+    };
   }
 
-  isPreviousSelection(ids) {
-    return JSON.stringify(ids) === JSON.stringify(this.previousSelection.ids);
+  updatePreviousSelection(scene, config) {
+    const previous = this.selected[this.matID(config)];
+    if (!previous)
+      return this.newSelectionGroup(config);
+    scene.remove(previous.mesh);
+    config.removePrevious
+      ? (previous.ids = new Set(config.ids))
+      : config.ids.forEach((id) => previous.ids.add(id));
   }
 
-  filter(modelID, ids) {
-    const items = this.state.models[modelID].items;
+  newSelectionGroup(config) {
+    this.selected[this.matID(config)] = {
+      ids: new Set(config.ids),
+      mesh: {}
+    };
+  }
+
+  isPreviousSelection(config) {
+    if (!this.selected[this.matID(config)])
+      return false;
+    if (this.containsIds(config))
+      return true;
+    const previousIds = this.selected[this.matID(config)].ids;
+    return JSON.stringify(config.ids) === JSON.stringify(previousIds);
+  }
+
+  containsIds(config) {
+    const newIds = config.ids;
+    const previous = Array.from(this.selected[this.matID(config)].ids);
+    return newIds.every((i => v => (i = previous.indexOf(v, i) + 1))(0));
+  }
+
+  addToPreviousSelection(config) {
+    const previous = this.selected[this.matID(config)];
+    const filtered = this.filter(config);
+    const geometries = Object.values(filtered).map((i) => Object.values(i.geometries)).flat();
+    const previousGeom = previous.mesh.geometry;
+    previous.mesh.geometry = merge([previousGeom, ...geometries]);
+    config.ids.forEach((id) => previous.ids.add(id));
+  }
+
+  filter(config) {
+    const items = this.state.models[config.modelID].items;
     const filtered = {};
-    for (let materialID in items) {
-      filtered[materialID] = {
-        material: items[materialID].material,
-        geometries: this.filterGeometries(ids, items[materialID].geometries)
+    for (let matID in items) {
+      filtered[matID] = {
+        material: items[matID].material,
+        geometries: this.filterGeometries(new Set(config.ids), items[matID].geometries)
       };
     }
     return filtered;
   }
 
-  filterGeometries(ids, geometries) {
+  filterGeometries(selectedIDs, geometries) {
+    const ids = Array. from (selectedIDs);
     return Object.keys(geometries)
       .filter((key) => ids.includes(parseInt(key, 10)))
       .reduce((obj, key) => {
@@ -74212,6 +74290,27 @@ class DisplayManager {
       }, {});
   }
 
+  isEasySelection(config) {
+    const matID = this.matID(config);
+    const def = this.matIDNoConfig(config.modelID);
+    if (!config.removePrevious && matID != def && this.selected[matID])
+      return true;
+  }
+
+  matID(config) {
+    if (!config.material)
+      return DEFAULT;
+    const name = config.material.uuid || DEFAULT;
+    return name.concat(" - ").concat(config.modelID.toString());
+  }
+
+  matIDNoConfig(modelID, material) {
+    let name = DEFAULT;
+    if (material)
+      name = material.uuid;
+    return name.concat(" - ").concat(modelID.toString());
+  }
+
 }
 
 class PropertyManager {
@@ -74220,8 +74319,7 @@ class PropertyManager {
     this.state = state;
   }
 
-  getExpressId(modelID, faceIndex) {
-    const geometry = this.state.models[modelID].mesh.geometry;
+  getExpressId(geometry, faceIndex) {
     if (!geometry.index)
       return;
     const geoIndex = geometry.index.array;
@@ -74232,12 +74330,12 @@ class PropertyManager {
     return this.state.api.GetLine(modelID, id, recursive);
   }
 
-  getAllItemsOfType(modelID, type, properties) {
+  getAllItemsOfType(modelID, type, verbose) {
     const items = [];
     const lines = this.state.api.GetLineIDsWithType(modelID, type);
     for (let i = 0; i < lines.size(); i++)
       items.push(lines.get(i));
-    if (properties)
+    if (verbose)
       return items.map((id) => this.state.api.GetLine(modelID, id));
     return items;
   }
@@ -74311,7 +74409,7 @@ class IFCManager {
       api: new IfcAPI()
     };
     this.parser = new IFCParser(this.state);
-    this.display = new DisplayManager(this.state);
+    this.subsets = new SubsetManager(this.state);
     this.properties = new PropertyManager(this.state);
   }
 
@@ -74330,12 +74428,12 @@ class IFCManager {
     delete this.state.models[modelID];
   }
 
-  getExpressId(modelID, faceIndex) {
-    return this.properties.getExpressId(modelID, faceIndex);
+  getExpressId(geometry, faceIndex) {
+    return this.properties.getExpressId(geometry, faceIndex);
   }
 
-  getAllItemsOfType(modelID, type, properties) {
-    return this.properties.getAllItemsOfType(modelID, type, properties);
+  getAllItemsOfType(modelID, type, verbose) {
+    return this.properties.getAllItemsOfType(modelID, type, verbose);
   }
 
   getItemProperties(modelID, id, recursive = false) {
@@ -74354,8 +74452,16 @@ class IFCManager {
     return this.properties.getSpatialStructure(modelID, recursive);
   }
 
-  highlight(modelID, id, scene, config) {
-    return this.display.highlight(modelID, id, scene, config);
+  getSubset(modelID, material) {
+    return this.subsets.getSubset(modelID, material);
+  }
+
+  removeSubset(modelID, scene, material) {
+    this.subsets.removeSubset(modelID, scene, material);
+  }
+
+  createSubset(config) {
+    return this.subsets.createSubset(config);
   }
 
 }
@@ -74400,12 +74506,12 @@ class IFCLoader extends Loader {
     return this.ifcManager.close(modelID, scene);
   }
 
-  getExpressId(modelID, faceIndex) {
-    return this.ifcManager.getExpressId(modelID, faceIndex);
+  getExpressId(geometry, faceIndex) {
+    return this.ifcManager.getExpressId(geometry, faceIndex);
   }
 
-  getAllItemsOfType(modelID, type, properties = false) {
-    return this.ifcManager.getAllItemsOfType(modelID, type, properties);
+  getAllItemsOfType(modelID, type, verbose = false) {
+    return this.ifcManager.getAllItemsOfType(modelID, type, verbose);
   }
 
   getItemProperties(modelID, id, recursive = false) {
@@ -74424,8 +74530,16 @@ class IFCLoader extends Loader {
     return this.ifcManager.getSpatialStructure(modelID, recursive);
   }
 
-  highlight(modelID, id, scene, config) {
-    return this.ifcManager.highlight(modelID, id, scene, config);
+  getSubset(modelID, material) {
+    return this.ifcManager.getSubset(modelID, material);
+  }
+
+  removeSubset(modelID, scene, material) {
+    this.ifcManager.removeSubset(modelID, scene, material);
+  }
+
+  createSubset(config) {
+    return this.ifcManager.createSubset(config);
   }
 
 }
@@ -75863,7 +75977,8 @@ const ifcMeshes = [];
             var ifcURL = URL.createObjectURL(changed.target.files[0]);
             ifcLoader.load(ifcURL, (mesh) => {
                 ifcMeshes.push(mesh);
-                mesh.material = new MeshLambertMaterial({transparent: true, opacity: 0.2});
+                // mesh.material = new MeshLambertMaterial({ transparent: true, opacity: 0.2 });
+                console.log(mesh.geometry);
                 scene.add(mesh);
             });
         },
@@ -75872,12 +75987,11 @@ const ifcMeshes = [];
 })();
 
 //Setup object picking
-let previousSelection;
 
 const raycaster = new Raycaster();
 raycaster.firstHitOnly = true;
 
-function castRay(event){
+function castRay(event) {
     const mouse = new Vector2();
     mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
     mouse.y = -(event.clientY / window.innerHeight) * 2 + 1;
@@ -75885,25 +75999,72 @@ function castRay(event){
     return raycaster.intersectObjects(ifcMeshes);
 }
 
-function selectObject(event) {
+const preselectMaterial = new MeshLambertMaterial({
+    color: 0xffccff,
+    transparent: true,
+    opacity: 0.5,
+    depthTest: false
+});
+
+let previousPreSelection;
+let preselecteModel;
+
+function preselectItem(event) {
     const intersected = castRay(event);
     if (intersected.length) {
         const item = intersected[0];
-        if(previousSelection == item.faceIndex) return;
-        previousSelection = item.faceIndex;
+
+        if (previousPreSelection == item.faceIndex) return;
+        previousPreSelection = item.faceIndex;
+
+        const id = ifcLoader.getExpressId(item.object.geometry, item.faceIndex);
         const modelID = item.object.modelID;
-        const id = ifcLoader.getExpressId(modelID, item.faceIndex);
-        const highlightMaterial = new MeshLambertMaterial({color: 0x666666, transparent: true, opacity: 0.6, depthTest: false});
-        ifcLoader.highlight(modelID, [id], scene, { removePrevious: true, material: highlightMaterial });
+
+        if(preselecteModel != undefined && preselecteModel != modelID) ifcLoader.removeSubset(preselecteModel, scene, preselectMaterial);
+        preselecteModel = modelID;
+        
+        ifcLoader.createSubset({
+            scene,
+            modelID,
+            ids: [id],
+            removePrevious: true,
+            material: preselectMaterial
+        });
     }
 }
 
-function getProps(){
+const selectMaterial = new MeshLambertMaterial({
+    color: 0xff00ff,
+    transparent: true,
+    opacity: 0.4,
+    depthTest: false
+});
+
+let previousSelection;
+let selectedModel;
+
+function selectItem(event) {
     const intersected = castRay(event);
     if (intersected.length) {
         const item = intersected[0];
+
+        if (previousSelection == item.faceIndex) return;
+        previousSelection = item.faceIndex;
+
+        const id = ifcLoader.getExpressId(item.object.geometry, item.faceIndex);
         const modelID = item.object.modelID;
-        const id = ifcLoader.getExpressId(modelID, item.faceIndex);
+
+        if(selectedModel  != undefined && selectedModel != modelID) ifcLoader.removeSubset(selectedModel, scene, selectMaterial);
+        selectedModel = modelID;
+
+        ifcLoader.createSubset({
+            scene,
+            modelID,
+            ids: [id],
+            removePrevious: true,
+            material: selectMaterial
+        });
+
         const props = ifcLoader.getItemProperties(modelID, id);
         const psets = ifcLoader.getPropertySets(modelID, id);
         props.propertySets = psets;
@@ -75911,5 +76072,32 @@ function getProps(){
     }
 }
 
-threeCanvas.ondblclick = getProps;
-threeCanvas.onmousemove = selectObject;
+threeCanvas.ondblclick = selectItem;
+threeCanvas.onmousemove = preselectItem;
+
+// let ifcProject;
+// let current = 0;
+
+// let activeMeshes = [];
+
+// function highlightFloor(){
+//     if(!ifcProject) ifcProject = ifcLoader.getSpatialStructure(0);
+//     const floors = ifcProject.hasSpatialChildren[0].hasSpatialChildren[0].hasSpatialChildren;
+//     if(current >= floors.length) current = 0;
+//     const currentFloor = floors[current];
+//     const items = currentFloor.hasChildren;
+
+//     activeMeshes = [];
+//     const currentMesh = ifcLoader.createSubset({
+//         scene,
+//         modelID: 0,
+//         ids: items,
+//         removePrevious: true,
+//     });
+//     console.log(currentMesh.geometry);
+//     activeMeshes.push(currentMesh);
+
+//     current++;
+
+//     ifcLoader.removeSubset(scene, highlightMaterial);
+// }

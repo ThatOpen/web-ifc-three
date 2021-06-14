@@ -7,6 +7,7 @@ import {
     IFCRELDEFINESBYPROPERTIES,
     IFCRELDEFINESBYTYPE
 } from 'web-ifc';
+import { BufferGeometry } from 'three';
 
 export class PropertyManager {
     private state: IfcState;
@@ -15,8 +16,7 @@ export class PropertyManager {
         this.state = state;
     }
 
-    getExpressId(modelID: number, faceIndex: number) {
-        const geometry = this.state.models[modelID].mesh.geometry;
+    getExpressId(geometry: BufferGeometry, faceIndex: number) {
         if (!geometry.index) return;
         const geoIndex = geometry.index.array;
         return geometry.attributes[IdAttrName].getX(geoIndex[3 * faceIndex]);
@@ -26,12 +26,12 @@ export class PropertyManager {
         return this.state.api.GetLine(modelID, id, recursive);
     }
 
-    getAllItemsOfType(modelID: number, type: number, properties: boolean) {
+    getAllItemsOfType(modelID: number, type: number, verbose: boolean) {
         const items: number[] = [];
         const lines = this.state.api.GetLineIDsWithType(modelID, type);
         for (let i = 0; i < lines.size(); i++) items.push(lines.get(i));
 
-        if (properties) return items.map((id) => this.state.api.GetLine(modelID, id));
+        if (verbose) return items.map((id) => this.state.api.GetLine(modelID, id));
         return items;
     }
 

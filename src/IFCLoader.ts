@@ -1,5 +1,13 @@
 import { IFCManager } from './IFC/IFCManager';
-import { FileLoader, Loader, LoadingManager, Object3D, Scene } from 'three';
+import {
+    BufferGeometry,
+    FileLoader,
+    Loader,
+    LoadingManager,
+    Material,
+    Object3D,
+    Scene
+} from 'three';
 import { HighlightConfig } from './IFC/BaseDefinitions';
 
 // tslint:disable-next-line:interface-name
@@ -84,11 +92,11 @@ class IFCLoader extends Loader {
     /**
      * Gets the **Express ID** to which the given face belongs.
      * This ID uniquely identifies this entity within this IFC file.
-     * @modelID The ID of the IFC model.
+     * @geometry The geometry of the IFC model.
      * @faceIndex The index of the face of a geometry.You can easily get this index using the [Raycaster](https://threejs.org/docs/#api/en/core/Raycaster).
      */
-    getExpressId(modelID: number, faceIndex: number) {
-        return this.ifcManager.getExpressId(modelID, faceIndex);
+    getExpressId(geometry: BufferGeometry, faceIndex: number) {
+        return this.ifcManager.getExpressId(geometry, faceIndex);
     }
 
     /**
@@ -102,9 +110,10 @@ class IFCLoader extends Loader {
      * ```
      * @modelID The ID of the IFC model.
      * @type The type of IFC items to get.
+     * @verbose If false (default), this only gets IDs. If true, this also gets the native properties of all the fetched items.
      */
-    getAllItemsOfType(modelID: number, type: number, properties = false) {
-        return this.ifcManager.getAllItemsOfType(modelID, type, properties);
+    getAllItemsOfType(modelID: number, type: number, verbose = false) {
+        return this.ifcManager.getAllItemsOfType(modelID, type, verbose);
     }
 
     /**
@@ -122,7 +131,7 @@ class IFCLoader extends Loader {
      * assigned to the given element.
      * @modelID The ID of the IFC model.
      * @id The express ID of the element.
-     * @recursive Wether you want to get the information of the referenced elements recursively.
+     * @recursive If true, this gets the native properties of the referenced elements recursively.
      */
     getPropertySets(modelID: number, id: number, recursive = false) {
         return this.ifcManager.getPropertySets(modelID, id, recursive);
@@ -134,7 +143,7 @@ class IFCLoader extends Loader {
      * contained in the IfcWallType assigned to it, if any.
      * @modelID The ID of the IFC model.
      * @id The express ID of the element.
-     * @recursive Wether you want to get the information of the referenced elements recursively.
+     * @recursive If true, this gets the native properties of the referenced elements recursively.
      */
     getTypeProperties(modelID: number, id: number, recursive = false) {
         return this.ifcManager.getTypeProperties(modelID, id, recursive);
@@ -149,25 +158,42 @@ class IFCLoader extends Loader {
      * IfcBuildings, that contain one or more IfcBuildingStoreys, that contain
      * one or more IfcSpaces.
      * @modelID The ID of the IFC model.
-     * @recursive Wether you want to get the information of the referenced elements recursively.
+     * @recursive If true, this gets the native properties of the referenced elements recursively.
      */
     getSpatialStructure(modelID: number, recursive = false) {
         return this.ifcManager.getSpatialStructure(modelID, recursive);
     }
 
     /**
-     * Returns the first visible or transparent Intersection of the given array.
-     * If you you use the
-     * [Raycaster](https://threejs.org/docs/#api/en/core/Raycaster), you will
-     * get an array of Intersections, and you probably want to get the closest
-     * intersection to the camera. This is complex because due to the geometry
-     * optimizations of IFC.js. Use this method to get it right away.
-     * @items The items you get with [raycaster.intersectObjects()](https://threejs.org/docs/#api/en/core/Raycaster.intersectObjects).
-     * @transparent If true, it picks the translucent items as well.
-     *
+     * Gets the mesh of the specified subset.
+     * @modelID The ID of the IFC model.
+     * @material The material assigned to the subset, if any.
      */
-    highlight(modelID: number, id: number[], scene: Scene, config: HighlightConfig) {
-        return this.ifcManager.highlight(modelID, id, scene, config);
+    getSubset(modelID: number, material?: Material) {
+        return this.ifcManager.getSubset(modelID, material);
+    }
+
+    /**
+     * Removes the specified subset.
+     * @modelID The ID of the IFC model.
+     * @modelID The scene where the subset is.
+     * @material The material assigned to the subset, if any.
+     */
+    removeSubset(modelID: number, scene?: Scene, material?: Material) {
+        this.ifcManager.removeSubset(modelID, scene, material);
+    }
+
+    /**
+     * Creates a new geometric subset.
+     * @config A configuration object with the following options:
+     * - **scene**: the scene where the model is located.
+     * - **modelID**: the ID of the model.
+     * - **ids**: the IDs of the items of the model that will conform the subset.
+     * - **removePrevious**: wether to remove the previous subset of this model with this material.
+     * - **material**: (optional) wether to apply a material to the subset
+     */
+    createSubset(config: HighlightConfig) {
+        return this.ifcManager.createSubset(config);
     }
 }
 

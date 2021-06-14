@@ -1,4 +1,4 @@
-import { BufferAttribute, BufferGeometry, Material, Mesh } from 'three';
+import { BufferAttribute, BufferGeometry, Material, Mesh, Scene } from 'three';
 import { BufferGeometryUtils } from 'three/examples/jsm/utils/BufferGeometryUtils';
 import { IfcAPI } from 'web-ifc';
 
@@ -20,8 +20,17 @@ export const newIntAttr = (data: any[], size: number) => {
 };
 
 export type HighlightConfig = {
+    scene: Scene;
+    modelID: number;
+    ids: number[];
+    removePrevious: boolean;
     material?: Material;
-    removePrevious?: boolean;
+};
+
+export const DEFAULT = 'default';
+
+export type SelectedItems = {
+    [matID: string]: { ids: Set<number>; mesh: Mesh };
 };
 
 export type MapFaceindexID = { [key: number]: number };

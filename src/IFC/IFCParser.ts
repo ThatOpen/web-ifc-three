@@ -157,10 +157,7 @@ export class IFCParser {
         this.createMaterial(colorID, color);
         const item = this.state.models[this.currentID].items[colorID];
         const currentGeom = item.geometries[id];
-        if (!currentGeom){
-            item.geometries[id] = geom;
-            return;
-        } 
+        if (!currentGeom) return item.geometries[id] = geom;
         const merged = merge([currentGeom, geom]);
         item.geometries[id] = merged;
     }

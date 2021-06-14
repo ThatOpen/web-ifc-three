@@ -77,7 +77,8 @@ const ifcMeshes = [];
             var ifcURL = URL.createObjectURL(changed.target.files[0]);
             ifcLoader.load(ifcURL, (mesh) => {
                 ifcMeshes.push(mesh);
-                mesh.material = new MeshLambertMaterial({transparent: true, opacity: 0.2})
+                // mesh.material = new MeshLambertMaterial({ transparent: true, opacity: 0.2 });
+                console.log(mesh.geometry);
                 scene.add(mesh);
             });
         },
@@ -86,12 +87,11 @@ const ifcMeshes = [];
 })();
 
 //Setup object picking
-let previousSelection;
 
 const raycaster = new Raycaster();
 raycaster.firstHitOnly = true;
 
-function castRay(event){
+function castRay(event) {
     const mouse = new Vector2();
     mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
     mouse.y = -(event.clientY / window.innerHeight) * 2 + 1;
@@ -99,25 +99,72 @@ function castRay(event){
     return raycaster.intersectObjects(ifcMeshes);
 }
 
-function selectObject(event) {
+const preselectMaterial = new MeshLambertMaterial({
+    color: 0xffccff,
+    transparent: true,
+    opacity: 0.5,
+    depthTest: false
+});
+
+let previousPreSelection;
+let preselecteModel;
+
+function preselectItem(event) {
     const intersected = castRay(event);
     if (intersected.length) {
         const item = intersected[0];
-        if(previousSelection == item.faceIndex) return;
-        previousSelection = item.faceIndex;
+
+        if (previousPreSelection == item.faceIndex) return;
+        previousPreSelection = item.faceIndex;
+
+        const id = ifcLoader.getExpressId(item.object.geometry, item.faceIndex);
         const modelID = item.object.modelID;
-        const id = ifcLoader.getExpressId(modelID, item.faceIndex);
-        const highlightMaterial = new MeshLambertMaterial({color: 0x666666, transparent: true, opacity: 0.6, depthTest: false})
-        ifcLoader.highlight(modelID, [id], scene, { removePrevious: true, material: highlightMaterial });
+
+        if(preselecteModel != undefined && preselecteModel != modelID) ifcLoader.removeSubset(preselecteModel, scene, preselectMaterial);
+        preselecteModel = modelID;
+        
+        ifcLoader.createSubset({
+            scene,
+            modelID,
+            ids: [id],
+            removePrevious: true,
+            material: preselectMaterial
+        });
     }
 }
 
-function getProps(){
+const selectMaterial = new MeshLambertMaterial({
+    color: 0xff00ff,
+    transparent: true,
+    opacity: 0.4,
+    depthTest: false
+});
+
+let previousSelection;
+let selectedModel;
+
+function selectItem(event) {
     const intersected = castRay(event);
     if (intersected.length) {
         const item = intersected[0];
+
+        if (previousSelection == item.faceIndex) return;
+        previousSelection = item.faceIndex;
+
+        const id = ifcLoader.getExpressId(item.object.geometry, item.faceIndex);
         const modelID = item.object.modelID;
-        const id = ifcLoader.getExpressId(modelID, item.faceIndex);
+
+        if(selectedModel  != undefined && selectedModel != modelID) ifcLoader.removeSubset(selectedModel, scene, selectMaterial);
+        selectedModel = modelID;
+
+        ifcLoader.createSubset({
+            scene,
+            modelID,
+            ids: [id],
+            removePrevious: true,
+            material: selectMaterial
+        });
+
         const props = ifcLoader.getItemProperties(modelID, id);
         const psets = ifcLoader.getPropertySets(modelID, id);
         props.propertySets = psets;
@@ -125,5 +172,33 @@ function getProps(){
     }
 }
 
-threeCanvas.ondblclick = getProps;
-threeCanvas.onmousemove = selectObject;
+threeCanvas.ondblclick = selectItem;
+threeCanvas.onmousemove = preselectItem;
+
+// let ifcProject;
+// let current = 0;
+
+// let activeMeshes = [];
+
+// function highlightFloor(){
+//     if(!ifcProject) ifcProject = ifcLoader.getSpatialStructure(0);
+//     const floors = ifcProject.hasSpatialChildren[0].hasSpatialChildren[0].hasSpatialChildren;
+//     if(current >= floors.length) current = 0;
+//     const currentFloor = floors[current];
+//     const items = currentFloor.hasChildren;
+
+//     activeMeshes = [];
+//     const currentMesh = ifcLoader.createSubset({
+//         scene,
+//         modelID: 0,
+//         ids: items,
+//         removePrevious: true,
+//     });
+//     console.log(currentMesh.geometry);
+//     activeMeshes.push(currentMesh);
+
+//     current++;
+
+//     ifcLoader.removeSubset(scene, highlightMaterial);
+// }
+

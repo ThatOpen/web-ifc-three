@@ -1,20 +1,20 @@
 import * as WebIFC from 'web-ifc';
 import { IFCParser } from './IFCParser';
-import { DisplayManager } from './DisplayManager';
+import { SubsetManager } from './SubsetManager';
 import { PropertyManager } from './PropertyManager';
 import { HighlightConfig, IfcState } from './BaseDefinitions';
-import { Scene } from 'three';
+import { BufferGeometry, Material, Scene } from 'three';
 
 export class IFCManager {
     private state: IfcState;
     private parser: IFCParser;
-    private display: DisplayManager;
+    private subsets: SubsetManager;
     private properties: PropertyManager;
 
     constructor() {
         this.state = { models: [], api: new WebIFC.IfcAPI() };
         this.parser = new IFCParser(this.state);
-        this.display = new DisplayManager(this.state);
+        this.subsets = new SubsetManager(this.state);
         this.properties = new PropertyManager(this.state);
     }
 
@@ -32,12 +32,12 @@ export class IFCManager {
         delete this.state.models[modelID];
     }
 
-    getExpressId(modelID: number, faceIndex: number) {
-        return this.properties.getExpressId(modelID, faceIndex);
+    getExpressId(geometry: BufferGeometry, faceIndex: number) {
+        return this.properties.getExpressId(geometry, faceIndex);
     }
 
-    getAllItemsOfType(modelID: number, type: number, properties: boolean) {
-        return this.properties.getAllItemsOfType(modelID, type, properties);
+    getAllItemsOfType(modelID: number, type: number, verbose: boolean) {
+        return this.properties.getAllItemsOfType(modelID, type, verbose);
     }
 
     getItemProperties(modelID: number, id: number, recursive = false) {
@@ -56,7 +56,15 @@ export class IFCManager {
         return this.properties.getSpatialStructure(modelID, recursive);
     }
 
-    highlight(modelID: number, id: number[], scene: Scene, config: HighlightConfig) {
-        return this.display.highlight(modelID, id, scene, config);
+    getSubset(modelID: number, material?: Material){
+        return this.subsets.getSubset(modelID, material);
+    }
+
+    removeSubset(modelID: number, scene?: Scene, material?: Material){
+        this.subsets.removeSubset(modelID, scene, material);
+    }
+
+    createSubset(config: HighlightConfig) {
+        return this.subsets.createSubset(config);
     }
 }
