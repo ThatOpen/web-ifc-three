@@ -18,7 +18,15 @@
     "type": "git",
     "url": "git+https://github.com/agviegas/web-ifc-three.git"
   },
-  "keywords": ["bim", "openbim", "ifc", "architecture", "engineering", "construction", "aec"],
+  "keywords": [
+    "bim",
+    "openbim",
+    "ifc",
+    "architecture",
+    "engineering",
+    "construction",
+    "aec"
+  ],
   "author": "",
   "license": "Mozilla Public License Version 2.0",
   "bugs": {
@@ -27,7 +35,7 @@
   "homepage": "https://github.com/agviegas/web-ifc-three#readme",
   "dependencies": {
     "stats.js": "^0.17.0",
-    "three": "^0.126.0",
+    "three": "^0.128.0",
     "three-mesh-bvh": "^0.3.7",
     "web-ifc": "0.0.19"
   },

@@ -74,17 +74,18 @@ const ifcMeshes = [];
     input.addEventListener(
         'change',
         (changed) => {
-            var ifcURL = URL.createObjectURL(changed.target.files[0]);
-            ifcLoader.load(ifcURL, (mesh) => {
-                ifcMeshes.push(mesh);
-                // mesh.material = new MeshLambertMaterial({ transparent: true, opacity: 0.2 });
-                console.log(mesh.geometry);
-                scene.add(mesh);
-            });
+            loadIFC(changed);
         },
         false
     );
 })();
+
+async function loadIFC(changed){
+    var ifcURL = URL.createObjectURL(changed.target.files[0]);
+    const mesh = await ifcLoader.loadAsync(ifcURL);
+    ifcMeshes.push(mesh);
+    scene.add(mesh);
+}
 
 //Setup object picking
 
