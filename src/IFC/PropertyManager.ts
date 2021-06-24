@@ -65,7 +65,7 @@ export class PropertyManager {
         return ifcProject;
     }
 
-    private getAllSpatialChildren(modelID: number, item: Node, recursive: boolean) {
+    getAllSpatialChildren(modelID: number, item: Node, recursive: boolean) {
         item.hasChildren = [];
         item.hasSpatialChildren = [];
         this.getChildren(

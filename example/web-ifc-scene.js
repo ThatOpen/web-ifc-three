@@ -51,6 +51,7 @@ window.addEventListener('resize', () => {
 //Monitoring
 const stats = new Stats();
 stats.showPanel(0);
+stats.dom.style.cssText = 'position:absolute;top:1rem;left:1rem;z-index:1;'
 document.body.appendChild(stats.dom);
 
 //Animation
@@ -86,6 +87,9 @@ async function loadIFC(changed){
     ifcMeshes.push(mesh);
     scene.add(mesh);
 }
+
+const closer = document.getElementById("close-button");
+closer.onclick = () => { ifcLoader.close(0, scene);}
 
 //Setup object picking
 

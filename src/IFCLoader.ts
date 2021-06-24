@@ -8,7 +8,7 @@ import {
     Object3D,
     Scene
 } from 'three';
-import { HighlightConfig } from './IFC/BaseDefinitions';
+import { HighlightConfig, Node } from './IFC/BaseDefinitions';
 
 // tslint:disable-next-line:interface-name
 export interface IFC extends Object3D {
@@ -147,6 +147,18 @@ class IFCLoader extends Loader {
      */
     getTypeProperties(modelID: number, id: number, recursive = false) {
         return this.ifcManager.getTypeProperties(modelID, id, recursive);
+    }
+
+    /**
+     * Gets the properties of the type assigned to the element.
+     * For example, if applied to a wall (IfcWall), this would get back the information
+     * contained in the IfcWallType assigned to it, if any.
+     * @modelID The ID of the IFC model.
+     * @item The item whose children to get. It must be an object with the properties `expressID`, `hasChidlren` and `hasSpatialChildren`. 
+     * @recursive If true, this gets the native properties of the referenced elements recursively.
+     */
+    getAllSpatialChildren(modelID: number, item: Node, recursive: boolean) {
+        return this.ifcManager.getAllSpatialChildren(modelID, item, recursive);
     }
 
     /**

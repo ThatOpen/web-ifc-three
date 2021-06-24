@@ -4654,7 +4654,7 @@ var require_web_ifc = __commonJS((exports, module) => {
       __ATINIT__.push({func: function() {
         ___wasm_call_ctors();
       }});
-      var asmLibraryArg = {x: ___assert_fail, A: ___sys_fcntl64, O: ___sys_ioctl, P: ___sys_open, U: __embind_finalize_value_array, s: __embind_finalize_value_object, S: __embind_register_bool, v: __embind_register_class, u: __embind_register_class_constructor, d: __embind_register_class_function, R: __embind_register_emval, C: __embind_register_float, j: __embind_register_function, m: __embind_register_integer, i: __embind_register_memory_view, D: __embind_register_std_string, w: __embind_register_std_wstring, V: __embind_register_value_array, g: __embind_register_value_array_element, t: __embind_register_value_object, k: __embind_register_value_object_field, T: __embind_register_void, q: __emval_as, b: __emval_decref, L: __emval_get_global, n: __emval_get_property, l: __emval_incref, Q: __emval_instanceof, E: __emval_is_number, y: __emval_new_array, f: __emval_new_cstring, r: __emval_new_object, p: __emval_run_destructors, h: __emval_set_property, e: __emval_take_value, c: _abort, M: _clock_gettime, H: _emscripten_memcpy_big, o: _emscripten_resize_heap, J: _environ_get, K: _environ_sizes_get, B: _fd_close, N: _fd_read, F: _fd_seek, z: _fd_write, a: wasmMemory, G: _setTempRet0, I: _strftime_l};
+      var asmLibraryArg = {x: ___assert_fail, A: ___sys_fcntl64, O: ___sys_ioctl, P: ___sys_open, U: __embind_finalize_value_array, s: __embind_finalize_value_object, S: __embind_register_bool, v: __embind_register_class, u: __embind_register_class_constructor, d: __embind_register_class_function, R: __embind_register_emval, C: __embind_register_float, i: __embind_register_function, m: __embind_register_integer, j: __embind_register_memory_view, D: __embind_register_std_string, w: __embind_register_std_wstring, V: __embind_register_value_array, g: __embind_register_value_array_element, t: __embind_register_value_object, k: __embind_register_value_object_field, T: __embind_register_void, q: __emval_as, b: __emval_decref, L: __emval_get_global, n: __emval_get_property, l: __emval_incref, Q: __emval_instanceof, E: __emval_is_number, y: __emval_new_array, f: __emval_new_cstring, r: __emval_new_object, p: __emval_run_destructors, h: __emval_set_property, e: __emval_take_value, c: _abort, M: _clock_gettime, H: _emscripten_memcpy_big, o: _emscripten_resize_heap, J: _environ_get, K: _environ_sizes_get, B: _fd_close, N: _fd_read, F: _fd_seek, z: _fd_write, a: wasmMemory, G: _setTempRet0, I: _strftime_l};
       createWasm();
       var ___wasm_call_ctors = Module["___wasm_call_ctors"] = function() {
         return (___wasm_call_ctors = Module["___wasm_call_ctors"] = Module["asm"]["X"]).apply(null, arguments);
@@ -36092,8 +36092,10 @@ var IfcAPI = class {
   }
   OpenModel(data, settings) {
     this.wasmModule["FS_createDataFile"]("/", "filename", data, true, true, true);
-    let s = settings ? settings : {
-      COORDINATE_TO_ORIGIN: false
+    let s = {
+      COORDINATE_TO_ORIGIN: false,
+      USE_FAST_BOOLS: false,
+      ...settings
     };
     let result = this.wasmModule.OpenModel(s);
     this.wasmModule["FS_unlink"]("/filename");
@@ -36192,6 +36194,9 @@ var IfcAPI = class {
   }
   LoadAllGeometry(modelID) {
     return this.wasmModule.LoadAllGeometry(modelID);
+  }
+  GetFlatMesh(modelID, expressID) {
+    return this.wasmModule.GetFlatMesh(modelID, expressID);
   }
   SetWasmPath(path) {
     WasmPath = path;
@@ -70126,6 +70131,10 @@ class IFCManager {
     return this.properties.getTypeProperties(modelID, id, recursive);
   }
 
+  getAllSpatialChildren(modelID, item, recursive) {
+    return this.properties.getAllSpatialChildren(modelID, item, recursive);
+  }
+
   getSpatialStructure(modelID, recursive) {
     return this.properties.getSpatialStructure(modelID, recursive);
   }
@@ -70202,6 +70211,10 @@ class IFCLoader extends Loader {
 
   getTypeProperties(modelID, id, recursive = false) {
     return this.ifcManager.getTypeProperties(modelID, id, recursive);
+  }
+
+  getAllSpatialChildren(modelID, item, recursive) {
+    return this.ifcManager.getAllSpatialChildren(modelID, item, recursive);
   }
 
   getSpatialStructure(modelID, recursive = false) {
@@ -71604,6 +71617,7 @@ window.addEventListener('resize', () => {
 //Monitoring
 const stats = new Stats();
 stats.showPanel(0);
+stats.dom.style.cssText = 'position:absolute;top:1rem;left:1rem;z-index:1;';
 document.body.appendChild(stats.dom);
 
 //Animation
@@ -71639,6 +71653,9 @@ async function loadIFC(changed){
     ifcMeshes.push(mesh);
     scene.add(mesh);
 }
+
+const closer = document.getElementById("close-button");
+closer.onclick = () => { ifcLoader.close(0, scene);};
 
 //Setup object picking
 

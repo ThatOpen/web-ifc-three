@@ -17,6 +17,14 @@ html, body {
 #openFileDialog {
     z-index: 1;
     position: fixed;
-    top: 10px;
+    top: 1rem;
+    left: 7rem;
+}
+
+#close-button {
+    z-index: 1;
+    position: fixed;
+    top: 3rem;
+    padding: 0 2.9rem;
     left: 7rem;
 }

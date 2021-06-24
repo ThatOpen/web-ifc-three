@@ -2,7 +2,7 @@ import * as WebIFC from 'web-ifc';
 import { IFCParser } from './IFCParser';
 import { SubsetManager } from './SubsetManager';
 import { PropertyManager } from './PropertyManager';
-import { HighlightConfig, IfcState } from './BaseDefinitions';
+import { HighlightConfig, IfcState, Node } from './BaseDefinitions';
 import { BufferGeometry, Material, Scene } from 'three';
 
 export class IFCManager {
@@ -50,6 +50,10 @@ export class IFCManager {
 
     getTypeProperties(modelID: number, id: number, recursive = false) {
         return this.properties.getTypeProperties(modelID, id, recursive);
+    }
+
+    getAllSpatialChildren(modelID: number, item: Node, recursive: boolean) {
+        return this.properties.getAllSpatialChildren(modelID, item, recursive);
     }
 
     getSpatialStructure(modelID: number, recursive: boolean) {
