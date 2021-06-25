@@ -70037,24 +70037,25 @@ class PropertyManager {
     let lines = this.state.api.GetLineIDsWithType(modelID, IFCPROJECT);
     let ifcProjectId = lines.get(0);
     let ifcProject = this.state.api.GetLine(modelID, ifcProjectId);
-    this.getAllSpatialChildren(modelID, ifcProject, recursive);
+    this.getAllSpatialChildren(modelID, ifcProject, recursive, false);
     return ifcProject;
   }
 
-  getAllSpatialChildren(modelID, item, recursive) {
+  getAllSpatialChildren(modelID, item, recursive, onlyID) {
     item.hasChildren = [];
     item.hasSpatialChildren = [];
-    this.getChildren(modelID, item.expressID, item.hasSpatialChildren, 'RelatingObject', 'RelatedObjects', IFCRELAGGREGATES, recursive, true);
-    this.getChildren(modelID, item.expressID, item.hasChildren, 'RelatingStructure', 'RelatedElements', IFCRELCONTAINEDINSPATIALSTRUCTURE, recursive, false);
+    this.getChildren(modelID, item.expressID, item.hasSpatialChildren, 'RelatingObject', 'RelatedObjects', IFCRELAGGREGATES, recursive, onlyID, true);
+    this.getChildren(modelID, item.expressID, item.hasChildren, 'RelatingStructure', 'RelatedElements', IFCRELCONTAINEDINSPATIALSTRUCTURE, recursive, onlyID, false);
   }
 
-  getChildren(modelID, id, prop, relating, rel, relProp, recursive, isSpatial) {
+  getChildren(modelID, id, prop, relating, rel, relProp, recursive, onlyID, isSpatial) {
     const childrenID = this.getAllRelatedItemsOfType(modelID, id, relProp, relating, rel);
-    if (!recursive && !isSpatial)
+    const justID = (!recursive && !isSpatial) || onlyID;
+    if (justID)
       return prop.push(...childrenID);
     const items = childrenID.map((id) => this.state.api.GetLine(modelID, id, false));
     prop.push(...items);
-    prop.forEach((child) => this.getAllSpatialChildren(modelID, child, recursive));
+    prop.forEach((child) => this.getAllSpatialChildren(modelID, child, recursive, onlyID));
   }
 
   getAllRelatedItemsOfType(modelID, id, type, relation, related) {
@@ -70131,8 +70132,8 @@ class IFCManager {
     return this.properties.getTypeProperties(modelID, id, recursive);
   }
 
-  getAllSpatialChildren(modelID, item, recursive) {
-    return this.properties.getAllSpatialChildren(modelID, item, recursive);
+  getAllSpatialChildren(modelID, item, recursive, onlyID) {
+    return this.properties.getAllSpatialChildren(modelID, item, recursive, onlyID);
   }
 
   getSpatialStructure(modelID, recursive) {
@@ -70213,8 +70214,8 @@ class IFCLoader extends Loader {
     return this.ifcManager.getTypeProperties(modelID, id, recursive);
   }
 
-  getAllSpatialChildren(modelID, item, recursive) {
-    return this.ifcManager.getAllSpatialChildren(modelID, item, recursive);
+  getAllSpatialChildren(modelID, item, recursive = false, onlyID = false) {
+    return this.ifcManager.getAllSpatialChildren(modelID, item, recursive, onlyID);
   }
 
   getSpatialStructure(modelID, recursive = false) {
@@ -71647,15 +71648,17 @@ const ifcMeshes = [];
     );
 })();
 
-async function loadIFC(changed){
+async function loadIFC(changed) {
     var ifcURL = URL.createObjectURL(changed.target.files[0]);
     const mesh = await ifcLoader.loadAsync(ifcURL);
     ifcMeshes.push(mesh);
     scene.add(mesh);
 }
 
-const closer = document.getElementById("close-button");
-closer.onclick = () => { ifcLoader.close(0, scene);};
+const closer = document.getElementById('close-button');
+closer.onclick = () => {
+    ifcLoader.close(0, scene);
+};
 
 //Setup object picking
 
@@ -71691,9 +71694,10 @@ function preselectItem(event) {
         const id = ifcLoader.getExpressId(item.object.geometry, item.faceIndex);
         const modelID = item.object.modelID;
 
-        if(preselecteModel != undefined && preselecteModel != modelID) ifcLoader.removeSubset(preselecteModel, scene, preselectMaterial);
+        if (preselecteModel != undefined && preselecteModel != modelID)
+            ifcLoader.removeSubset(preselecteModel, scene, preselectMaterial);
         preselecteModel = modelID;
-        
+
         ifcLoader.createSubset({
             scene,
             modelID,
@@ -71704,47 +71708,22 @@ function preselectItem(event) {
     }
 }
 
-const selectMaterial = new MeshLambertMaterial({
+new MeshLambertMaterial({
     color: 0xff00ff,
     transparent: true,
     opacity: 0.4,
     depthTest: false
 });
 
-let previousSelection;
-let selectedModel;
-
-function selectItem(event) {
-    const intersected = castRay(event);
-    if (intersected.length) {
-        const item = intersected[0];
-
-        if (previousSelection == item.faceIndex) return;
-        previousSelection = item.faceIndex;
-
-        const id = ifcLoader.getExpressId(item.object.geometry, item.faceIndex);
-        const modelID = item.object.modelID;
-
-        if(selectedModel  != undefined && selectedModel != modelID) ifcLoader.removeSubset(selectedModel, scene, selectMaterial);
-        selectedModel = modelID;
-
-        ifcLoader.createSubset({
-            scene,
-            modelID,
-            ids: [id],
-            removePrevious: true,
-            material: selectMaterial
-        });
-
-        const props = ifcLoader.getItemProperties(modelID, id);
-        const psets = ifcLoader.getPropertySets(modelID, id);
-        props.propertySets = psets;
-        console.log(props);
-    }
-}
-
-threeCanvas.ondblclick = selectItem;
+threeCanvas.ondblclick = getSpatialChildren;
 threeCanvas.onmousemove = preselectItem;
+
+function getSpatialChildren() {
+    const ifcProjectID = ifcLoader.getAllItemsOfType(0, IFCPROJECT, false)[0];
+    const ifcProject = { expressID: ifcProjectID, hasChildren: [], hasSpatialChildren: [] };
+    ifcLoader.getAllSpatialChildren(0, ifcProject, false, true);
+    console.log(ifcProject.hasSpatialChildren);
+}
 
 // let ifcProject;
 // let current = 0;

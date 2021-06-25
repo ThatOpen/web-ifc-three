@@ -14,7 +14,14 @@ import {
     BufferGeometry,
     MeshLambertMaterial
 } from 'three';
-import { IFCCURTAINWALL, IFCDOOR, IFCFURNISHINGELEMENT, IFCPLATE, IFCWINDOW } from 'web-ifc';
+import {
+    IFCCURTAINWALL,
+    IFCDOOR,
+    IFCFURNISHINGELEMENT,
+    IFCPLATE,
+    IFCPROJECT,
+    IFCWINDOW
+} from 'web-ifc';
 
 //Scene
 const scene = new Scene();
@@ -51,7 +58,7 @@ window.addEventListener('resize', () => {
 //Monitoring
 const stats = new Stats();
 stats.showPanel(0);
-stats.dom.style.cssText = 'position:absolute;top:1rem;left:1rem;z-index:1;'
+stats.dom.style.cssText = 'position:absolute;top:1rem;left:1rem;z-index:1;';
 document.body.appendChild(stats.dom);
 
 //Animation
@@ -81,15 +88,17 @@ const ifcMeshes = [];
     );
 })();
 
-async function loadIFC(changed){
+async function loadIFC(changed) {
     var ifcURL = URL.createObjectURL(changed.target.files[0]);
     const mesh = await ifcLoader.loadAsync(ifcURL);
     ifcMeshes.push(mesh);
     scene.add(mesh);
 }
 
-const closer = document.getElementById("close-button");
-closer.onclick = () => { ifcLoader.close(0, scene);}
+const closer = document.getElementById('close-button');
+closer.onclick = () => {
+    ifcLoader.close(0, scene);
+};
 
 //Setup object picking
 
@@ -125,9 +134,10 @@ function preselectItem(event) {
         const id = ifcLoader.getExpressId(item.object.geometry, item.faceIndex);
         const modelID = item.object.modelID;
 
-        if(preselecteModel != undefined && preselecteModel != modelID) ifcLoader.removeSubset(preselecteModel, scene, preselectMaterial);
+        if (preselecteModel != undefined && preselecteModel != modelID)
+            ifcLoader.removeSubset(preselecteModel, scene, preselectMaterial);
         preselecteModel = modelID;
-        
+
         ifcLoader.createSubset({
             scene,
             modelID,
@@ -159,7 +169,8 @@ function selectItem(event) {
         const id = ifcLoader.getExpressId(item.object.geometry, item.faceIndex);
         const modelID = item.object.modelID;
 
-        if(selectedModel  != undefined && selectedModel != modelID) ifcLoader.removeSubset(selectedModel, scene, selectMaterial);
+        if (selectedModel != undefined && selectedModel != modelID)
+            ifcLoader.removeSubset(selectedModel, scene, selectMaterial);
         selectedModel = modelID;
 
         ifcLoader.createSubset({
@@ -177,8 +188,15 @@ function selectItem(event) {
     }
 }
 
-threeCanvas.ondblclick = selectItem;
+threeCanvas.ondblclick = getSpatialChildren;
 threeCanvas.onmousemove = preselectItem;
+
+function getSpatialChildren() {
+    const ifcProjectID = ifcLoader.getAllItemsOfType(0, IFCPROJECT, false)[0];
+    const ifcProject = { expressID: ifcProjectID, hasChildren: [], hasSpatialChildren: [] };
+    ifcLoader.getAllSpatialChildren(0, ifcProject, false, true);
+    console.log(ifcProject.hasSpatialChildren);
+}
 
 // let ifcProject;
 // let current = 0;
@@ -206,4 +224,3 @@ threeCanvas.onmousemove = preselectItem;
 
 //     ifcLoader.removeSubset(scene, highlightMaterial);
 // }
-

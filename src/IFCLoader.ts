@@ -155,10 +155,11 @@ class IFCLoader extends Loader {
      * contained in the IfcWallType assigned to it, if any.
      * @modelID The ID of the IFC model.
      * @item The item whose children to get. It must be an object with the properties `expressID`, `hasChidlren` and `hasSpatialChildren`. 
-     * @recursive If true, this gets the native properties of the referenced elements recursively.
+     * @recursive If true, this gets the native properties of the referenced elements recursively (unless it's a spatial structure element).
+     * @onlyID If true, only gets the ID of the referenced elements, even if it's a spatial structure element.
      */
-    getAllSpatialChildren(modelID: number, item: Node, recursive: boolean) {
-        return this.ifcManager.getAllSpatialChildren(modelID, item, recursive);
+    getAllSpatialChildren(modelID: number, item: Node, recursive = false, onlyID = false) {
+        return this.ifcManager.getAllSpatialChildren(modelID, item, recursive, onlyID);
     }
 
     /**

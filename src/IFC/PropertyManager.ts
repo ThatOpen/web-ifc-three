@@ -61,11 +61,11 @@ export class PropertyManager {
         let lines = this.state.api.GetLineIDsWithType(modelID, IFCPROJECT);
         let ifcProjectId = lines.get(0);
         let ifcProject = this.state.api.GetLine(modelID, ifcProjectId);
-        this.getAllSpatialChildren(modelID, ifcProject, recursive);
+        this.getAllSpatialChildren(modelID, ifcProject, recursive, false);
         return ifcProject;
     }
 
-    getAllSpatialChildren(modelID: number, item: Node, recursive: boolean) {
+    getAllSpatialChildren(modelID: number, item: Node, recursive: boolean, onlyID: boolean) {
         item.hasChildren = [];
         item.hasSpatialChildren = [];
         this.getChildren(
@@ -76,6 +76,7 @@ export class PropertyManager {
             'RelatedObjects',
             IFCRELAGGREGATES,
             recursive,
+            onlyID,
             true
         );
         this.getChildren(
@@ -86,6 +87,7 @@ export class PropertyManager {
             'RelatedElements',
             IFCRELCONTAINEDINSPATIALSTRUCTURE,
             recursive,
+            onlyID,
             false
         );
     }
@@ -98,13 +100,15 @@ export class PropertyManager {
         rel: string,
         relProp: number,
         recursive: boolean,
-        isSpatial: boolean
+        onlyID: boolean,
+        isSpatial: boolean,
     ) {
         const childrenID = this.getAllRelatedItemsOfType(modelID, id, relProp, relating, rel);
-        if (!recursive && !isSpatial) return prop.push(...childrenID);
+        const justID = (!recursive && !isSpatial) || onlyID;
+        if (justID) return prop.push(...childrenID);
         const items = childrenID.map((id) => this.state.api.GetLine(modelID, id, false));
         prop.push(...items);
-        prop.forEach((child: any) => this.getAllSpatialChildren(modelID, child, recursive));
+        prop.forEach((child: any) => this.getAllSpatialChildren(modelID, child, recursive, onlyID));
     }
 
     private getAllRelatedItemsOfType(

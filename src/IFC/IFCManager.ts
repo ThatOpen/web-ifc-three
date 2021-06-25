@@ -52,8 +52,8 @@ export class IFCManager {
         return this.properties.getTypeProperties(modelID, id, recursive);
     }
 
-    getAllSpatialChildren(modelID: number, item: Node, recursive: boolean) {
-        return this.properties.getAllSpatialChildren(modelID, item, recursive);
+    getAllSpatialChildren(modelID: number, item: Node, recursive: boolean, onlyID: boolean) {
+        return this.properties.getAllSpatialChildren(modelID, item, recursive, onlyID);
     }
 
     getSpatialStructure(modelID: number, recursive: boolean) {
