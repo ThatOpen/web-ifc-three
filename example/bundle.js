@@ -69656,6 +69656,32 @@ const newIntAttr = (data, size) => {
   return new BufferAttribute(new Uint32Array(data), size);
 };
 const DEFAULT = 'default';
+const PropsNames = {
+  aggregates: {
+    name: IFCRELAGGREGATES,
+    relating: 'RelatingObject',
+    related: 'RelatedObjects',
+    key: 'hasSpatialChildren'
+  },
+  spatial: {
+    name: IFCRELCONTAINEDINSPATIALSTRUCTURE,
+    relating: 'RelatingStructure',
+    related: 'RelatedElements',
+    key: 'hasChildren'
+  },
+  psets: {
+    name: IFCRELDEFINESBYPROPERTIES,
+    relating: 'RelatingPropertyDefinition',
+    related: 'RelatedObjects',
+    key: 'hasPsets'
+  },
+  type: {
+    name: IFCRELCONTAINEDINSPATIALSTRUCTURE,
+    relating: 'RelatingType',
+    related: 'RelatedObjects',
+    key: 'hasType'
+  }
+};
 
 class IFCParser {
 
@@ -69689,7 +69715,8 @@ class IFCParser {
     this.state.models[modelID] = {
       modelID,
       mesh: {},
-      items: {}
+      items: {},
+      types: {}
     };
     return modelID;
   }
@@ -69996,6 +70023,144 @@ class SubsetManager {
 
 }
 
+const IfcElements = {
+  '103090709': 'IFCPROJECT',
+  '4097777520': 'IFCSITE',
+  '4031249490': 'IFCBUILDING',
+  '3124254112': 'IFCBUILDINGSTOREY',
+  '3856911033': 'IFCSPACE',
+  '25142252': 'IFCCONTROLLER',
+  '32344328': 'IFCBOILER',
+  '76236018': 'IFCLAMP',
+  '90941305': 'IFCPUMP',
+  '177149247': 'IFCAIRTERMINALBOX',
+  '182646315': 'IFCFLOWINSTRUMENT',
+  '263784265': 'IFCFURNISHINGELEMENT',
+  '264262732': 'IFCELECTRICGENERATOR',
+  '277319702': 'IFCAUDIOVISUALAPPLIANCE',
+  '310824031': 'IFCPIPEFITTING',
+  '331165859': 'IFCSTAIR',
+  '342316401': 'IFCDUCTFITTING',
+  '377706215': 'IFCMECHANICALFASTENER',
+  '395920057': 'IFCDOOR',
+  '402227799': 'IFCELECTRICMOTOR',
+  '413509423': 'IFCSYSTEMFURNITUREELEMENT',
+  '484807127': 'IFCEVAPORATOR',
+  '486154966': 'IFCWINDOWSTANDARDCASE',
+  '629592764': 'IFCLIGHTFIXTURE',
+  '630975310': 'IFCUNITARYCONTROLELEMENT',
+  '635142910': 'IFCCABLECARRIERFITTING',
+  '639361253': 'IFCCOIL',
+  '647756555': 'IFCFASTENER',
+  '707683696': 'IFCFLOWSTORAGEDEVICE',
+  '738039164': 'IFCPROTECTIVEDEVICE',
+  '753842376': 'IFCBEAM',
+  '812556717': 'IFCTANK',
+  '819412036': 'IFCFILTER',
+  '843113511': 'IFCCOLUMN',
+  '862014818': 'IFCELECTRICDISTRIBUTIONBOARD',
+  '900683007': 'IFCFOOTING',
+  '905975707': 'IFCCOLUMNSTANDARDCASE',
+  '926996030': 'IFCVOIDINGFEATURE',
+  '979691226': 'IFCREINFORCINGBAR',
+  '987401354': 'IFCFLOWSEGMENT',
+  '1003880860': 'IFCELECTRICTIMECONTROL',
+  '1051757585': 'IFCCABLEFITTING',
+  '1052013943': 'IFCDISTRIBUTIONCHAMBERELEMENT',
+  '1062813311': 'IFCDISTRIBUTIONCONTROLELEMENT',
+  '1073191201': 'IFCMEMBER',
+  '1095909175': 'IFCBUILDINGELEMENTPROXY',
+  '1156407060': 'IFCPLATESTANDARDCASE',
+  '1162798199': 'IFCSWITCHINGDEVICE',
+  '1329646415': 'IFCSHADINGDEVICE',
+  '1335981549': 'IFCDISCRETEACCESSORY',
+  '1360408905': 'IFCDUCTSILENCER',
+  '1404847402': 'IFCSTACKTERMINAL',
+  '1426591983': 'IFCFIRESUPPRESSIONTERMINAL',
+  '1437502449': 'IFCMEDICALDEVICE',
+  '1509553395': 'IFCFURNITURE',
+  '1529196076': 'IFCSLAB',
+  '1620046519': 'IFCTRANSPORTELEMENT',
+  '1634111441': 'IFCAIRTERMINAL',
+  '1658829314': 'IFCENERGYCONVERSIONDEVICE',
+  '1677625105': 'IFCCIVILELEMENT',
+  '1687234759': 'IFCPILE',
+  '1904799276': 'IFCELECTRICAPPLIANCE',
+  '1911478936': 'IFCMEMBERSTANDARDCASE',
+  '1945004755': 'IFCDISTRIBUTIONELEMENT',
+  '1973544240': 'IFCCOVERING',
+  '1999602285': 'IFCSPACEHEATER',
+  '2016517767': 'IFCROOF',
+  '2056796094': 'IFCAIRTOAIRHEATRECOVERY',
+  '2058353004': 'IFCFLOWCONTROLLER',
+  '2068733104': 'IFCHUMIDIFIER',
+  '2176052936': 'IFCJUNCTIONBOX',
+  '2188021234': 'IFCFLOWMETER',
+  '2223149337': 'IFCFLOWTERMINAL',
+  '2262370178': 'IFCRAILING',
+  '2272882330': 'IFCCONDENSER',
+  '2295281155': 'IFCPROTECTIVEDEVICETRIPPINGUNIT',
+  '2320036040': 'IFCREINFORCINGMESH',
+  '2347447852': 'IFCTENDONANCHOR',
+  '2391383451': 'IFCVIBRATIONISOLATOR',
+  '2391406946': 'IFCWALL',
+  '2474470126': 'IFCMOTORCONNECTION',
+  '2769231204': 'IFCVIRTUALELEMENT',
+  '2814081492': 'IFCENGINE',
+  '2906023776': 'IFCBEAMSTANDARDCASE',
+  '2938176219': 'IFCBURNER',
+  '2979338954': 'IFCBUILDINGELEMENTPART',
+  '3024970846': 'IFCRAMP',
+  '3026737570': 'IFCTUBEBUNDLE',
+  '3027962421': 'IFCSLABSTANDARDCASE',
+  '3040386961': 'IFCDISTRIBUTIONFLOWELEMENT',
+  '3053780830': 'IFCSANITARYTERMINAL',
+  '3079942009': 'IFCOPENINGSTANDARDCASE',
+  '3087945054': 'IFCALARM',
+  '3101698114': 'IFCSURFACEFEATURE',
+  '3127900445': 'IFCSLABELEMENTEDCASE',
+  '3132237377': 'IFCFLOWMOVINGDEVICE',
+  '3171933400': 'IFCPLATE',
+  '3221913625': 'IFCCOMMUNICATIONSAPPLIANCE',
+  '3242481149': 'IFCDOORSTANDARDCASE',
+  '3283111854': 'IFCRAMPFLIGHT',
+  '3296154744': 'IFCCHIMNEY',
+  '3304561284': 'IFCWINDOW',
+  '3310460725': 'IFCELECTRICFLOWSTORAGEDEVICE',
+  '3319311131': 'IFCHEATEXCHANGER',
+  '3415622556': 'IFCFAN',
+  '3420628829': 'IFCSOLARDEVICE',
+  '3493046030': 'IFCGEOGRAPHICELEMENT',
+  '3495092785': 'IFCCURTAINWALL',
+  '3508470533': 'IFCFLOWTREATMENTDEVICE',
+  '3512223829': 'IFCWALLSTANDARDCASE',
+  '3518393246': 'IFCDUCTSEGMENT',
+  '3571504051': 'IFCCOMPRESSOR',
+  '3588315303': 'IFCOPENINGELEMENT',
+  '3612865200': 'IFCPIPESEGMENT',
+  '3640358203': 'IFCCOOLINGTOWER',
+  '3651124850': 'IFCPROJECTIONELEMENT',
+  '3694346114': 'IFCOUTLET',
+  '3747195512': 'IFCEVAPORATIVECOOLER',
+  '3758799889': 'IFCCABLECARRIERSEGMENT',
+  '3824725483': 'IFCTENDON',
+  '3825984169': 'IFCTRANSFORMER',
+  '3902619387': 'IFCCHILLER',
+  '4074379575': 'IFCDAMPER',
+  '4086658281': 'IFCSENSOR',
+  '4123344466': 'IFCELEMENTASSEMBLY',
+  '4136498852': 'IFCCOOLEDBEAM',
+  '4156078855': 'IFCWALLELEMENTEDCASE',
+  '4175244083': 'IFCINTERCEPTOR',
+  '4207607924': 'IFCVALVE',
+  '4217484030': 'IFCCABLESEGMENT',
+  '4237592921': 'IFCWASTETERMINAL',
+  '4252922144': 'IFCSTAIRFLIGHT',
+  '4278956645': 'IFCFLOWFITTING',
+  '4288193352': 'IFCACTUATOR',
+  '4292641817': 'IFCUNITARYEQUIPMENT'
+};
+
 class PropertyManager {
 
   constructor(state) {
@@ -70024,63 +70189,136 @@ class PropertyManager {
   }
 
   getPropertySets(modelID, elementID, recursive = false) {
-    const propSetIds = this.getAllRelatedItemsOfType(modelID, elementID, IFCRELDEFINESBYPROPERTIES, 'RelatedObjects', 'RelatingPropertyDefinition');
+    const propSetIds = this.getAllRelatedItemsOfType(modelID, elementID, PropsNames.psets);
     return propSetIds.map((id) => this.state.api.GetLine(modelID, id, recursive));
   }
 
   getTypeProperties(modelID, elementID, recursive = false) {
-    const typeId = this.getAllRelatedItemsOfType(modelID, elementID, IFCRELDEFINESBYTYPE, 'RelatedObjects', 'RelatingType');
+    const typeId = this.getAllRelatedItemsOfType(modelID, elementID, PropsNames.type);
     return typeId.map((id) => this.state.api.GetLine(modelID, id, recursive));
   }
 
-  getSpatialStructure(modelID, recursive) {
-    let lines = this.state.api.GetLineIDsWithType(modelID, IFCPROJECT);
-    let ifcProjectId = lines.get(0);
-    let ifcProject = this.state.api.GetLine(modelID, ifcProjectId);
-    this.getAllSpatialChildren(modelID, ifcProject, recursive, false);
-    return ifcProject;
+  getSpatialStructure(modelID) {
+    const chunks = this.getSpatialTreeChunks(modelID);
+    const projectID = this.state.api.GetLineIDsWithType(modelID, IFCPROJECT).get(0);
+    const project = this.newIfcProject(projectID);
+    this.getSpatialNode(modelID, project, chunks);
+    return project;
   }
 
-  getAllSpatialChildren(modelID, item, recursive, onlyID) {
-    item.hasChildren = [];
-    item.hasSpatialChildren = [];
-    this.getChildren(modelID, item.expressID, item.hasSpatialChildren, 'RelatingObject', 'RelatedObjects', IFCRELAGGREGATES, recursive, onlyID, true);
-    this.getChildren(modelID, item.expressID, item.hasChildren, 'RelatingStructure', 'RelatedElements', IFCRELCONTAINEDINSPATIALSTRUCTURE, recursive, onlyID, false);
+  newIfcProject(id) {
+    return {
+      expressID: id,
+      type: 'IFCPROJECT',
+      hasChildren: [],
+      hasSpatialChildren: []
+    };
   }
 
-  getChildren(modelID, id, prop, relating, rel, relProp, recursive, onlyID, isSpatial) {
-    const childrenID = this.getAllRelatedItemsOfType(modelID, id, relProp, relating, rel);
-    const justID = (!recursive && !isSpatial) || onlyID;
-    if (justID)
-      return prop.push(...childrenID);
-    const items = childrenID.map((id) => this.state.api.GetLine(modelID, id, false));
-    prop.push(...items);
-    prop.forEach((child) => this.getAllSpatialChildren(modelID, child, recursive, onlyID));
+  getSpatialTreeChunks(modelID) {
+    const treeChunks = {
+      spatialChildren: {},
+      children: {}
+    };
+    this.getChunks(modelID, treeChunks, PropsNames.aggregates);
+    this.getChunks(modelID, treeChunks, PropsNames.spatial);
+    return treeChunks;
   }
 
-  getAllRelatedItemsOfType(modelID, id, type, relation, related) {
-    const lines = this.state.api.GetLineIDsWithType(modelID, type);
+  getChunks(modelID, chunks, propNames) {
+    const relation = this.state.api.GetLineIDsWithType(modelID, propNames.name);
+    chunks[propNames.key] = {};
+    for (let i = 0; i < relation.size(); i++) {
+      const rel = this.state.api.GetLine(modelID, relation.get(i), false);
+      const relating = rel[propNames.relating].value;
+      const related = rel[propNames.related].map((r) => r.value);
+      chunks[propNames.key][relating] = related;
+    }
+  }
+
+  getSpatialNode(modelID, node, treeChunks) {
+    this.getChildren(modelID, node, treeChunks, PropsNames.aggregates);
+    this.getChildren(modelID, node, treeChunks, PropsNames.spatial);
+  }
+
+  getChildren(modelID, node, treeChunks, propNames) {
+    const chunk = treeChunks[propNames.key];
+    const children = chunk[node.expressID];
+    if (children == undefined || children == null)
+      return;
+    const prop = propNames.key;
+    node[prop] = children.map((child) => {
+      const node = this.newNode(modelID, child);
+      this.getSpatialNode(modelID, node, treeChunks);
+      return node;
+    });
+  }
+
+  newNode(modelID, id) {
+    const typeID = this.state.models[modelID].types[id].toString();
+    const typeName = IfcElements[typeID];
+    return {
+      expressID: id,
+      type: typeName,
+      hasChildren: [],
+      hasSpatialChildren: []
+    };
+  }
+
+  getAllRelatedItemsOfType(modelID, id, propNames) {
+    const lines = this.state.api.GetLineIDsWithType(modelID, propNames.name);
     const IDs = [];
     for (let i = 0; i < lines.size(); i++) {
-      const relID = lines.get(i);
-      const rel = this.state.api.GetLine(modelID, relID);
-      const relatedItems = rel[relation];
-      let foundElement = false;
-      if (Array.isArray(relatedItems)) {
-        const values = relatedItems.map((item) => item.value);
-        foundElement = values.includes(id);
-      }
-      else
-        foundElement = relatedItems.value === id;
-      if (foundElement) {
-        const element = rel[related];
-        if (!Array.isArray(element))
-          IDs.push(element.value);
-        else
-          element.forEach((ele) => IDs.push(ele.value));
-      }
+      const rel = this.state.api.GetLine(modelID, lines.get(i));
+      const isRelated = this.isRelated(id, rel, propNames);
+      if (isRelated)
+        this.getRelated(rel, propNames, IDs);
     }
     return IDs;
+  }
+
+  getRelated(rel, propNames, IDs) {
+    const element = rel[propNames.relating];
+    if (!Array.isArray(element))
+      IDs.push(element.value);
+    else
+      element.forEach((ele) => IDs.push(ele.value));
+  }
+
+  isRelated(id, rel, propNames) {
+    const relatedItems = rel[propNames.related];
+    if (Array.isArray(relatedItems)) {
+      const values = relatedItems.map((item) => item.value);
+      return values.includes(id);
+    }
+    return relatedItems.value === id;
+  }
+
+}
+
+class TypeManager {
+
+  constructor(state) {
+    this.state = state;
+  }
+
+  getAllTypes() {
+    for (let modelID in this.state.models) {
+      const types = this.state.models[modelID].types;
+      if (Object.keys(types).length == 0)
+        this.getAllTypesOfModel(parseInt(modelID));
+    }
+  }
+
+  getAllTypesOfModel(modelID) {
+    this.state.models[modelID].types;
+    const elements = Object.keys(IfcElements).map((e) => parseInt(e));
+    const types = this.state.models[modelID].types;
+    elements.forEach((type) => {
+      const lines = this.state.api.GetLineIDsWithType(modelID, type);
+      for (let i = 0; i < lines.size(); i++)
+        types[lines.get(i)] = type;
+    });
   }
 
 }
@@ -70095,10 +70333,13 @@ class IFCManager {
     this.parser = new IFCParser(this.state);
     this.subsets = new SubsetManager(this.state);
     this.properties = new PropertyManager(this.state);
+    this.types = new TypeManager(this.state);
   }
 
-  parse(buffer) {
-    return this.parser.parse(buffer);
+  async parse(buffer) {
+    const result = await this.parser.parse(buffer);
+    this.types.getAllTypes();
+    return result;
   }
 
   setWasmPath(path) {
@@ -70132,12 +70373,13 @@ class IFCManager {
     return this.properties.getTypeProperties(modelID, id, recursive);
   }
 
-  getAllSpatialChildren(modelID, item, recursive, onlyID) {
-    return this.properties.getAllSpatialChildren(modelID, item, recursive, onlyID);
+  getIfcType(modelID, id) {
+    const typeID = this.state.models[modelID].types[id];
+    return IfcElements[typeID.toString()];
   }
 
-  getSpatialStructure(modelID, recursive) {
-    return this.properties.getSpatialStructure(modelID, recursive);
+  getSpatialStructure(modelID) {
+    return this.properties.getSpatialStructure(modelID);
   }
 
   getSubset(modelID, material) {
@@ -70214,12 +70456,12 @@ class IFCLoader extends Loader {
     return this.ifcManager.getTypeProperties(modelID, id, recursive);
   }
 
-  getAllSpatialChildren(modelID, item, recursive = false, onlyID = false) {
-    return this.ifcManager.getAllSpatialChildren(modelID, item, recursive, onlyID);
+  getIfcType(modelID, id) {
+    return this.ifcManager.getIfcType(modelID, id);
   }
 
-  getSpatialStructure(modelID, recursive = false) {
-    return this.ifcManager.getSpatialStructure(modelID, recursive);
+  getSpatialStructure(modelID) {
+    return this.ifcManager.getSpatialStructure(modelID);
   }
 
   getSubset(modelID, material) {
@@ -71708,21 +71950,63 @@ function preselectItem(event) {
     }
 }
 
-new MeshLambertMaterial({
+const selectMaterial = new MeshLambertMaterial({
     color: 0xff00ff,
     transparent: true,
     opacity: 0.4,
     depthTest: false
 });
 
+let previousSelection;
+let selectedModel;
+
+function selectItem(event) {
+    const intersected = castRay(event);
+    if (intersected.length) {
+        const item = intersected[0];
+
+        if (previousSelection == item.faceIndex) return;
+        previousSelection = item.faceIndex;
+
+        const id = ifcLoader.getExpressId(item.object.geometry, item.faceIndex);
+        const modelID = item.object.modelID;
+
+        if (selectedModel != undefined && selectedModel != modelID)
+            ifcLoader.removeSubset(selectedModel, scene, selectMaterial);
+        selectedModel = modelID;
+
+        ifcLoader.createSubset({
+            scene,
+            modelID,
+            ids: [id],
+            removePrevious: true,
+            material: selectMaterial
+        });
+
+        const a = performance.now();
+        const props = ifcLoader.getItemProperties(modelID, id);
+        const psets = ifcLoader.getPropertySets(modelID, id);
+        props.propertySets = psets;
+        console.log("Get properties: ", performance.now() - a);
+        console.log(props);
+    }
+}
+
 threeCanvas.ondblclick = getSpatialChildren;
 threeCanvas.onmousemove = preselectItem;
 
-function getSpatialChildren() {
-    const ifcProjectID = ifcLoader.getAllItemsOfType(0, IFCPROJECT, false)[0];
-    const ifcProject = { expressID: ifcProjectID, hasChildren: [], hasSpatialChildren: [] };
-    ifcLoader.getAllSpatialChildren(0, ifcProject, false, true);
-    console.log(ifcProject.hasSpatialChildren);
+function getSpatialChildren(event) {
+    // const ifcProjectID = ifcLoader.getAllItemsOfType(0, IFCPROJECT, false)[0];
+    // const ifcProject = { expressID: ifcProjectID, hasChildren: [], hasSpatialChildren: [] };
+    // ifcLoader.getAllSpatialChildren(0, ifcProject, false, true);
+    // console.log(ifcProject.hasSpatialChildren);
+
+    const a = performance.now();
+    const tree = ifcLoader.getSpatialStructure(0, false);
+    console.log(tree);
+    console.log("Spatial tree: ", performance.now() - a);
+
+    selectItem(event);
 }
 
 // let ifcProject;

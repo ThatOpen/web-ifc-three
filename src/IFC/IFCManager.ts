@@ -2,6 +2,8 @@ import * as WebIFC from 'web-ifc';
 import { IFCParser } from './IFCParser';
 import { SubsetManager } from './SubsetManager';
 import { PropertyManager } from './PropertyManager';
+import { IfcElements } from './IFCElementsMap';
+import { TypeManager } from './TypeManager';
 import { HighlightConfig, IfcState, Node } from './BaseDefinitions';
 import { BufferGeometry, Material, Scene } from 'three';
 
@@ -10,16 +12,20 @@ export class IFCManager {
     private parser: IFCParser;
     private subsets: SubsetManager;
     private properties: PropertyManager;
+    private types: TypeManager
 
     constructor() {
         this.state = { models: [], api: new WebIFC.IfcAPI() };
         this.parser = new IFCParser(this.state);
         this.subsets = new SubsetManager(this.state);
         this.properties = new PropertyManager(this.state);
+        this.types = new TypeManager(this.state);
     }
 
-    parse(buffer: any) {
-        return this.parser.parse(buffer);
+    async parse(buffer: any) {
+        const result = await this.parser.parse(buffer);
+        this.types.getAllTypes();
+        return result;
     }
 
     setWasmPath(path: string) {
@@ -52,12 +58,13 @@ export class IFCManager {
         return this.properties.getTypeProperties(modelID, id, recursive);
     }
 
-    getAllSpatialChildren(modelID: number, item: Node, recursive: boolean, onlyID: boolean) {
-        return this.properties.getAllSpatialChildren(modelID, item, recursive, onlyID);
+    getIfcType(modelID: number, id: number){
+        const typeID = this.state.models[modelID].types[id];
+        return IfcElements[typeID.toString()];
     }
 
-    getSpatialStructure(modelID: number, recursive: boolean) {
-        return this.properties.getSpatialStructure(modelID, recursive);
+    getSpatialStructure(modelID: number) {
+        return this.properties.getSpatialStructure(modelID);
     }
 
     getSubset(modelID: number, material?: Material){

@@ -181,9 +181,11 @@ function selectItem(event) {
             material: selectMaterial
         });
 
+        const a = performance.now();
         const props = ifcLoader.getItemProperties(modelID, id);
         const psets = ifcLoader.getPropertySets(modelID, id);
         props.propertySets = psets;
+        console.log("Get properties: ", performance.now() - a);
         console.log(props);
     }
 }
@@ -191,11 +193,18 @@ function selectItem(event) {
 threeCanvas.ondblclick = getSpatialChildren;
 threeCanvas.onmousemove = preselectItem;
 
-function getSpatialChildren() {
-    const ifcProjectID = ifcLoader.getAllItemsOfType(0, IFCPROJECT, false)[0];
-    const ifcProject = { expressID: ifcProjectID, hasChildren: [], hasSpatialChildren: [] };
-    ifcLoader.getAllSpatialChildren(0, ifcProject, false, true);
-    console.log(ifcProject.hasSpatialChildren);
+function getSpatialChildren(event) {
+    // const ifcProjectID = ifcLoader.getAllItemsOfType(0, IFCPROJECT, false)[0];
+    // const ifcProject = { expressID: ifcProjectID, hasChildren: [], hasSpatialChildren: [] };
+    // ifcLoader.getAllSpatialChildren(0, ifcProject, false, true);
+    // console.log(ifcProject.hasSpatialChildren);
+
+    const a = performance.now();
+    const tree = ifcLoader.getSpatialStructure(0, false);
+    console.log(tree);
+    console.log("Spatial tree: ", performance.now() - a);
+
+    selectItem(event);
 }
 
 // let ifcProject;

@@ -1,5 +1,11 @@
 import { BufferAttribute, BufferGeometry, Material, Mesh, Scene } from 'three';
 import { BufferGeometryUtils } from 'three/examples/jsm/utils/BufferGeometryUtils';
+import {
+    IFCRELAGGREGATES,
+    IFCRELCONTAINEDINSPATIALSTRUCTURE,
+    IFCRELDEFINESBYPROPERTIES,
+    IFCRELDEFINESBYTYPE,
+} from 'web-ifc';
 import { IfcAPI } from 'web-ifc';
 
 export const IdAttrName = 'expressID';
@@ -48,10 +54,15 @@ export interface GeometriesByMaterials {
     [materialID: string]: GeometriesByMaterial;
 }
 
+export interface TypesMap {
+    [key: number]: number;
+}
+
 export interface IfcModel {
     modelID: number;
     mesh: IfcMesh;
     items: GeometriesByMaterials;
+    types: TypesMap;
 }
 
 export interface IfcState {
@@ -65,6 +76,41 @@ export interface IfcMesh extends Mesh {
 
 export interface Node {
     expressID: number;
+    type: string;
     hasSpatialChildren: Node[];
     hasChildren: Node[];
+}
+
+export interface pName {
+    name: number;
+    relating: string;
+    related: string;
+    key: string;
+}
+
+export const PropsNames = {
+    aggregates: {
+        name: IFCRELAGGREGATES,
+        relating: 'RelatingObject',
+        related: 'RelatedObjects',
+        key: 'hasSpatialChildren'
+    },
+    spatial: {
+        name: IFCRELCONTAINEDINSPATIALSTRUCTURE,
+        relating: 'RelatingStructure',
+        related: 'RelatedElements',
+        key: 'hasChildren'
+    },
+    psets: {
+        name: IFCRELDEFINESBYPROPERTIES,
+        relating: 'RelatingPropertyDefinition',
+        related: 'RelatedObjects',
+        key: 'hasPsets'
+    },
+    type: {
+        name: IFCRELCONTAINEDINSPATIALSTRUCTURE,
+        relating: 'RelatingType',
+        related: 'RelatedObjects',
+        key: 'hasType'
+    }
 }

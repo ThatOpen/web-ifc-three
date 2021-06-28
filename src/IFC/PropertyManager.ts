@@ -1,12 +1,7 @@
 import { IdAttrName } from './BaseDefinitions';
-import { Node, IfcState } from './BaseDefinitions';
-import {
-    IFCPROJECT,
-    IFCRELAGGREGATES,
-    IFCRELCONTAINEDINSPATIALSTRUCTURE,
-    IFCRELDEFINESBYPROPERTIES,
-    IFCRELDEFINESBYTYPE
-} from 'web-ifc';
+import { Node, IfcState, PropsNames, pName } from './BaseDefinitions';
+import { IfcElements } from './IFCElementsMap';
+import { IFCPROJECT } from 'web-ifc';
 import { BufferGeometry } from 'three';
 
 export class PropertyManager {
@@ -36,108 +31,101 @@ export class PropertyManager {
     }
 
     getPropertySets(modelID: number, elementID: number, recursive = false) {
-        const propSetIds = this.getAllRelatedItemsOfType(
-            modelID,
-            elementID,
-            IFCRELDEFINESBYPROPERTIES,
-            'RelatedObjects',
-            'RelatingPropertyDefinition'
-        );
+        const propSetIds = this.getAllRelatedItemsOfType(modelID, elementID, PropsNames.psets);
         return propSetIds.map((id) => this.state.api.GetLine(modelID, id, recursive));
     }
 
     getTypeProperties(modelID: number, elementID: number, recursive = false) {
-        const typeId = this.getAllRelatedItemsOfType(
-            modelID,
-            elementID,
-            IFCRELDEFINESBYTYPE,
-            'RelatedObjects',
-            'RelatingType'
-        );
+        const typeId = this.getAllRelatedItemsOfType(modelID, elementID, PropsNames.type);
         return typeId.map((id) => this.state.api.GetLine(modelID, id, recursive));
     }
 
-    getSpatialStructure(modelID: number, recursive: boolean) {
-        let lines = this.state.api.GetLineIDsWithType(modelID, IFCPROJECT);
-        let ifcProjectId = lines.get(0);
-        let ifcProject = this.state.api.GetLine(modelID, ifcProjectId);
-        this.getAllSpatialChildren(modelID, ifcProject, recursive, false);
-        return ifcProject;
+    getSpatialStructure(modelID: number) {
+        const chunks = this.getSpatialTreeChunks(modelID);
+        const projectID = this.state.api.GetLineIDsWithType(modelID, IFCPROJECT).get(0);
+        const project = this.newIfcProject(projectID);
+        this.getSpatialNode(modelID, project, chunks);
+        return project;
     }
 
-    getAllSpatialChildren(modelID: number, item: Node, recursive: boolean, onlyID: boolean) {
-        item.hasChildren = [];
-        item.hasSpatialChildren = [];
-        this.getChildren(
-            modelID,
-            item.expressID,
-            item.hasSpatialChildren,
-            'RelatingObject',
-            'RelatedObjects',
-            IFCRELAGGREGATES,
-            recursive,
-            onlyID,
-            true
-        );
-        this.getChildren(
-            modelID,
-            item.expressID,
-            item.hasChildren,
-            'RelatingStructure',
-            'RelatedElements',
-            IFCRELCONTAINEDINSPATIALSTRUCTURE,
-            recursive,
-            onlyID,
-            false
-        );
+    private newIfcProject(id: number) {
+        return {
+            expressID: id,
+            type: 'IFCPROJECT',
+            hasChildren: [],
+            hasSpatialChildren: []
+        };
     }
 
-    private getChildren(
-        modelID: number,
-        id: number,
-        prop: Node[],
-        relating: string,
-        rel: string,
-        relProp: number,
-        recursive: boolean,
-        onlyID: boolean,
-        isSpatial: boolean,
-    ) {
-        const childrenID = this.getAllRelatedItemsOfType(modelID, id, relProp, relating, rel);
-        const justID = (!recursive && !isSpatial) || onlyID;
-        if (justID) return prop.push(...childrenID);
-        const items = childrenID.map((id) => this.state.api.GetLine(modelID, id, false));
-        prop.push(...items);
-        prop.forEach((child: any) => this.getAllSpatialChildren(modelID, child, recursive, onlyID));
+    private getSpatialTreeChunks(modelID: number) {
+        const treeChunks = { spatialChildren: {}, children: {} };
+        this.getChunks(modelID, treeChunks, PropsNames.aggregates);
+        this.getChunks(modelID, treeChunks, PropsNames.spatial);
+        return treeChunks;
     }
 
-    private getAllRelatedItemsOfType(
-        modelID: number,
-        id: number,
-        type: any,
-        relation: string,
-        related: string
-    ) {
-        const lines = this.state.api.GetLineIDsWithType(modelID, type);
-        const IDs = [];
+    private getChunks(modelID: number, chunks: any, propNames: pName) {
+        const relation = this.state.api.GetLineIDsWithType(modelID, propNames.name);
+        chunks[propNames.key] = {};
+        for (let i = 0; i < relation.size(); i++) {
+            const rel = this.state.api.GetLine(modelID, relation.get(i), false);
+            const relating = rel[propNames.relating].value;
+            const related = rel[propNames.related].map((r: any) => r.value);
+            chunks[propNames.key][relating] = related;
+        }
+    }
 
+    private getSpatialNode(modelID: number, node: Node, treeChunks: any) {
+        this.getChildren(modelID, node, treeChunks, PropsNames.aggregates);
+        this.getChildren(modelID, node, treeChunks, PropsNames.spatial);
+    }
+
+    private getChildren(modelID: number, node: Node, treeChunks: any, propNames: pName) {
+        const chunk = treeChunks[propNames.key];
+        const children = chunk[node.expressID];
+        if (children == undefined || children == null) return;
+        const prop = propNames.key as keyof Node;
+        (node[prop] as Node[]) = children.map((child: number) => {
+            const node = this.newNode(modelID, child);
+            this.getSpatialNode(modelID, node, treeChunks);
+            return node;
+        });
+    }
+
+    private newNode(modelID: number, id: number) {
+        const typeID = this.state.models[modelID].types[id].toString();
+        const typeName = IfcElements[typeID];
+        return {
+            expressID: id,
+            type: typeName,
+            hasChildren: [],
+            hasSpatialChildren: []
+        };
+    }
+
+    private getAllRelatedItemsOfType(modelID: number, id: number, propNames: pName) {
+        const lines = this.state.api.GetLineIDsWithType(modelID, propNames.name);
+        const IDs: number[] = [];
         for (let i = 0; i < lines.size(); i++) {
-            const relID = lines.get(i);
-            const rel = this.state.api.GetLine(modelID, relID);
-            const relatedItems = rel[relation];
-            let foundElement = false;
-
-            if (Array.isArray(relatedItems)) {
-                const values = relatedItems.map((item) => item.value);
-                foundElement = values.includes(id);
-            } else foundElement = relatedItems.value === id;
-
-            if (foundElement) {
-                const element = rel[related];
-                if (!Array.isArray(element)) IDs.push(element.value);
-                else element.forEach((ele) => IDs.push(ele.value));
-            }
+            const rel = this.state.api.GetLine(modelID, lines.get(i));
+            const isRelated = this.isRelated(id, rel, propNames); 
+            if (isRelated) this.getRelated(rel, propNames, IDs);
         }
         return IDs;
+    }
+
+    private getRelated(rel: any, propNames: pName, IDs: number[]) {
+        const element = rel[propNames.relating];
+        if (!Array.isArray(element)) IDs.push(element.value);
+        else element.forEach((ele) => IDs.push(ele.value));
+    }
+
+    private isRelated(id: number, rel: any, propNames: pName) {
+        const relatedItems = rel[propNames.related];
+        if (Array.isArray(relatedItems)) {
+            const values = relatedItems.map((item) => item.value);
+            return values.includes(id);
+        }
+        return relatedItems.value === id;
     }
 }
