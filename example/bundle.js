@@ -69661,13 +69661,13 @@ const PropsNames = {
     name: IFCRELAGGREGATES,
     relating: 'RelatingObject',
     related: 'RelatedObjects',
-    key: 'hasSpatialChildren'
+    key: 'children'
   },
   spatial: {
     name: IFCRELCONTAINEDINSPATIALSTRUCTURE,
     relating: 'RelatingStructure',
     related: 'RelatedElements',
-    key: 'hasChildren'
+    key: 'children'
   },
   psets: {
     name: IFCRELDEFINESBYPROPERTIES,
@@ -69676,7 +69676,7 @@ const PropsNames = {
     key: 'hasPsets'
   },
   type: {
-    name: IFCRELCONTAINEDINSPATIALSTRUCTURE,
+    name: IFCRELDEFINESBYTYPE,
     relating: 'RelatingType',
     related: 'RelatedObjects',
     key: 'hasType'
@@ -70210,16 +70210,12 @@ class PropertyManager {
     return {
       expressID: id,
       type: 'IFCPROJECT',
-      hasChildren: [],
-      hasSpatialChildren: []
+      children: []
     };
   }
 
   getSpatialTreeChunks(modelID) {
-    const treeChunks = {
-      spatialChildren: {},
-      children: {}
-    };
+    const treeChunks = {};
     this.getChunks(modelID, treeChunks, PropsNames.aggregates);
     this.getChunks(modelID, treeChunks, PropsNames.spatial);
     return treeChunks;
@@ -70227,12 +70223,11 @@ class PropertyManager {
 
   getChunks(modelID, chunks, propNames) {
     const relation = this.state.api.GetLineIDsWithType(modelID, propNames.name);
-    chunks[propNames.key] = {};
     for (let i = 0; i < relation.size(); i++) {
       const rel = this.state.api.GetLine(modelID, relation.get(i), false);
       const relating = rel[propNames.relating].value;
       const related = rel[propNames.related].map((r) => r.value);
-      chunks[propNames.key][relating] = related;
+      chunks[relating] = related;
     }
   }
 
@@ -70242,8 +70237,7 @@ class PropertyManager {
   }
 
   getChildren(modelID, node, treeChunks, propNames) {
-    const chunk = treeChunks[propNames.key];
-    const children = chunk[node.expressID];
+    const children = treeChunks[node.expressID];
     if (children == undefined || children == null)
       return;
     const prop = propNames.key;
@@ -70260,8 +70254,7 @@ class PropertyManager {
     return {
       expressID: id,
       type: typeName,
-      hasChildren: [],
-      hasSpatialChildren: []
+      children: [],
     };
   }
 

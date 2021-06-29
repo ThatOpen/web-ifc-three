@@ -52,13 +52,12 @@ export class PropertyManager {
         return {
             expressID: id,
             type: 'IFCPROJECT',
-            hasChildren: [],
-            hasSpatialChildren: []
+            children: []
         };
     }
 
     private getSpatialTreeChunks(modelID: number) {
-        const treeChunks = { spatialChildren: {}, children: {} };
+        const treeChunks: any = {};
         this.getChunks(modelID, treeChunks, PropsNames.aggregates);
         this.getChunks(modelID, treeChunks, PropsNames.spatial);
         return treeChunks;
@@ -66,12 +65,11 @@ export class PropertyManager {
 
     private getChunks(modelID: number, chunks: any, propNames: pName) {
         const relation = this.state.api.GetLineIDsWithType(modelID, propNames.name);
-        chunks[propNames.key] = {};
         for (let i = 0; i < relation.size(); i++) {
             const rel = this.state.api.GetLine(modelID, relation.get(i), false);
             const relating = rel[propNames.relating].value;
             const related = rel[propNames.related].map((r: any) => r.value);
-            chunks[propNames.key][relating] = related;
+            chunks[relating] = related;
         }
     }
 
@@ -81,8 +79,7 @@ export class PropertyManager {
     }
 
     private getChildren(modelID: number, node: Node, treeChunks: any, propNames: pName) {
-        const chunk = treeChunks[propNames.key];
-        const children = chunk[node.expressID];
+        const children = treeChunks[node.expressID];
         if (children == undefined || children == null) return;
         const prop = propNames.key as keyof Node;
         (node[prop] as Node[]) = children.map((child: number) => {
@@ -98,8 +95,7 @@ export class PropertyManager {
         return {
             expressID: id,
             type: typeName,
-            hasChildren: [],
-            hasSpatialChildren: []
+            children: [],
         };
     }
 

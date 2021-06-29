@@ -77,8 +77,7 @@ export interface IfcMesh extends Mesh {
 export interface Node {
     expressID: number;
     type: string;
-    hasSpatialChildren: Node[];
-    hasChildren: Node[];
+    children: Node[];
 }
 
 export interface pName {
@@ -93,13 +92,13 @@ export const PropsNames = {
         name: IFCRELAGGREGATES,
         relating: 'RelatingObject',
         related: 'RelatedObjects',
-        key: 'hasSpatialChildren'
+        key: 'children'
     },
     spatial: {
         name: IFCRELCONTAINEDINSPATIALSTRUCTURE,
         relating: 'RelatingStructure',
         related: 'RelatedElements',
-        key: 'hasChildren'
+        key: 'children'
     },
     psets: {
         name: IFCRELDEFINESBYPROPERTIES,
@@ -108,7 +107,7 @@ export const PropsNames = {
         key: 'hasPsets'
     },
     type: {
-        name: IFCRELCONTAINEDINSPATIALSTRUCTURE,
+        name: IFCRELDEFINESBYTYPE,
         relating: 'RelatingType',
         related: 'RelatedObjects',
         key: 'hasType'
