@@ -1,6 +1,6 @@
 import {TypeManager} from "./TypeManager";
 import {IfcAPI} from "web-ifc";
-import {IfcState} from "./BaseDefinitions";
+import {IfcState} from "../BaseDefinitions";
 
 jest.mock('web-ifc');
 

@@ -2,9 +2,8 @@
 import { IFCManager } from "./IFCManager";
 import { SubsetManager } from './SubsetManager';
 import { PropertyManager } from './PropertyManager';
-import { TypeManager } from './TypeManager';
 import { IFCParser } from "./IFCParser";
-import {HighlightConfig, IfcMesh} from "./BaseDefinitions";
+import {HighlightConfig, IfcMesh} from "../BaseDefinitions";
 import * as WebIFC from "web-ifc";
 import {BufferGeometry, Material, Scene} from "three";
 
@@ -21,8 +20,9 @@ describe("IFCManager", () => {
 
         const spyParse = jest.spyOn(IFCParser.prototype, 'parse').mockReturnValue(new Promise((resolve => resolve(<IfcMesh>{}))));
 
-        ifcManager.parse([]).then(() => {
-            expect(spyParse).toHaveBeenCalledWith([]);
+        let arrayBuffer = new ArrayBuffer(10);
+        ifcManager.parse(arrayBuffer).then(() => {
+            expect(spyParse).toHaveBeenCalledWith(arrayBuffer);
             done();
         });
     });
