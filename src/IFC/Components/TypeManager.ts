@@ -1,4 +1,4 @@
-import { IfcState, SelectedItems } from './BaseDefinitions';
+import { IfcState, SelectedItems } from '../BaseDefinitions';
 import { IfcElements } from './IFCElementsMap'
 
 export class TypeManager {
