@@ -1,5 +1,5 @@
-import { IdAttrName } from './BaseDefinitions';
-import { Node, IfcState, PropsNames, pName } from './BaseDefinitions';
+import { IdAttrName } from '../BaseDefinitions';
+import { Node, IfcState, PropsNames, pName } from '../BaseDefinitions';
 import { IfcElements } from './IFCElementsMap';
 import { IFCPROJECT } from 'web-ifc';
 import { BufferGeometry } from 'three';

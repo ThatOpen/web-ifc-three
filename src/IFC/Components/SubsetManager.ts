@@ -7,7 +7,7 @@ import {
     merge,
     SelectedItems,
     DEFAULT
-} from './BaseDefinitions';
+} from '../BaseDefinitions';
 
 export class SubsetManager {
     private state: IfcState;

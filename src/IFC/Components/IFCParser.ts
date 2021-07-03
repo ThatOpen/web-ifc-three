@@ -9,7 +9,7 @@ import {
     newFloatAttr,
     newIntAttr,
     IdAttributesByMaterials
-} from './BaseDefinitions';
+} from '../BaseDefinitions';
 import {
     Mesh,
     Color,
@@ -20,6 +20,7 @@ import {
     BufferAttribute,
     Material
 } from 'three';
+import { IFCModel } from './IFCModel';
 
 export class IFCParser {
     private state: IfcState;
