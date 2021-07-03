@@ -6,11 +6,17 @@ import {mockAndSpyGetLineIDsWithType} from "../../../test/GetLineIDsWithType.moc
 
 describe("PropertyManager", () => {
 
+    let propertyManager: PropertyManager;
+    let ifcAPI: WebIFC.IfcAPI;
+
+    beforeEach(() => {
+        ifcAPI = new WebIFC.IfcAPI();
+        propertyManager = new PropertyManager({models: {}, api: ifcAPI});
+    })
+
     test('getExpressId: if has bufferGeometry no index then return nothing', () => {
 
         let bufferGeometry = new BufferGeometry();
-
-        let propertyManager = new PropertyManager({models: {}, api: new WebIFC.IfcAPI()});
 
         const result = propertyManager.getExpressId(bufferGeometry, 10);
 
@@ -27,9 +33,6 @@ describe("PropertyManager", () => {
 
         const spyOnExpressIdAttributeGetX = jest.spyOn(expressIdAttribute, 'getX').mockReturnValue(10);
 
-
-        let propertyManager = new PropertyManager({models: {}, api: new WebIFC.IfcAPI()});
-
         const result = propertyManager.getExpressId(bufferGeometry, 1);
 
         expect(spyOnExpressIdAttributeGetX).toHaveBeenCalledWith(4);
@@ -38,10 +41,8 @@ describe("PropertyManager", () => {
 
     test('getItemProperties', () => {
 
-        const api = new WebIFC.IfcAPI();
-        const spyGetLine = jest.spyOn(api, 'GetLine').mockImplementation();
+        const spyGetLine = jest.spyOn(ifcAPI, 'GetLine').mockImplementation();
 
-        let propertyManager = new PropertyManager({models: {}, api: api});
         propertyManager.getItemProperties(10, 5, false);
 
         expect(spyGetLine).toHaveBeenCalledWith(10, 5, false);
@@ -49,12 +50,10 @@ describe("PropertyManager", () => {
 
     test('getAllItemsOfType: verbose is false', () => {
 
-        const api = new WebIFC.IfcAPI();
-        const spyGetLine            = jest.spyOn(api, 'GetLine').mockImplementation();
 
-        const spyGetLineIDsWithType = mockAndSpyGetLineIDsWithType(api);
+        const spyGetLine            = jest.spyOn(ifcAPI, 'GetLine').mockImplementation();
+        const spyGetLineIDsWithType = mockAndSpyGetLineIDsWithType(ifcAPI);
 
-        let propertyManager = new PropertyManager({models: {}, api: api});
         const result = propertyManager.getAllItemsOfType(10, 4031249490, false);
 
         expect(spyGetLineIDsWithType).toHaveBeenCalledWith(10, 4031249490);
@@ -64,12 +63,9 @@ describe("PropertyManager", () => {
 
     test('getAllItemsOfType: verbose is true', () => {
 
-        const api = new WebIFC.IfcAPI();
-        const spyGetLine            = jest.spyOn(api, 'GetLine').mockReturnValue(100);
+        const spyGetLine            = jest.spyOn(ifcAPI, 'GetLine').mockReturnValue(100);
+        const spyGetLineIDsWithType = mockAndSpyGetLineIDsWithType(ifcAPI);
 
-        const spyGetLineIDsWithType = mockAndSpyGetLineIDsWithType(api);
-
-        let propertyManager = new PropertyManager({models: {}, api: api});
         const result = propertyManager.getAllItemsOfType(10, 4031249490, true);
 
         expect(spyGetLineIDsWithType).toHaveBeenCalledWith(10, 4031249490);
