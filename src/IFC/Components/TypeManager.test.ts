@@ -1,6 +1,7 @@
 import {TypeManager} from "./TypeManager";
 import {IfcAPI} from "web-ifc";
 import {IfcState} from "../BaseDefinitions";
+import {mockAndSpyGetLineIDsWithType} from "../../../test/GetLineIDsWithType.mock";
 
 jest.mock('web-ifc');
 
@@ -57,22 +58,7 @@ describe("TypeManager", () => {
 
         let typeManger = new TypeManager(state);
 
-        jest.spyOn(ifcAPI, 'GetLineIDsWithType')
-            .mockImplementation((modelID, type) => {
-
-                const mockedList = {
-                    10: {
-                        103090709: [25],
-                        4031249490: [29]
-                    }
-                }
-
-                if (typeof mockedList[modelID] === undefined || mockedList[modelID][type] === undefined) {
-                    return {get: ((index: number) => null), size: () => 0}
-                }
-
-                return {get: ((index: number) => mockedList[modelID][type][index]), size: () => mockedList[modelID][type].length}
-            });
+        mockAndSpyGetLineIDsWithType(ifcAPI);
 
         typeManger.getAllTypesOfModel(10);
 

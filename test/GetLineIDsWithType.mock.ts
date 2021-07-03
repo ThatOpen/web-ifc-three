@@ -1,0 +1,15 @@
+import * as WebIFC from "web-ifc";
+
+const mockedList = {
+    10: {
+        103090709: [25],
+        4031249490: [29]
+    }
+}
+
+export function mockAndSpyGetLineIDsWithType(api: WebIFC.IfcAPI) {
+    return jest.spyOn(api, 'GetLineIDsWithType')
+        .mockImplementation((modelID: number, type: number) => {
+            return {get: ((index: number) => mockedList[modelID][type][index]), size: () => mockedList[modelID][type]?.length || 0}
+        });
+}
