@@ -1,18 +1,6 @@
 import { IFCManager } from './IFC/Components/IFCManager';
-import {
-    BufferGeometry,
-    FileLoader,
-    Loader,
-    LoadingManager,
-    Material,
-    Object3D,
-    Scene
-} from 'three';
-
-// tslint:disable-next-line:interface-name
-export interface IFC extends Object3D {
-    [key: string]: any;
-}
+import { FileLoader, Loader, LoadingManager } from 'three';
+import { IFCModel } from './IFC/Components/IFCModel';
 
 class IFCLoader extends Loader {
     private ifcManager: IFCManager;
@@ -24,7 +12,7 @@ class IFCLoader extends Loader {
 
     load(
         url: any,
-        onLoad: (ifc: IFC) => void,
+        onLoad: (ifc: IFCModel) => void,
         onProgress?: (event: ProgressEvent) => void,
         onError?: (event: ErrorEvent) => void
     ) {
@@ -39,7 +27,7 @@ class IFCLoader extends Loader {
             url,
             async function (buffer) {
                 try {
-                    if (typeof buffer == 'string'){
+                    if (typeof buffer == 'string') {
                         throw new Error('IFC files must be given as a buffer!');
                     }
                     onLoad(await scope.parse(buffer));

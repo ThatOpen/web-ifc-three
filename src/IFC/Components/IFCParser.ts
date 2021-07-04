@@ -20,8 +20,10 @@ import {
     BufferAttribute,
     Material
 } from 'three';
-import { IFCModel } from './IFCModel';
 
+/**
+ * Reads all the geometry of the IFC file and generates an optimized `THREE.Mesh`.
+ */
 export class IFCParser {
     private state: IfcState;
     private currentID: number;

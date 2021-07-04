@@ -1,14 +1,18 @@
 import { BufferGeometry, Material, Mesh, MeshLambertMaterial, Scene } from 'three';
 import {
     IfcState,
-    HighlightConfig,
     GeometriesByMaterials,
     IdGeometries,
     merge,
     SelectedItems,
-    DEFAULT
+    DEFAULT,
+    HighlightConfigOfModel
 } from '../BaseDefinitions';
 
+/**
+ * Contains the logic to get, create and delete geometric subsets of an IFC model. For example,
+ * this can extract all the items in a specific IfcBuildingStorey and create a new Mesh.
+ */
 export class SubsetManager {
     private state: IfcState;
     private selected: SelectedItems;
@@ -31,7 +35,7 @@ export class SubsetManager {
         delete this.selected[currentMat];
     }
 
-    createSubset(config: HighlightConfig) {
+    createSubset(config: HighlightConfigOfModel) {
         if (!this.isConfigValid(config)) return;
         if (this.isPreviousSelection(config)) return;
         if (this.isEasySelection(config)) return this.addToPreviousSelection(config);
@@ -39,7 +43,7 @@ export class SubsetManager {
         return this.createSelectionInScene(config);
     }
 
-    private createSelectionInScene(config: HighlightConfig) {
+    private createSelectionInScene(config: HighlightConfigOfModel) {
         const filtered = this.filter(config);
         const { geomsByMaterial, materials } = this.getGeomAndMat(filtered);
         const hasDefaultMaterial = this.matID(config) == DEFAULT;
@@ -54,7 +58,7 @@ export class SubsetManager {
         return mesh;
     }
 
-    private isConfigValid(config: HighlightConfig) {
+    private isConfigValid(config: HighlightConfigOfModel) {
         return (
             this.isValid(config.scene) &&
             this.isValid(config.modelID) &&
@@ -80,7 +84,7 @@ export class SubsetManager {
         return { geomsByMaterial, materials };
     }
 
-    private updatePreviousSelection(scene: Scene, config: HighlightConfig) {
+    private updatePreviousSelection(scene: Scene, config: HighlightConfigOfModel) {
         const previous = this.selected[this.matID(config)];
         if (!previous) return this.newSelectionGroup(config);
         scene.remove(previous.mesh);
@@ -89,21 +93,21 @@ export class SubsetManager {
             : config.ids.forEach((id) => previous.ids.add(id));
     }
 
-    private newSelectionGroup(config: HighlightConfig) {
+    private newSelectionGroup(config: HighlightConfigOfModel) {
         this.selected[this.matID(config)] = {
             ids: new Set(config.ids),
             mesh: {} as Mesh
         };
     }
 
-    private isPreviousSelection(config: HighlightConfig) {
+    private isPreviousSelection(config: HighlightConfigOfModel) {
         if (!this.selected[this.matID(config)]) return false;
         if (this.containsIds(config)) return true;
         const previousIds = this.selected[this.matID(config)].ids;
         return JSON.stringify(config.ids) === JSON.stringify(previousIds);
     }
 
-    private containsIds(config: HighlightConfig) {
+    private containsIds(config: HighlightConfigOfModel) {
         const newIds = config.ids;
         const previous = Array.from(this.selected[this.matID(config)].ids);
         // prettier-ignore
@@ -111,7 +115,7 @@ export class SubsetManager {
         return newIds.every((i => v => (i = previous.indexOf(v, i) + 1))(0));
     }
 
-    private addToPreviousSelection(config: HighlightConfig) {
+    private addToPreviousSelection(config: HighlightConfigOfModel) {
         const previous = this.selected[this.matID(config)];
         const filtered = this.filter(config);
         // prettier-ignore
@@ -121,7 +125,7 @@ export class SubsetManager {
         config.ids.forEach((id) => previous.ids.add(id));
     }
 
-    private filter(config: HighlightConfig) {
+    private filter(config: HighlightConfigOfModel) {
         const items = this.state.models[config.modelID].items;
         const filtered: GeometriesByMaterials = {};
         for (let matID in items) {
@@ -143,13 +147,13 @@ export class SubsetManager {
             }, {});
     }
 
-    private isEasySelection(config: HighlightConfig) {
+    private isEasySelection(config: HighlightConfigOfModel) {
         const matID = this.matID(config);
         const def = this.matIDNoConfig(config.modelID);
         if (!config.removePrevious && matID != def && this.selected[matID]) return true;
     }
 
-    private matID(config: HighlightConfig) {
+    private matID(config: HighlightConfigOfModel) {
         if (!config.material) return DEFAULT;
         const name = config.material.uuid || DEFAULT;
         return name.concat(" - ").concat(config.modelID.toString())

@@ -11,17 +11,8 @@ import {
     AmbientLight,
     Raycaster,
     Vector2,
-    BufferGeometry,
     MeshLambertMaterial
 } from 'three';
-import {
-    IFCCURTAINWALL,
-    IFCDOOR,
-    IFCFURNISHINGELEMENT,
-    IFCPLATE,
-    IFCPROJECT,
-    IFCWINDOW
-} from 'web-ifc';
 
 //Scene
 const scene = new Scene();
@@ -75,7 +66,7 @@ const ifcLoader = new IFCLoader();
 AnimationLoop();
 
 //Setup IFC Loader
-const ifcMeshes = [];
+const ifcModels = [];
 (function readIfcFile() {
     const input = document.querySelector('input[type="file"]');
     if (!input) return;
@@ -90,14 +81,15 @@ const ifcMeshes = [];
 
 async function loadIFC(changed) {
     var ifcURL = URL.createObjectURL(changed.target.files[0]);
-    const mesh = await ifcLoader.loadAsync(ifcURL);
-    ifcMeshes.push(mesh);
-    scene.add(mesh);
+    const ifcModel = await ifcLoader.loadAsync(ifcURL);
+    ifcModels.push(ifcModel);
+    scene.add(ifcModel.mesh);
 }
 
 const closer = document.getElementById('close-button');
 closer.onclick = () => {
-    ifcLoader.close(0, scene);
+    const ifcModel = ifcModels.pop();
+    ifcModel.close(0, scene);
 };
 
 //Setup object picking
@@ -110,7 +102,8 @@ function castRay(event) {
     mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
     mouse.y = -(event.clientY / window.innerHeight) * 2 + 1;
     raycaster.setFromCamera(mouse, camera);
-    return raycaster.intersectObjects(ifcMeshes);
+    const geometries = ifcModels.map(model => model.mesh);
+    return raycaster.intersectObjects(geometries);
 }
 
 const preselectMaterial = new MeshLambertMaterial({
@@ -120,27 +113,28 @@ const preselectMaterial = new MeshLambertMaterial({
     depthTest: false
 });
 
-let previousPreSelection;
-let preselecteModel;
+let previousPreselectedFace;
+let previousPreselection;
 
 function preselectItem(event) {
     const intersected = castRay(event);
     if (intersected.length) {
         const item = intersected[0];
 
-        if (previousPreSelection == item.faceIndex) return;
-        previousPreSelection = item.faceIndex;
+        if (previousPreselectedFace == item.faceIndex) return;
+        previousPreselectedFace = item.faceIndex;
 
-        const id = ifcLoader.getExpressId(item.object.geometry, item.faceIndex);
         const modelID = item.object.modelID;
+        const ifcModel = ifcModels.find(model => model.modelID == modelID);
+        if(!ifcModel) return;
+        const id = ifcModel.getExpressId(item.object.geometry, item.faceIndex);
 
-        if (preselecteModel != undefined && preselecteModel != modelID)
-            ifcLoader.removeSubset(preselecteModel, scene, preselectMaterial);
-        preselecteModel = modelID;
+        if (previousPreselection != undefined && previousPreselection.modelID != modelID)
+            previousPreselection.removeSubset(scene, preselectMaterial);
+        previousPreselection = ifcModel;
 
-        ifcLoader.createSubset({
+        ifcModel.createSubset({
             scene,
-            modelID,
             ids: [id],
             removePrevious: true,
             material: preselectMaterial
@@ -155,57 +149,43 @@ const selectMaterial = new MeshLambertMaterial({
     depthTest: false
 });
 
+let previousSelectedFace;
 let previousSelection;
-let selectedModel;
 
 function selectItem(event) {
     const intersected = castRay(event);
     if (intersected.length) {
         const item = intersected[0];
 
-        if (previousSelection == item.faceIndex) return;
-        previousSelection = item.faceIndex;
+        if (previousSelectedFace == item.faceIndex) return;
+        previousSelectedFace = item.faceIndex;
 
-        const id = ifcLoader.getExpressId(item.object.geometry, item.faceIndex);
+
         const modelID = item.object.modelID;
+        const ifcModel = ifcModels.find(model => model.modelID == modelID);
+        if(!ifcModel) return;
+        const id = ifcModel.getExpressId(item.object.geometry, item.faceIndex);
 
-        if (selectedModel != undefined && selectedModel != modelID)
-            ifcLoader.removeSubset(selectedModel, scene, selectMaterial);
-        selectedModel = modelID;
+        if (previousSelection != undefined && previousSelection.modelID != modelID)
+            previousSelection.removeSubset(scene, preselectMaterial);
+        previousSelection = ifcModel;
 
-        ifcLoader.createSubset({
+        ifcModel.createSubset({
             scene,
-            modelID,
             ids: [id],
             removePrevious: true,
             material: selectMaterial
         });
 
-        const a = performance.now();
-        const props = ifcLoader.getItemProperties(modelID, id);
-        const psets = ifcLoader.getPropertySets(modelID, id);
+        const props = ifcModel.getItemProperties(id);
+        const psets = ifcModel.getPropertySets(id);
         props.propertySets = psets;
-        console.log("Get properties: ", performance.now() - a);
         console.log(props);
     }
 }
 
-threeCanvas.ondblclick = getSpatialChildren;
+threeCanvas.ondblclick = selectItem;
 threeCanvas.onmousemove = preselectItem;
-
-function getSpatialChildren(event) {
-    // const ifcProjectID = ifcLoader.getAllItemsOfType(0, IFCPROJECT, false)[0];
-    // const ifcProject = { expressID: ifcProjectID, hasChildren: [], hasSpatialChildren: [] };
-    // ifcLoader.getAllSpatialChildren(0, ifcProject, false, true);
-    // console.log(ifcProject.hasSpatialChildren);
-
-    const a = performance.now();
-    const tree = ifcLoader.getSpatialStructure(0, false);
-    console.log(tree);
-    console.log("Spatial tree: ", performance.now() - a);
-
-    selectItem(event);
-}
 
 // let ifcProject;
 // let current = 0;

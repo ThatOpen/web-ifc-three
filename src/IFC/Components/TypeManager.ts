@@ -1,6 +1,10 @@
 import { IfcState, SelectedItems } from '../BaseDefinitions';
 import { IfcElements } from './IFCElementsMap'
 
+/**
+ * Contains the logic to manage the type (e. g. IfcWall, IfcWindow, IfcDoor) of
+ * all the items within an IFC file.
+ */
 export class TypeManager {
     private state: IfcState;
 
