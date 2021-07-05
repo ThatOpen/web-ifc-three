@@ -154,7 +154,7 @@ describe("IFCManager", () => {
         expect(spyRemoveSubset).toHaveBeenCalledWith(10, scene, material);
     });
 
-    test('removeSubset', () => {
+    test('createSubset', () => {
 
         const spyCreateSubset = jest.spyOn(SubsetManager.prototype, 'createSubset').mockImplementation();
 

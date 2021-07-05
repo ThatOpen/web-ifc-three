@@ -73,4 +73,23 @@ describe("PropertyManager", () => {
         expect(result).toEqual([100]);
     });
 
+    test('getPropertySets: recursive is false', () => {
+
+        const spyGetLine            = jest.spyOn(ifcAPI, 'GetLine').mockReturnValue(100);
+        const spyGetLineIDsWithType = mockAndSpyGetLineIDsWithType(ifcAPI);
+
+// ToDo
+
+        const result = propertyManager.getPropertySets(10, 4186316022, false);
+
+        expect(result).toEqual([])
+    });
+
+    test('getTypeProperties', () => {
+        // ToDo
+    });
+
+    test('getSpatialStructure', () => {
+        // ToDo
+    });
 })
