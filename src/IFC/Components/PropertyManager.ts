@@ -4,6 +4,9 @@ import { IfcElements } from './IFCElementsMap';
 import { IFCPROJECT } from 'web-ifc';
 import { BufferGeometry } from 'three';
 
+/**
+ * Contains the logic to get the properties of the items within an IFC model.
+ */
 export class PropertyManager {
     private state: IfcState;
 

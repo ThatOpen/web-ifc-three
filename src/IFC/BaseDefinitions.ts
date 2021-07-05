@@ -25,12 +25,15 @@ export const newIntAttr = (data: any[], size: number) => {
     return new BufferAttribute(new Uint32Array(data), size);
 };
 
-export type HighlightConfig = {
+export interface HighlightConfig {
     scene: Scene;
-    modelID: number;
     ids: number[];
     removePrevious: boolean;
     material?: Material;
+};
+
+export interface HighlightConfigOfModel extends HighlightConfig {
+    modelID: number;
 };
 
 export const DEFAULT = 'default';
