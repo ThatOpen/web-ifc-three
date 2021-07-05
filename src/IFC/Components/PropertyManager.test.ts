@@ -3,6 +3,16 @@ import {BufferAttribute, BufferGeometry} from "three";
 import * as WebIFC from "web-ifc";
 import {IdAttrName} from "../BaseDefinitions";
 import {mockAndSpyGetLineIDsWithType} from "../../../test/GetLineIDsWithType.mock";
+import {
+    IfcGloballyUniqueId,
+    IfcObjectDefinition,
+    IfcRelDefinesByProperties,
+    Handle,
+    IfcPropertySet,
+    IfcProperty, IfcWall
+} from "web-ifc";
+import {types} from "@babel/core";
+import {IfcPropertySetDefinitionSelect} from "web-ifc/ifc2x4_helper";
 
 describe("PropertyManager", () => {
 
@@ -73,20 +83,76 @@ describe("PropertyManager", () => {
         expect(result).toEqual([100]);
     });
 
-    test('getPropertySets: recursive is false', () => {
+    test('getPropertySets', () => {
 
-        const spyGetLine            = jest.spyOn(ifcAPI, 'GetLine').mockReturnValue(100);
+        const targetPropertySet = new IfcPropertySet(
+            100, 5, new IfcGloballyUniqueId('unique100'),
+            null, null, null,
+            [],
+        );
+
+        const spyGetLine            = jest.spyOn(ifcAPI, 'GetLine')
+            .mockImplementation((modelID: number, expressID: number, flatten?: boolean) => {
+                const mockedRelationList =  {
+                    10: {
+                        94: new IfcRelDefinesByProperties(
+                            94, 4186316022, new IfcGloballyUniqueId('unique94'),
+                            null, null, null,
+                            [new Handle(74)],
+                            new Handle(100),
+                        ),
+                        74: new IfcRelDefinesByProperties(
+                            74, 5, new IfcGloballyUniqueId('unique74'),
+                            null, null, null, [],
+                            new Handle(10),
+                        ),
+                        100: targetPropertySet,
+                    }
+                }
+
+                return mockedRelationList[modelID][expressID];
+            });
+
         const spyGetLineIDsWithType = mockAndSpyGetLineIDsWithType(ifcAPI);
 
-// ToDo
+        const result = propertyManager.getPropertySets(10, 74, false);
 
-        const result = propertyManager.getPropertySets(10, 4186316022, false);
-
-        expect(result).toEqual([])
+        expect(result).toEqual([targetPropertySet])
     });
 
     test('getTypeProperties', () => {
-        // ToDo
+        const targetPropertyType = new IfcWall(
+            100, 5, new IfcGloballyUniqueId('globalTestIdIfcRelDefinesByProperties100'),
+            null, null, null, null, null, null, null, null
+        );
+
+        const spyGetLine            = jest.spyOn(ifcAPI, 'GetLine')
+            .mockImplementation((modelID: number, expressID: number, flatten?: boolean) => {
+                const mockedRelationList =  {
+                    10: {
+                        94: new IfcRelDefinesByProperties(
+                            94, 4186316022, new IfcGloballyUniqueId('globalTestIdIfcRelDefinesByProperties94'),
+                            null, null, null,
+                            [new Handle(74)],
+                            new Handle(100),
+                        ),
+                        74: new IfcRelDefinesByProperties(
+                            74, 5, new IfcGloballyUniqueId('globalTestIdIfcRelDefinesByProperties74'),
+                            null, null, null, [],
+                            new Handle(10),
+                        ),
+                        100: targetPropertyType,
+                    }
+                }
+
+                return mockedRelationList[modelID][expressID];
+            });
+
+        const spyGetLineIDsWithType = mockAndSpyGetLineIDsWithType(ifcAPI);
+
+        const result = propertyManager.getPropertySets(10, 74, false);
+
+        expect(result).toEqual([targetPropertyType])
     });
 
     test('getSpatialStructure', () => {

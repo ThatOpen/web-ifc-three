@@ -1,10 +1,11 @@
 import * as WebIFC from "web-ifc";
+import {IfcGloballyUniqueId, IfcOwnerHistory, IfcRelDefinesByProperties} from "web-ifc";
 
 const mockedList = {
     10: {
         103090709: [25],
         4031249490: [29],
-        4186316022: [39]
+        4186316022: [94]
     }
 }
 
