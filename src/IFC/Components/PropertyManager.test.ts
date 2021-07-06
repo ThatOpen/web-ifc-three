@@ -122,7 +122,7 @@ describe("PropertyManager", () => {
 
     test('getTypeProperties', () => {
         const targetPropertyType = new IfcWall(
-            100, 5, new IfcGloballyUniqueId('globalTestIdIfcRelDefinesByProperties100'),
+            100, 5, new IfcGloballyUniqueId('unique100'),
             null, null, null, null, null, null, null, null
         );
 
@@ -131,13 +131,13 @@ describe("PropertyManager", () => {
                 const mockedRelationList =  {
                     10: {
                         94: new IfcRelDefinesByProperties(
-                            94, 4186316022, new IfcGloballyUniqueId('globalTestIdIfcRelDefinesByProperties94'),
+                            94, 4186316022, new IfcGloballyUniqueId('unique94'),
                             null, null, null,
                             [new Handle(74)],
                             new Handle(100),
                         ),
                         74: new IfcRelDefinesByProperties(
-                            74, 5, new IfcGloballyUniqueId('globalTestIdIfcRelDefinesByProperties74'),
+                            74, 5, new IfcGloballyUniqueId('unique74'),
                             null, null, null, [],
                             new Handle(10),
                         ),
