@@ -72,7 +72,12 @@ export class PropertyManager {
             const rel = this.state.api.GetLine(modelID, relation.get(i), false);
             const relating = rel[propNames.relating].value;
             const related = rel[propNames.related].map((r: any) => r.value);
-            chunks[relating] = related;
+            if(chunks[relating] == undefined){
+                chunks[relating] = related;
+            }
+            else{
+                 chunks[relating] = chunks[relating].concat(related);
+            }
         }
     }
 
