@@ -1,8 +1,7 @@
-
-import { IFCManager } from "./IFCManager";
-import { SubsetManager } from './SubsetManager';
-import { PropertyManager } from './PropertyManager';
-import { IFCParser } from "./IFCParser";
+import {IFCManager} from "./IFCManager";
+import {SubsetManager} from './SubsetManager';
+import {PropertyManager} from './PropertyManager';
+import {IFCParser} from "./IFCParser";
 import {HighlightConfig, IfcMesh} from "../BaseDefinitions";
 import * as WebIFC from "web-ifc";
 import {BufferGeometry, Material, Scene} from "three";

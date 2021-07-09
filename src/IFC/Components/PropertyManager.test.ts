@@ -1,18 +1,9 @@
 import {PropertyManager} from "./PropertyManager";
 import {BufferAttribute, BufferGeometry} from "three";
 import * as WebIFC from "web-ifc";
+import {Handle, IfcGloballyUniqueId, IfcPropertySet, IfcRelDefinesByProperties, IfcWall} from "web-ifc";
 import {IdAttrName} from "../BaseDefinitions";
 import {mockAndSpyGetLineIDsWithType} from "../../../test/GetLineIDsWithType.mock";
-import {
-    IfcGloballyUniqueId,
-    IfcObjectDefinition,
-    IfcRelDefinesByProperties,
-    Handle,
-    IfcPropertySet,
-    IfcProperty, IfcWall
-} from "web-ifc";
-import {types} from "@babel/core";
-import {IfcPropertySetDefinitionSelect} from "web-ifc/ifc2x4_helper";
 
 describe("PropertyManager", () => {
 
