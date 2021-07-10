@@ -5,4 +5,5 @@
       "declaration": true,
       "removeComments": false
     },
+    "exclude" : ["../src/**/*.test.ts"]
   }
