@@ -1,5 +1,4 @@
 //@ts-ignore
-import { computeBoundsTree, disposeBoundsTree, acceleratedRaycast } from 'three-mesh-bvh';
 import { PlacedGeometry, Color as ifcColor, IfcGeometry } from 'web-ifc';
 import {
     IfcState,
@@ -27,13 +26,12 @@ import {
 export class IFCParser {
     private state: IfcState;
     private currentID: number;
-    private idAttr: IdAttributesByMaterials;
-
+    private computeBoundsTree?: any;
+    private disposeBoundsTree?: any;
+    private acceleratedRaycast?: any;
     constructor(state: IfcState) {
         this.currentID = -1;
-        this.idAttr = {};
         this.state = state;
-        this.setupThreeMeshBVH();
     }
 
     async parse(buffer: any) {
@@ -42,17 +40,26 @@ export class IFCParser {
         return this.loadAllGeometry();
     }
 
+    initializeMeshBVH(computeBoundsTree: any, disposeBoundsTree: any, acceleratedRaycast: any) {
+        this.computeBoundsTree = computeBoundsTree;
+        this.disposeBoundsTree = disposeBoundsTree;
+        this.acceleratedRaycast = acceleratedRaycast;
+        this.setupThreeMeshBVH();
+    }
+
     private setupThreeMeshBVH() {
+        if (!this.computeBoundsTree || !this.disposeBoundsTree || !this.acceleratedRaycast) return;
         //@ts-ignore
-        BufferGeometry.prototype.computeBoundsTree = computeBoundsTree;
+        BufferGeometry.prototype.computeBoundsTree = this.computeBoundsTree;
         //@ts-ignore
-        BufferGeometry.prototype.disposeBoundsTree = disposeBoundsTree;
-        Mesh.prototype.raycast = acceleratedRaycast;
+        BufferGeometry.prototype.disposeBoundsTree = this.disposeBoundsTree;
+        Mesh.prototype.raycast = this.acceleratedRaycast;
     }
 
     private applyThreeMeshBVH(geometry: BufferGeometry) {
-        //@ts-ignore
-        geometry.computeBoundsTree();
+        if (this.computeBoundsTree)
+            //@ts-ignore
+            geometry.computeBoundsTree();
     }
 
     private newIfcModel(buffer: any) {
@@ -160,12 +167,12 @@ export class IFCParser {
         this.createMaterial(colorID, color);
         const item = this.state.models[this.currentID].items[colorID];
         const currentGeom = item.geometries[id];
-        if (!currentGeom) return item.geometries[id] = geom;
+        if (!currentGeom) return (item.geometries[id] = geom);
         const merged = merge([currentGeom, geom]);
         item.geometries[id] = merged;
     }
 
-    private storeGeometryAttribute(id: number, geometry: BufferGeometry){
+    private storeGeometryAttribute(id: number, geometry: BufferGeometry) {
         const size = geometry.attributes.position.count;
         const idAttribute = new Array(size).fill(id);
         geometry.setAttribute(IdAttrName, newIntAttr(idAttribute, 1));

@@ -1,5 +1,6 @@
 import { IFCLoader } from '../dist/IFCLoader';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
+import { computeBoundsTree, disposeBoundsTree, acceleratedRaycast } from 'three-mesh-bvh';
 import Stats from '../node_modules/stats.js/src/Stats';
 import {
     Scene,
@@ -62,6 +63,7 @@ function AnimationLoop() {
 }
 
 const ifcLoader = new IFCLoader();
+ifcLoader.ifcManager.setupThreeMeshBVH(computeBoundsTree, disposeBoundsTree, acceleratedRaycast);
 
 AnimationLoop();
 
@@ -169,6 +171,9 @@ function selectItem(event) {
         if (previousSelection != undefined && previousSelection.modelID != modelID)
             previousSelection.removeSubset(scene, preselectMaterial);
         previousSelection = ifcModel;
+
+        const tree = ifcModel.getSpatialStructure();
+        console.log(tree);
 
         ifcModel.createSubset({
             scene,

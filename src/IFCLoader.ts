@@ -3,7 +3,7 @@ import { FileLoader, Loader, LoadingManager } from 'three';
 import { IFCModel } from './IFC/Components/IFCModel';
 
 class IFCLoader extends Loader {
-    private ifcManager: IFCManager;
+    ifcManager: IFCManager;
 
     constructor(manager?: LoadingManager) {
         super(manager);

@@ -28,6 +28,10 @@ export class IFCManager {
         this.state.api.SetWasmPath(path);
     }
 
+    setupThreeMeshBVH(computeBoundsTree: any, disposeBoundsTree: any, acceleratedRaycast: any ){
+        this.parser.initializeMeshBVH(computeBoundsTree, disposeBoundsTree, acceleratedRaycast);
+    }
+
     close(modelID: number, scene?: Scene) {
         this.state.api.CloseModel(modelID);
         if (scene) scene.remove(this.state.models[modelID].mesh);
