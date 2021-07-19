@@ -12,7 +12,7 @@ import {
     AmbientLight,
     Raycaster,
     Vector2,
-    MeshLambertMaterial
+    MeshLambertMaterial, MeshPhongMaterial
 } from 'three';
 
 //Scene
@@ -81,6 +81,20 @@ const ifcModels = [];
     );
 })();
 
+const preselectMaterial = new MeshLambertMaterial({
+    color: 0xffccff,
+    transparent: true,
+    opacity: 0.5,
+    depthTest: false
+});
+
+const selectMaterial = new MeshLambertMaterial({
+    color: 0xff00ff,
+    transparent: true,
+    opacity: 0.4,
+    depthTest: false
+});
+
 async function loadIFC(changed) {
     var ifcURL = URL.createObjectURL(changed.target.files[0]);
     const ifcModel = await ifcLoader.loadAsync(ifcURL);
@@ -108,13 +122,6 @@ function castRay(event) {
     return raycaster.intersectObjects(geometries);
 }
 
-const preselectMaterial = new MeshLambertMaterial({
-    color: 0xffccff,
-    transparent: true,
-    opacity: 0.5,
-    depthTest: false
-});
-
 let previousPreselectedFace;
 let previousPreselection;
 
@@ -140,16 +147,9 @@ function preselectItem(event) {
             ids: [id],
             removePrevious: true,
             material: preselectMaterial
-        });
+        })
     }
 }
-
-const selectMaterial = new MeshLambertMaterial({
-    color: 0xff00ff,
-    transparent: true,
-    opacity: 0.4,
-    depthTest: false
-});
 
 let previousSelectedFace;
 let previousSelection;

@@ -47,7 +47,7 @@ export class SubsetManager {
         const filtered = this.filter(config);
         const { geomsByMaterial, materials } = this.getGeomAndMat(filtered);
         const hasDefaultMaterial = this.matID(config) == DEFAULT;
-        const geometry = merge(geomsByMaterial, hasDefaultMaterial);
+        const geometry = this.getMergedGeometry(geomsByMaterial, hasDefaultMaterial);
         const mats = hasDefaultMaterial ? materials : config.material;
         //@ts-ignore
         const mesh = new Mesh(geometry, mats);
@@ -56,6 +56,12 @@ export class SubsetManager {
         mesh.modelID = config.modelID;
         config.scene.add(mesh);
         return mesh;
+    }
+
+    private getMergedGeometry(geomsByMaterial: BufferGeometry[], hasDefaultMaterial: boolean){
+        return geomsByMaterial.length > 0
+            ? merge(geomsByMaterial, hasDefaultMaterial)
+            : new BufferGeometry();
     }
 
     private isConfigValid(config: HighlightConfigOfModel) {
@@ -118,6 +124,7 @@ export class SubsetManager {
     private addToPreviousSelection(config: HighlightConfigOfModel) {
         const previous = this.selected[this.matID(config)];
         const filtered = this.filter(config);
+        //@ts-ignore
         // prettier-ignore
         const geometries = Object.values(filtered).map((i) => Object.values(i.geometries)).flat();
         const previousGeom = previous.mesh.geometry;
