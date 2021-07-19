@@ -142,7 +142,6 @@ export class IFCModel extends Group {
      * Creates a new geometric subset.
      * @config A configuration object with the following options:
      * - **scene**: the scene where the model is located.
-     * - **modelID**: the ID of the model.
      * - **ids**: the IDs of the items of the model that will conform the subset.
      * - **removePrevious**: wether to remove the previous subset of this model with this material.
      * - **material**: (optional) wether to apply a material to the subset
