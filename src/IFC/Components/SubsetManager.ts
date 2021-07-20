@@ -30,7 +30,7 @@ export class SubsetManager {
     removeSubset(modelID: number, scene?: Scene, material?: Material) {
         const currentMat = this.matIDNoConfig(modelID, material);
         if (!this.selected[currentMat]) return;
-        if(scene) scene.remove(this.selected[currentMat].mesh);
+        if (scene) scene.remove(this.selected[currentMat].mesh);
         delete this.selected[currentMat];
     }
 
@@ -57,7 +57,7 @@ export class SubsetManager {
         return mesh;
     }
 
-    private getMergedGeometry(geomsByMaterial: BufferGeometry[], hasDefaultMaterial: boolean){
+    private getMergedGeometry(geomsByMaterial: BufferGeometry[], hasDefaultMaterial: boolean) {
         return geomsByMaterial.length > 0
             ? merge(geomsByMaterial, hasDefaultMaterial)
             : new BufferGeometry();
@@ -155,19 +155,21 @@ export class SubsetManager {
 
     private isEasySelection(config: HighlightConfigOfModel) {
         const matID = this.matID(config);
-        const isNotDefault = matID !== DEFAULT;
+        const def = this.matIDNoConfig(config.modelID);
+        const isNotDefault = matID !== def;
         if (!config.removePrevious && isNotDefault && this.selected[matID]) return true;
     }
 
     private matID(config: HighlightConfigOfModel) {
-        if (!config.material) return DEFAULT;
-        const name = config.material.uuid || DEFAULT;
-        return name.concat(" - ").concat(config.modelID.toString())
+        let name;
+        if (!config.material) name = DEFAULT;
+        else name = config.material.uuid || DEFAULT;
+        return name.concat(' - ').concat(config.modelID.toString());
     }
 
     private matIDNoConfig(modelID: number, material?: Material) {
         let name = DEFAULT;
-        if(material) name = material.uuid;
-        return name.concat(" - ").concat(modelID.toString())
+        if (material) name = material.uuid;
+        return name.concat(' - ').concat(modelID.toString());
     }
 }
