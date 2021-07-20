@@ -15,11 +15,10 @@ import {
  */
 export class SubsetManager {
     private state: IfcState;
-    private selected: SelectedItems;
+    private readonly selected: SelectedItems = {};
 
     constructor(state: IfcState) {
         this.state = state;
-        this.selected = {};
     }
 
     getSubset(modelID: number, material?: Material) {
@@ -124,7 +123,7 @@ export class SubsetManager {
     private addToPreviousSelection(config: HighlightConfigOfModel) {
         const previous = this.selected[this.matID(config)];
         const filtered = this.filter(config);
-        //@ts-ignore
+        // @ts-ignore
         // prettier-ignore
         const geometries = Object.values(filtered).map((i) => Object.values(i.geometries)).flat();
         const previousGeom = previous.mesh.geometry;
@@ -156,8 +155,8 @@ export class SubsetManager {
 
     private isEasySelection(config: HighlightConfigOfModel) {
         const matID = this.matID(config);
-        const def = this.matIDNoConfig(config.modelID);
-        if (!config.removePrevious && matID != def && this.selected[matID]) return true;
+        const isNotDefault = matID !== DEFAULT;
+        if (!config.removePrevious && isNotDefault && this.selected[matID]) return true;
     }
 
     private matID(config: HighlightConfigOfModel) {
