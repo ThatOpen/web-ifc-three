@@ -45,8 +45,9 @@ export class SubsetManager {
     private createSelectionInScene(config: HighlightConfigOfModel) {
         const filtered = this.filter(config);
         const { geomsByMaterial, materials } = this.getGeomAndMat(filtered);
-        const geometry = this.getMergedGeometry(geomsByMaterial, hasDefaultMaterial);
-        const mats = this.isDefaultMat(config) ? materials : config.material;
+        const isDefMaterial = this.isDefaultMat(config);
+        const geometry = this.getMergedGeometry(geomsByMaterial, isDefMaterial);
+        const mats = isDefMaterial ? materials : config.material;
         //@ts-ignore
         const mesh = new Mesh(geometry, mats);
         this.selected[this.matID(config)].mesh = mesh;

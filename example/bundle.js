@@ -66383,9 +66383,9 @@ class SubsetManager {
   createSelectionInScene(config) {
     const filtered = this.filter(config);
     const {geomsByMaterial, materials} = this.getGeomAndMat(filtered);
-    const hasDefaultMaterial = this.matID(config) == DEFAULT;
-    const geometry = this.getMergedGeometry(geomsByMaterial, hasDefaultMaterial);
-    const mats = hasDefaultMaterial ? materials : config.material;
+    const isDefMaterial = this.isDefaultMat(config);
+    const geometry = this.getMergedGeometry(geomsByMaterial, isDefMaterial);
+    const mats = isDefMaterial ? materials : config.material;
     const mesh = new Mesh(geometry, mats);
     this.selected[this.matID(config)].mesh = mesh;
     mesh.modelID = config.modelID;
@@ -66497,10 +66497,12 @@ class SubsetManager {
 
   isEasySelection(config) {
     const matID = this.matID(config);
-    const def = this.matIDNoConfig(config.modelID);
-    const isNotDefault = matID !== def;
-    if (!config.removePrevious && isNotDefault && this.selected[matID])
+    if (!config.removePrevious && !this.isDefaultMat(config) && this.selected[matID])
       return true;
+  }
+
+  isDefaultMat(config) {
+    return this.matIDNoConfig(config.modelID) === this.matID(config);
   }
 
   matID(config) {
@@ -71948,7 +71950,6 @@ async function loadIFC(changed) {
     var ifcURL = URL.createObjectURL(changed.target.files[0]);
     const ifcModel = await ifcLoader.loadAsync(ifcURL);
     ifcModels.push(ifcModel);
-    ifcModel.mesh.material = [new MeshLambertMaterial({transparent: true, opacity: 0.1})];
     scene.add(ifcModel.mesh);
 }
 
@@ -71995,7 +71996,8 @@ function preselectItem(event) {
         ifcModel.createSubset({
             scene,
             ids: [id],
-            removePrevious: false,
+            removePrevious: true,
+            material: preselectMaterial
         });
     }
 }
