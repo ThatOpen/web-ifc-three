@@ -62066,174 +62066,6 @@ LineSegments.prototype.isLineSegments = true;
 /**
  * parameters = {
  *  color: <hex>,
- *  specular: <hex>,
- *  shininess: <float>,
- *  opacity: <float>,
- *
- *  map: new THREE.Texture( <Image> ),
- *
- *  lightMap: new THREE.Texture( <Image> ),
- *  lightMapIntensity: <float>
- *
- *  aoMap: new THREE.Texture( <Image> ),
- *  aoMapIntensity: <float>
- *
- *  emissive: <hex>,
- *  emissiveIntensity: <float>
- *  emissiveMap: new THREE.Texture( <Image> ),
- *
- *  bumpMap: new THREE.Texture( <Image> ),
- *  bumpScale: <float>,
- *
- *  normalMap: new THREE.Texture( <Image> ),
- *  normalMapType: THREE.TangentSpaceNormalMap,
- *  normalScale: <Vector2>,
- *
- *  displacementMap: new THREE.Texture( <Image> ),
- *  displacementScale: <float>,
- *  displacementBias: <float>,
- *
- *  specularMap: new THREE.Texture( <Image> ),
- *
- *  alphaMap: new THREE.Texture( <Image> ),
- *
- *  envMap: new THREE.CubeTexture( [posx, negx, posy, negy, posz, negz] ),
- *  combine: THREE.MultiplyOperation,
- *  reflectivity: <float>,
- *  refractionRatio: <float>,
- *
- *  wireframe: <boolean>,
- *  wireframeLinewidth: <float>,
- *
- *  skinning: <bool>,
- *  morphTargets: <bool>,
- *  morphNormals: <bool>,
- *
- *  flatShading: <bool>
- * }
- */
-
-class MeshPhongMaterial extends Material {
-
-	constructor( parameters ) {
-
-		super();
-
-		this.type = 'MeshPhongMaterial';
-
-		this.color = new Color( 0xffffff ); // diffuse
-		this.specular = new Color( 0x111111 );
-		this.shininess = 30;
-
-		this.map = null;
-
-		this.lightMap = null;
-		this.lightMapIntensity = 1.0;
-
-		this.aoMap = null;
-		this.aoMapIntensity = 1.0;
-
-		this.emissive = new Color( 0x000000 );
-		this.emissiveIntensity = 1.0;
-		this.emissiveMap = null;
-
-		this.bumpMap = null;
-		this.bumpScale = 1;
-
-		this.normalMap = null;
-		this.normalMapType = TangentSpaceNormalMap;
-		this.normalScale = new Vector2( 1, 1 );
-
-		this.displacementMap = null;
-		this.displacementScale = 1;
-		this.displacementBias = 0;
-
-		this.specularMap = null;
-
-		this.alphaMap = null;
-
-		this.envMap = null;
-		this.combine = MultiplyOperation;
-		this.reflectivity = 1;
-		this.refractionRatio = 0.98;
-
-		this.wireframe = false;
-		this.wireframeLinewidth = 1;
-		this.wireframeLinecap = 'round';
-		this.wireframeLinejoin = 'round';
-
-		this.skinning = false;
-		this.morphTargets = false;
-		this.morphNormals = false;
-
-		this.flatShading = false;
-
-		this.setValues( parameters );
-
-	}
-
-	copy( source ) {
-
-		super.copy( source );
-
-		this.color.copy( source.color );
-		this.specular.copy( source.specular );
-		this.shininess = source.shininess;
-
-		this.map = source.map;
-
-		this.lightMap = source.lightMap;
-		this.lightMapIntensity = source.lightMapIntensity;
-
-		this.aoMap = source.aoMap;
-		this.aoMapIntensity = source.aoMapIntensity;
-
-		this.emissive.copy( source.emissive );
-		this.emissiveMap = source.emissiveMap;
-		this.emissiveIntensity = source.emissiveIntensity;
-
-		this.bumpMap = source.bumpMap;
-		this.bumpScale = source.bumpScale;
-
-		this.normalMap = source.normalMap;
-		this.normalMapType = source.normalMapType;
-		this.normalScale.copy( source.normalScale );
-
-		this.displacementMap = source.displacementMap;
-		this.displacementScale = source.displacementScale;
-		this.displacementBias = source.displacementBias;
-
-		this.specularMap = source.specularMap;
-
-		this.alphaMap = source.alphaMap;
-
-		this.envMap = source.envMap;
-		this.combine = source.combine;
-		this.reflectivity = source.reflectivity;
-		this.refractionRatio = source.refractionRatio;
-
-		this.wireframe = source.wireframe;
-		this.wireframeLinewidth = source.wireframeLinewidth;
-		this.wireframeLinecap = source.wireframeLinecap;
-		this.wireframeLinejoin = source.wireframeLinejoin;
-
-		this.skinning = source.skinning;
-		this.morphTargets = source.morphTargets;
-		this.morphNormals = source.morphNormals;
-
-		this.flatShading = source.flatShading;
-
-		return this;
-
-	}
-
-}
-
-MeshPhongMaterial.prototype.isMeshPhongMaterial = true;
-
-/**
- * parameters = {
- *  color: <hex>,
  *  opacity: <float>,
  *
  *  map: new THREE.Texture( <Image> ),
@@ -66517,8 +66349,8 @@ class IFCParser {
 class SubsetManager {
 
   constructor(state) {
-    this.state = state;
     this.selected = {};
+    this.state = state;
   }
 
   getSubset(modelID, material) {
@@ -66639,12 +66471,13 @@ class SubsetManager {
   }
 
   filter(config) {
+    const ids = this.selected[this.matID(config)].ids;
     const items = this.state.models[config.modelID].items;
     const filtered = {};
     for (let matID in items) {
       filtered[matID] = {
         material: items[matID].material,
-        geometries: this.filterGeometries(new Set(config.ids), items[matID].geometries)
+        geometries: this.filterGeometries(ids, items[matID].geometries)
       };
     }
     return filtered;
@@ -66665,22 +66498,25 @@ class SubsetManager {
   isEasySelection(config) {
     const matID = this.matID(config);
     const def = this.matIDNoConfig(config.modelID);
-    if (!config.removePrevious && matID != def && this.selected[matID])
+    const isNotDefault = matID !== def;
+    if (!config.removePrevious && isNotDefault && this.selected[matID])
       return true;
   }
 
   matID(config) {
+    let name;
     if (!config.material)
-      return DEFAULT;
-    const name = config.material.uuid || DEFAULT;
-    return name.concat(" - ").concat(config.modelID.toString());
+      name = DEFAULT;
+    else
+      name = config.material.uuid || DEFAULT;
+    return name.concat(' - ').concat(config.modelID.toString());
   }
 
   matIDNoConfig(modelID, material) {
     let name = DEFAULT;
     if (material)
       name = material.uuid;
-    return name.concat(" - ").concat(modelID.toString());
+    return name.concat(' - ').concat(modelID.toString());
   }
 
 }
@@ -72112,24 +71948,8 @@ async function loadIFC(changed) {
     var ifcURL = URL.createObjectURL(changed.target.files[0]);
     const ifcModel = await ifcLoader.loadAsync(ifcURL);
     ifcModels.push(ifcModel);
+    ifcModel.mesh.material = [new MeshLambertMaterial({transparent: true, opacity: 0.1})];
     scene.add(ifcModel.mesh);
-    ifcModel.mesh.material = new MeshPhongMaterial({transparent: true, opacity: 0.3});
-    const ifcProject = ifcLoader.ifcManager.getSpatialStructure(0);
-    console.log(ifcProject);
-    ifcLoader.ifcManager.createSubset({
-        scene,
-        modelID: 0,
-        ids: [ifcProject.expressID, 186],
-        removePrevious: true,
-        material: selectMaterial
-    });
-    ifcLoader.ifcManager.createSubset({
-        scene,
-        modelID: 0,
-        ids: [294],
-        removePrevious: false,
-        material: selectMaterial
-    });
 }
 
 const closer = document.getElementById('close-button');
@@ -72175,8 +71995,7 @@ function preselectItem(event) {
         ifcModel.createSubset({
             scene,
             ids: [id],
-            removePrevious: true,
-            material: preselectMaterial
+            removePrevious: false,
         });
     }
 }

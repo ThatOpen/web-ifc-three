@@ -99,6 +99,7 @@ async function loadIFC(changed) {
     var ifcURL = URL.createObjectURL(changed.target.files[0]);
     const ifcModel = await ifcLoader.loadAsync(ifcURL);
     ifcModels.push(ifcModel);
+    ifcModel.mesh.material = [new MeshLambertMaterial({transparent: true, opacity: 0.1})];
     scene.add(ifcModel.mesh);
 }
 
@@ -145,8 +146,7 @@ function preselectItem(event) {
         ifcModel.createSubset({
             scene,
             ids: [id],
-            removePrevious: true,
-            material: preselectMaterial
+            removePrevious: false,
         })
     }
 }

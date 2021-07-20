@@ -45,9 +45,8 @@ export class SubsetManager {
     private createSelectionInScene(config: HighlightConfigOfModel) {
         const filtered = this.filter(config);
         const { geomsByMaterial, materials } = this.getGeomAndMat(filtered);
-        const hasDefaultMaterial = this.matID(config) == DEFAULT;
         const geometry = this.getMergedGeometry(geomsByMaterial, hasDefaultMaterial);
-        const mats = hasDefaultMaterial ? materials : config.material;
+        const mats = this.isDefaultMat(config) ? materials : config.material;
         //@ts-ignore
         const mesh = new Mesh(geometry, mats);
         this.selected[this.matID(config)].mesh = mesh;
@@ -132,12 +131,13 @@ export class SubsetManager {
     }
 
     private filter(config: HighlightConfigOfModel) {
+        const ids = this.selected[this.matID(config)].ids;
         const items = this.state.models[config.modelID].items;
         const filtered: GeometriesByMaterials = {};
         for (let matID in items) {
             filtered[matID] = {
                 material: items[matID].material,
-                geometries: this.filterGeometries(new Set(config.ids), items[matID].geometries)
+                geometries: this.filterGeometries(ids, items[matID].geometries)
             };
         }
         return filtered;
@@ -155,9 +155,11 @@ export class SubsetManager {
 
     private isEasySelection(config: HighlightConfigOfModel) {
         const matID = this.matID(config);
-        const def = this.matIDNoConfig(config.modelID);
-        const isNotDefault = matID !== def;
-        if (!config.removePrevious && isNotDefault && this.selected[matID]) return true;
+        if (!config.removePrevious && !this.isDefaultMat(config) && this.selected[matID]) return true;
+    }
+
+    private isDefaultMat(config: HighlightConfigOfModel) {
+        return this.matIDNoConfig(config.modelID) === this.matID(config);
     }
 
     private matID(config: HighlightConfigOfModel) {
