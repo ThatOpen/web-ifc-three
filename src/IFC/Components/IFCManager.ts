@@ -7,14 +7,16 @@ import { TypeManager } from './TypeManager';
 import { HighlightConfigOfModel, IfcState } from '../BaseDefinitions';
 import { BufferGeometry, Material, Scene } from 'three';
 import { IFCModel } from './IFCModel';
+import { BvhManager } from './BvhManager';
 
 /**
  * Contains all the logic to work with the loaded IFC files (select, edit, etc).
  */
 export class IFCManager {
     private state: IfcState = { models: [], api: new WebIFC.IfcAPI() };
-    private parser = new IFCParser(this.state);
-    private subsets = new SubsetManager(this.state);
+    private BVH = new BvhManager();
+    private parser = new IFCParser(this.state, this.BVH);
+    private subsets = new SubsetManager(this.state, this.BVH);
     private properties = new PropertyManager(this.state);
     private types = new TypeManager(this.state);
 
@@ -50,7 +52,7 @@ export class IFCManager {
      * Import these objects from his library and pass them as arguments. We'll take care of the rest!
      */
     setupThreeMeshBVH(computeBoundsTree: any, disposeBoundsTree: any, acceleratedRaycast: any ){
-        this.parser.initializeMeshBVH(computeBoundsTree, disposeBoundsTree, acceleratedRaycast);
+        this.BVH.initializeMeshBVH(computeBoundsTree, disposeBoundsTree, acceleratedRaycast);
     }
 
     /**

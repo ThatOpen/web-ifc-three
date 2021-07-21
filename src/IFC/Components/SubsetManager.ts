@@ -8,6 +8,7 @@ import {
     DEFAULT,
     HighlightConfigOfModel
 } from '../BaseDefinitions';
+import { BvhManager } from './BvhManager';
 
 /**
  * Contains the logic to get, create and delete geometric subsets of an IFC model. For example,
@@ -15,10 +16,12 @@ import {
  */
 export class SubsetManager {
     private state: IfcState;
+    private BVH: BvhManager;
     private readonly selected: SelectedItems = {};
 
-    constructor(state: IfcState) {
+    constructor(state: IfcState, BVH: BvhManager) {
         this.state = state;
+        this.BVH = BVH;
     }
 
     getSubset(modelID: number, material?: Material) {
@@ -48,6 +51,7 @@ export class SubsetManager {
         const isDefMaterial = this.isDefaultMat(config);
         const geometry = this.getMergedGeometry(geomsByMaterial, isDefMaterial);
         const mats = isDefMaterial ? materials : config.material;
+        this.BVH.applyThreeMeshBVH(geometry);
         //@ts-ignore
         const mesh = new Mesh(geometry, mats);
         this.selected[this.matID(config)].mesh = mesh;

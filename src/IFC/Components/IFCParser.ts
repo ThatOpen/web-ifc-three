@@ -19,47 +19,26 @@ import {
     BufferAttribute,
     Material
 } from 'three';
+import { BvhManager } from './BvhManager';
 
 /**
  * Reads all the geometry of the IFC file and generates an optimized `THREE.Mesh`.
  */
 export class IFCParser {
     private state: IfcState;
+    private BVH: BvhManager;
     private currentID: number;
-    private computeBoundsTree?: any;
-    private disposeBoundsTree?: any;
-    private acceleratedRaycast?: any;
-    constructor(state: IfcState) {
+
+    constructor(state: IfcState, BVH: BvhManager) {
         this.currentID = -1;
         this.state = state;
+        this.BVH = BVH;
     }
 
     async parse(buffer: any) {
         if (this.state.api.wasmModule === undefined) await this.state.api.Init();
         this.currentID = this.newIfcModel(buffer);
         return this.loadAllGeometry();
-    }
-
-    initializeMeshBVH(computeBoundsTree: any, disposeBoundsTree: any, acceleratedRaycast: any) {
-        this.computeBoundsTree = computeBoundsTree;
-        this.disposeBoundsTree = disposeBoundsTree;
-        this.acceleratedRaycast = acceleratedRaycast;
-        this.setupThreeMeshBVH();
-    }
-
-    private setupThreeMeshBVH() {
-        if (!this.computeBoundsTree || !this.disposeBoundsTree || !this.acceleratedRaycast) return;
-        //@ts-ignore
-        BufferGeometry.prototype.computeBoundsTree = this.computeBoundsTree;
-        //@ts-ignore
-        BufferGeometry.prototype.disposeBoundsTree = this.disposeBoundsTree;
-        Mesh.prototype.raycast = this.acceleratedRaycast;
-    }
-
-    private applyThreeMeshBVH(geometry: BufferGeometry) {
-        if (this.computeBoundsTree)
-            //@ts-ignore
-            geometry.computeBoundsTree();
     }
 
     private newIfcModel(buffer: any) {
@@ -76,7 +55,7 @@ export class IFCParser {
 
     private generateAllGeometriesByMaterial() {
         const { geometry, materials } = this.getGeometryAndMaterials();
-        this.applyThreeMeshBVH(geometry);
+        this.BVH.applyThreeMeshBVH(geometry);
         const mesh = new Mesh(geometry, materials) as IfcMesh;
         mesh.modelID = this.currentID;
         this.state.models[this.currentID].mesh = mesh;
