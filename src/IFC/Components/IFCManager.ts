@@ -39,9 +39,7 @@ export class IFCManager {
      * IFC.js assumes that you are serving it in the root directory.
      *
      * Example if web-ifc.wasm is in dist/wasmDir:
-     * ```js
-     * ifcLoader.setWasmPath("dist/wasmDir/");
-     * ```
+     * `ifcLoader.setWasmPath("dist/wasmDir/");`
      *
      * @path Relative path to web-ifc.wasm.
      */
