@@ -8,6 +8,7 @@ import { HighlightConfigOfModel, IfcState } from '../BaseDefinitions';
 import { BufferGeometry, Material, Scene } from 'three';
 import { IFCModel } from './IFCModel';
 import { BvhManager } from './BvhManager';
+import { ItemsHider } from './ItemsHider';
 
 /**
  * Contains all the logic to work with the loaded IFC files (select, edit, etc).
@@ -19,10 +20,12 @@ export class IFCManager {
     private subsets = new SubsetManager(this.state, this.BVH);
     private properties = new PropertyManager(this.state);
     private types = new TypeManager(this.state);
+    private hider = new ItemsHider(this.state);
 
     async parse(buffer: ArrayBuffer) {
         const mesh = await this.parser.parse(buffer);
         this.types.getAllTypes();
+        this.hider.processCoordinates(mesh.modelID);
         return new IFCModel(mesh, this);
     }
 
@@ -40,7 +43,7 @@ export class IFCManager {
      * ifcLoader.setWasmPath("dist/wasmDir/");
      * ```
      *
-     * @path The relative path to web-ifc.wasm.
+     * @path Relative path to web-ifc.wasm.
      */
     setWasmPath(path: string) {
         this.state.api.SetWasmPath(path);
@@ -49,16 +52,16 @@ export class IFCManager {
     /**
      * Makes object picking a lot faster
      * Courtesy of gkjohnson's [work](https://github.com/gkjohnson/three-mesh-bvh).
-     * Import these objects from his library and pass them as arguments. We'll take care of the rest!
+     * Import these objects from his library and pass them as arguments. IFC.js takes care of the rest!
      */
     setupThreeMeshBVH(computeBoundsTree: any, disposeBoundsTree: any, acceleratedRaycast: any ){
         this.BVH.initializeMeshBVH(computeBoundsTree, disposeBoundsTree, acceleratedRaycast);
     }
 
     /**
-     * Closes the specified model and deletes it from the scene.
+     * Closes the specified model and deletes it from the [scene](https://threejs.org/docs/#api/en/scenes/Scene).
      * @modelID ID of the IFC model.
-     * @scene The scene where the model is (if it's located in a scene).
+     * @scene Scene where the model is (if it's located in a scene).
      */
     close(modelID: number, scene?: Scene) {
         this.state.api.CloseModel(modelID);
@@ -96,7 +99,7 @@ export class IFCManager {
     /**
      * Gets the native properties of the given element.
      * @modelID ID of the IFC model.
-     * @id The express ID of the element.
+     * @id Express ID of the element.
      * @recursive Wether you want to get the information of the referenced elements recursively.
      */
     getItemProperties(modelID: number, id: number, recursive = false) {
@@ -107,7 +110,7 @@ export class IFCManager {
      * Gets the [property sets](https://standards.buildingsmart.org/IFC/DEV/IFC4_2/FINAL/HTML/schema/ifckernel/lexical/ifcpropertyset.htm)
      * assigned to the given element.
      * @modelID ID of the IFC model.
-     * @id The express ID of the element.
+     * @id Express ID of the element.
      * @recursive If true, this gets the native properties of the referenced elements recursively.
      */
     getPropertySets(modelID: number, id: number, recursive = false) {
@@ -119,7 +122,7 @@ export class IFCManager {
      * For example, if applied to a wall (IfcWall), this would get back the information
      * contained in the IfcWallType assigned to it, if any.
      * @modelID ID of the IFC model.
-     * @id The express ID of the element.
+     * @id Express ID of the element.
      * @recursive If true, this gets the native properties of the referenced elements recursively.
      */
     getTypeProperties(modelID: number, id: number, recursive = false) {
@@ -129,7 +132,7 @@ export class IFCManager {
     /**
      * Gets the ifc type of the specified item.
      * @modelID ID of the IFC model.
-     * @id The express ID of the element.
+     * @id Express ID of the element.
      */
     getIfcType(modelID: number, id: number) {
         const typeID = this.state.models[modelID].types[id];
@@ -151,9 +154,10 @@ export class IFCManager {
     }
 
     /**
-     * Gets the mesh of the specified subset.
+     * Gets the mesh of the subset with the specified [material](https://threejs.org/docs/#api/en/materials/Material).
+     * If no material is given, this returns the subset with the original materials.
      * @modelID ID of the IFC model.
-     * @material The material assigned to the subset, if any.
+     * @material Material assigned to the subset (if any).
      */
     getSubset(modelID: number, material?: Material) {
         return this.subsets.getSubset(modelID, material);
@@ -162,8 +166,8 @@ export class IFCManager {
     /**
      * Removes the specified subset.
      * @modelID ID of the IFC model.
-     * @scene The scene where the subset is.
-     * @material The material assigned to the subset, if any.
+     * @scene Scene where the subset is.
+     * @material Material assigned to the subset, if any.
      */
     removeSubset(modelID: number, scene?: Scene, material?: Material) {
         this.subsets.removeSubset(modelID, scene, material);
@@ -172,13 +176,47 @@ export class IFCManager {
     /**
      * Creates a new geometric subset.
      * @config A configuration object with the following options:
-     * - **scene**: the scene where the model is located.
-     * - **modelID**: the ID of the model.
-     * - **ids**: the IDs of the items of the model that will conform the subset.
+     * - **scene**: Scene where the model is located.
+     * - **modelID**: ID of the model.
+     * - **ids**: Express IDs of the items of the model that will conform the subset.
      * - **removePrevious**: wether to remove the previous subset of this model with this material.
      * - **material**: (optional) wether to apply a material to the subset
      */
     createSubset(config: HighlightConfigOfModel) {
         return this.subsets.createSubset(config);
+    }
+
+    /**
+     * Hides the selected items in the specified model
+     * @modelID ID of the IFC model.
+     * @ids Express ID of the elements.
+     */
+    hideItems(modelID: number, ids: number[]) {
+        this.hider.hideItems(modelID, ids);
+    }
+
+    /**
+     * Hides all the items of the specified model
+     * @modelID ID of the IFC model.
+     */
+    hideAllItems(modelID: number) {
+        this.hider.hideAllItems(modelID);
+    }
+
+    /**
+     * Shows all the items of the specified model
+     * @modelID ID of the IFC model.
+     * @ids Express ID of the elements.
+     */
+    showItems(modelID: number, ids: number[]) {
+        this.hider.showItems(modelID, ids);
+    }
+
+    /**
+     * Shows all the items of the specified model
+     * @modelID ID of the IFC model.
+     */
+    showAllItems(modelID: number) {
+        this.hider.showAllItems(modelID);
     }
 }

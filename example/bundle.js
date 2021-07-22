@@ -30478,7 +30478,6 @@ class ThreeScene {
     }
 
     setupBasics() {
-        console.log(window);
         this.scene.background = new Color(0x8cc7de);
         this.renderer.setSize(window.innerWidth, window.innerHeight);
         this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
@@ -68076,7 +68075,7 @@ class SubsetManager {
   }
 
   filterGeometries(selectedIDs, geometries) {
-    const ids = Array. from (selectedIDs);
+    const ids = Array.from(selectedIDs);
     return Object.keys(geometries)
       .filter((key) => ids.includes(parseInt(key, 10)))
       .reduce((obj, key) => {
@@ -68502,6 +68501,88 @@ class BvhManager {
 
 }
 
+class ItemsHider {
+
+  constructor(state) {
+    this.modelCoordinates = {};
+    this.expressIDCoordinatesMap = {};
+    this.state = state;
+  }
+
+  ;
+
+  processCoordinates(modelID) {
+    const attributes = this.getAttributes(modelID);
+    const ids = Array. from (attributes.expressID.array);
+    this.expressIDCoordinatesMap[modelID] = {};
+    for (let i = 0; i < ids.length; i++) {
+      if (!this.expressIDCoordinatesMap[modelID][ids[i]]) {
+        this.expressIDCoordinatesMap[modelID][ids[i]] = [];
+      }
+      const current = this.expressIDCoordinatesMap[modelID];
+      current[ids[i]].push(3 * i);
+    }
+    this.initializeCoordinates(modelID);
+  }
+
+  hideItems(modelID, ids) {
+    this.editCoordinates(modelID, ids, true);
+  }
+
+  showItems(modelID, ids) {
+    this.editCoordinates(modelID, ids, false);
+  }
+
+  editCoordinates(modelID, ids, hide) {
+    const current = this.expressIDCoordinatesMap[modelID];
+    const indices = [];
+    ids.forEach((id) => {
+      if (current[id])
+        indices.push(...current[id]);
+    });
+    const coords = this.getCoordinates(modelID);
+    const initial = this.modelCoordinates[modelID];
+    if (hide)
+      indices.forEach(i => coords.set([0, 0, 0], i));
+    else
+      indices.forEach(i => coords.set([initial[i], initial[i + 1], initial[i + 2]], i));
+    this.getAttributes(modelID).position.needsUpdate = true;
+  }
+
+  showAllItems(modelID) {
+    if (this.modelCoordinates[modelID]) {
+      this.resetCoordinates(modelID);
+      this.getAttributes(modelID).position.needsUpdate = true;
+    }
+  }
+
+  hideAllItems(modelID) {
+    this.getCoordinates(modelID).fill(0);
+    this.getAttributes(modelID).position.needsUpdate = true;
+  }
+
+  initializeCoordinates(modelID) {
+    const coordinates = this.getCoordinates(modelID);
+    if (!this.modelCoordinates[modelID]) {
+      this.modelCoordinates[modelID] = new Float32Array(coordinates);
+    }
+  }
+
+  resetCoordinates(modelID) {
+    const initial = this.modelCoordinates[modelID];
+    this.getCoordinates(modelID).set(initial);
+  }
+
+  getCoordinates(modelID) {
+    return this.getAttributes(modelID).position.array;
+  }
+
+  getAttributes(modelID) {
+    return this.state.models[modelID].mesh.geometry.attributes;
+  }
+
+}
+
 class IFCManager {
 
   constructor() {
@@ -68514,11 +68595,13 @@ class IFCManager {
     this.subsets = new SubsetManager(this.state, this.BVH);
     this.properties = new PropertyManager(this.state);
     this.types = new TypeManager(this.state);
+    this.hider = new ItemsHider(this.state);
   }
 
   async parse(buffer) {
     const mesh = await this.parser.parse(buffer);
     this.types.getAllTypes();
+    this.hider.processCoordinates(mesh.modelID);
     return new IFCModel(mesh, this);
   }
 
@@ -68576,6 +68659,22 @@ class IFCManager {
 
   createSubset(config) {
     return this.subsets.createSubset(config);
+  }
+
+  hideItems(modelID, ids) {
+    this.hider.hideItems(modelID, ids);
+  }
+
+  showItems(modelID, ids) {
+    this.hider.showItems(modelID, ids);
+  }
+
+  showAllItems(modelID) {
+    this.hider.showAllItems(modelID);
+  }
+
+  hideAllItems(modelID) {
+    this.hider.hideAllItems(modelID);
   }
 
 }
@@ -72177,4 +72276,40 @@ class IfcManager {
 const ifcModels = [];
 const baseScene = new ThreeScene();
 new Picker(baseScene, ifcModels);
-new IfcManager(baseScene.scene, ifcModels);
+const loader = new IfcManager(baseScene.scene, ifcModels);
+
+
+let toggle = true;
+
+window.ondblclick = () => {
+    // const geometry = ifcModels[0].mesh.geometry;
+    //
+    // for(let i = 0; i < geometry.attributes.expressID.count; i++){
+    //     geometry.attributes.position.array[i] = 0;
+    // }
+    //
+    // geometry.attributes.position.needsUpdate = true;
+    // console.log(geometry);
+
+    // const walls = loader.ifcLoader.ifcManager.getAllItemsOfType(0, IFCFLOWSEGMENT, false);
+    // loader.ifcLoader.ifcManager.hideItems(0, walls);
+
+    // toggle
+    //     ? loader.ifcLoader.ifcManager.hideAllItems(0)
+    //     : loader.ifcLoader.ifcManager.showAllItems(0);
+    //
+    // toggle = !toggle;
+
+    let current = loader.ifcLoader.ifcManager.getSpatialStructure(0);
+    while(!current.type.includes("IFCBUILDINGSTOREY")){
+        current = current.children[0];
+    }
+
+    const items = current.children.map(c => c.expressID);
+
+    toggle
+        ? loader.ifcLoader.ifcManager.hideItems(0, items)
+        : loader.ifcLoader.ifcManager.showItems(0, items);
+
+    toggle = !toggle;
+};

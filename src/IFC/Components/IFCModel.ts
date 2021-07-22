@@ -30,15 +30,15 @@ export class IFCModel extends Group {
      * ifcLoader.setWasmPath("dist/wasmDir/");
      * ```
      *
-     * @path The relative path to web-ifc.wasm.
+     * @path Relative path to web-ifc.wasm.
      */
     setWasmPath(path: string) {
         this.ifc.setWasmPath(path);
     }
 
     /**
-     * Closes the specified model and deletes it from the scene
-     * @scene The scene where the model is (if it's located in a scene).
+     * Closes the specified model and deletes it from the [scene](https://threejs.org/docs/#api/en/scenes/Scene).
+     * @scene Scene where the model is (if it's located in a scene).
      */
     close(scene?: Scene) {
         this.ifc.close(this.modelID, scene);
@@ -72,7 +72,7 @@ export class IFCModel extends Group {
 
     /**
      * Gets the native properties of the given element.
-     * @id The express ID of the element.
+     * @id Express ID of the element.
      * @recursive Wether you want to get the information of the referenced elements recursively.
      */
     getItemProperties(id: number, recursive = false) {
@@ -82,7 +82,7 @@ export class IFCModel extends Group {
     /**
      * Gets the [property sets](https://standards.buildingsmart.org/IFC/DEV/IFC4_2/FINAL/HTML/schema/ifckernel/lexical/ifcpropertyset.htm)
      * assigned to the given element.
-     * @id The express ID of the element.
+     * @id Express ID of the element.
      * @recursive If true, this gets the native properties of the referenced elements recursively.
      */
     getPropertySets(id: number, recursive = false) {
@@ -93,7 +93,7 @@ export class IFCModel extends Group {
      * Gets the properties of the type assigned to the element.
      * For example, if applied to a wall (IfcWall), this would get back the information
      * contained in the IfcWallType assigned to it, if any.
-     * @id The express ID of the element.
+     * @id Express ID of the element.
      * @recursive If true, this gets the native properties of the referenced elements recursively.
      */
     getTypeProperties(id: number, recursive = false) {
@@ -102,7 +102,7 @@ export class IFCModel extends Group {
 
     /**
      * Gets the ifc type of the specified item.
-     * @id The express ID of the element.
+     * @id Express ID of the element.
      */
     getIfcType(id: number) {
         return this.ifc.getIfcType(this.modelID, id);
@@ -122,8 +122,9 @@ export class IFCModel extends Group {
     }
 
     /**
-     * Gets the mesh of the specified subset.
-     * @material The material assigned to the subset, if any.
+     * Gets the mesh of the subset with the specified [material](https://threejs.org/docs/#api/en/materials/Material).
+     * If no material is given, this returns the subset with the original materials.
+     * @material Material assigned to the subset, if any.
      */
     getSubset(material?: Material) {
         return this.ifc.getSubset(this.modelID, material);
@@ -131,8 +132,8 @@ export class IFCModel extends Group {
 
     /**
      * Removes the specified subset.
-     * @scene The scene where the subset is.
-     * @material The material assigned to the subset, if any.
+     * @scene Scene where the subset is.
+     * @material Material assigned to the subset, if any.
      */
     removeSubset(scene?: Scene, material?: Material) {
         this.ifc.removeSubset(this.modelID, scene, material);
@@ -141,13 +142,43 @@ export class IFCModel extends Group {
     /**
      * Creates a new geometric subset.
      * @config A configuration object with the following options:
-     * - **scene**: the scene where the model is located.
-     * - **ids**: the IDs of the items of the model that will conform the subset.
-     * - **removePrevious**: wether to remove the previous subset of this model with this material.
-     * - **material**: (optional) wether to apply a material to the subset
+     * - **scene**: Scene where the model is located.
+     * - **ids**: Express IDs of the items of the model that will conform the subset.
+     * - **removePrevious**: Wether to remove the previous subset of this model with this material.
+     * - **material**: (optional) Wether to apply a material to the subset
      */
     createSubset(config: HighlightConfig) {
         const modelConfig = {...config, modelID: this.modelID};
         return this.ifc.createSubset(modelConfig);
+    }
+
+    /**
+     * Hides the selected items in the specified model
+     * @ids Express ID of the elements.
+     */
+    hideItems(ids: number[]) {
+        this.ifc.hideItems(this.modelID, ids);
+    }
+
+    /**
+     * Hides all the items of the specified model
+     */
+    hideAllItems() {
+        this.ifc.hideAllItems(this.modelID);
+    }
+
+    /**
+     * Hides all the items of the specified model
+     * @ids Express ID of the elements.
+     */
+    showItems(ids: number[]) {
+        this.ifc.showItems(this.modelID, ids);
+    }
+
+    /**
+     * Shows all the items of the specified model
+     */
+    showAllItems(modelID: number) {
+        this.ifc.showAllItems(this.modelID);
     }
 }

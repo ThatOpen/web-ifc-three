@@ -30,7 +30,6 @@ export class ThreeScene {
     }
 
     setupBasics() {
-        console.log(window);
         this.scene.background = new Color(0x8cc7de);
         this.renderer.setSize(window.innerWidth, window.innerHeight);
         this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
