@@ -30,6 +30,15 @@ export class IfcManager {
         );
     }
 
+    releaseMemory() {
+        this.ifcLoader.ifcManager.disposeMemory();
+    }
+
+    loadJSONData(modelID, data) {
+        this.ifcLoader.ifcManager.useJSONData();
+        this.ifcLoader.ifcManager.addModelJSONData(modelID, data);
+    }
+
     async loadIFC(changed) {
         const ifcURL = URL.createObjectURL(changed.target.files[0]);
         const ifcModel = await this.ifcLoader.loadAsync(ifcURL);

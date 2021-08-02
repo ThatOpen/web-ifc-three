@@ -13,7 +13,7 @@ export class Picker {
     }
 
     setupPicking(threeCanvas){
-        threeCanvas.ondblclick = (event) => this.selector.select(event, true, true);
+        threeCanvas.ondblclick = (event) => this.selector.select(event, false, true);
         threeCanvas.onmousemove = (event) => this.preSelector.select(event);
     }
 

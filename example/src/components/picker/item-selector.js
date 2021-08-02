@@ -39,7 +39,7 @@ export class ItemSelector {
 
     logProperties() {
         const props = this.currentModel.getItemProperties(this.currentItemID);
-        props.propertySets = this.currentModel.getPropertySets(this.currentItemID);
+        // props.propertySets = this.currentModel.getPropertySets(this.currentItemID);
         console.log(props);
     }
 

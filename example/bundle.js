@@ -29056,7 +29056,7 @@ class ItemSelector {
 
     logProperties() {
         const props = this.currentModel.getItemProperties(this.currentItemID);
-        props.propertySets = this.currentModel.getPropertySets(this.currentItemID);
+        // props.propertySets = this.currentModel.getPropertySets(this.currentItemID);
         console.log(props);
     }
 
@@ -29089,7 +29089,7 @@ class Picker {
     }
 
     setupPicking(threeCanvas){
-        threeCanvas.ondblclick = (event) => this.selector.select(event, true, true);
+        threeCanvas.ondblclick = (event) => this.selector.select(event, false, true);
         threeCanvas.onmousemove = (event) => this.preSelector.select(event);
     }
 
@@ -67793,7 +67793,8 @@ class IFCParser {
       modelID,
       mesh: {},
       items: {},
-      types: {}
+      types: {},
+      jsonData: {}
     };
     return modelID;
   }
@@ -68250,7 +68251,8 @@ const IfcElements = {
   '4252922144': 'IFCSTAIRFLIGHT',
   '4278956645': 'IFCFLOWFITTING',
   '4288193352': 'IFCACTUATOR',
-  '4292641817': 'IFCUNITARYEQUIPMENT'
+  '4292641817': 'IFCUNITARYEQUIPMENT',
+  '3009204131': 'IFCGRID'
 };
 
 class PropertyManager {
@@ -68267,17 +68269,15 @@ class PropertyManager {
   }
 
   getItemProperties(modelID, id, recursive = false) {
-    return this.state.api.GetLine(modelID, id, recursive);
+    return this.state.useJSON ?
+      this.state.models[modelID].jsonData[id] :
+      this.state.api.GetLine(modelID, id, recursive);
   }
 
   getAllItemsOfType(modelID, type, verbose) {
-    const items = [];
-    const lines = this.state.api.GetLineIDsWithType(modelID, type);
-    for (let i = 0; i < lines.size(); i++)
-      items.push(lines.get(i));
-    if (verbose)
-      return items.map((id) => this.state.api.GetLine(modelID, id));
-    return items;
+    return this.state.useJSON ?
+      this.getAllItemsOfTypeJSON(modelID, type, verbose) :
+      this.getAllItemsOfTypeWebIfcAPI(modelID, type, verbose);
   }
 
   getPropertySets(modelID, elementID, recursive = false) {
@@ -68296,6 +68296,33 @@ class PropertyManager {
     const project = this.newIfcProject(projectID);
     this.getSpatialNode(modelID, project, chunks);
     return project;
+  }
+
+  getAllItemsOfTypeJSON(modelID, type, verbose) {
+    const data = this.state.models[modelID].jsonData;
+    const typeName = IfcElements[type];
+    if (!typeName)
+      throw new Error(`Type not found: ${type}`);
+    const result = [];
+    Object.keys(data).forEach(key => {
+      const numKey = parseInt(key);
+      if (data[numKey].type.toUpperCase() === typeName) {
+        result.push({
+          ...data[numKey]
+        });
+      }
+    });
+    return result;
+  }
+
+  getAllItemsOfTypeWebIfcAPI(modelID, type, verbose) {
+    const items = [];
+    const lines = this.state.api.GetLineIDsWithType(modelID, type);
+    for (let i = 0; i < lines.size(); i++)
+      items.push(lines.get(i));
+    if (verbose)
+      return items.map((id) => this.state.api.GetLine(modelID, id));
+    return items;
   }
 
   newIfcProject(id) {
@@ -68350,7 +68377,7 @@ class PropertyManager {
     return {
       expressID: id,
       type: typeName,
-      children: [],
+      children: []
     };
   }
 
@@ -68475,6 +68502,22 @@ class IFCModel extends Group {
     return this.ifc.createSubset(modelConfig);
   }
 
+  hideItems(ids) {
+    this.ifc.hideItems(this.modelID, ids);
+  }
+
+  hideAllItems() {
+    this.ifc.hideAllItems(this.modelID);
+  }
+
+  showItems(ids) {
+    this.ifc.showItems(this.modelID, ids);
+  }
+
+  showAllItems(modelID) {
+    this.ifc.showAllItems(this.modelID);
+  }
+
 }
 
 class BvhManager {
@@ -68588,7 +68631,8 @@ class IFCManager {
   constructor() {
     this.state = {
       models: [],
-      api: new IfcAPI()
+      api: new IfcAPI(),
+      useJSON: false
     };
     this.BVH = new BvhManager();
     this.parser = new IFCParser(this.state, this.BVH);
@@ -68607,6 +68651,21 @@ class IFCManager {
 
   setWasmPath(path) {
     this.state.api.SetWasmPath(path);
+  }
+
+  useJSONData(useJSON = true) {
+    this.state.useJSON = useJSON;
+  }
+
+  addModelJSONData(modelID, data) {
+    const model = this.state.models[modelID];
+    if (model) {
+      model.jsonData = data;
+    }
+  }
+
+  disposeMemory() {
+    this.state.api = null;
   }
 
   setupThreeMeshBVH(computeBoundsTree, disposeBoundsTree, acceleratedRaycast) {
@@ -68665,16 +68724,16 @@ class IFCManager {
     this.hider.hideItems(modelID, ids);
   }
 
+  hideAllItems(modelID) {
+    this.hider.hideAllItems(modelID);
+  }
+
   showItems(modelID, ids) {
     this.hider.showItems(modelID, ids);
   }
 
   showAllItems(modelID) {
     this.hider.showAllItems(modelID);
-  }
-
-  hideAllItems(modelID) {
-    this.hider.hideAllItems(modelID);
   }
 
 }
@@ -72265,6 +72324,15 @@ class IfcManager {
         );
     }
 
+    releaseMemory() {
+        this.ifcLoader.ifcManager.disposeMemory();
+    }
+
+    loadJSONData(modelID, data) {
+        this.ifcLoader.ifcManager.useJSONData();
+        this.ifcLoader.ifcManager.addModelJSONData(modelID, data);
+    }
+
     async loadIFC(changed) {
         const ifcURL = URL.createObjectURL(changed.target.files[0]);
         const ifcModel = await this.ifcLoader.loadAsync(ifcURL);
@@ -72278,38 +72346,20 @@ const baseScene = new ThreeScene();
 new Picker(baseScene, ifcModels);
 const loader = new IfcManager(baseScene.scene, ifcModels);
 
-
-let toggle = true;
-
-window.ondblclick = () => {
-    // const geometry = ifcModels[0].mesh.geometry;
-    //
-    // for(let i = 0; i < geometry.attributes.expressID.count; i++){
-    //     geometry.attributes.position.array[i] = 0;
-    // }
-    //
-    // geometry.attributes.position.needsUpdate = true;
-    // console.log(geometry);
-
-    // const walls = loader.ifcLoader.ifcManager.getAllItemsOfType(0, IFCFLOWSEGMENT, false);
-    // loader.ifcLoader.ifcManager.hideItems(0, walls);
-
-    // toggle
-    //     ? loader.ifcLoader.ifcManager.hideAllItems(0)
-    //     : loader.ifcLoader.ifcManager.showAllItems(0);
-    //
-    // toggle = !toggle;
-
-    let current = loader.ifcLoader.ifcManager.getSpatialStructure(0);
-    while(!current.type.includes("IFCBUILDINGSTOREY")){
-        current = current.children[0];
+window.onkeydown = (event) => {
+    if(event.code === "KeyB") {
+        console.log(loader.ifcLoader.ifcManager.getAllItemsOfType(0, IFCWALLSTANDARDCASE, true));
     }
 
-    const items = current.children.map(c => c.expressID);
+    if(event.code === "KeyA") {
+        loader.releaseMemory();
+        console.log("Released!");
 
-    toggle
-        ? loader.ifcLoader.ifcManager.hideItems(0, items)
-        : loader.ifcLoader.ifcManager.showItems(0, items);
-
-    toggle = !toggle;
+        fetch('./architecture.json')
+            .then(response => response.json())
+            .then(data => {
+                console.log(data);
+                loader.loadJSONData(0, data);
+            });
+    }
 };

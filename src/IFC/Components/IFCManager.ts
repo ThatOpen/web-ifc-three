@@ -4,7 +4,7 @@ import { SubsetManager } from './SubsetManager';
 import { PropertyManager } from './PropertyManager';
 import { IfcElements } from './IFCElementsMap';
 import { TypeManager } from './TypeManager';
-import { HighlightConfigOfModel, IfcState } from '../BaseDefinitions';
+import { HighlightConfigOfModel, IfcState, JSONObject } from '../BaseDefinitions';
 import { BufferGeometry, Material, Scene } from 'three';
 import { IFCModel } from './IFCModel';
 import { BvhManager } from './BvhManager';
@@ -14,7 +14,7 @@ import { ItemsHider } from './ItemsHider';
  * Contains all the logic to work with the loaded IFC files (select, edit, etc).
  */
 export class IFCManager {
-    private state: IfcState = { models: [], api: new WebIFC.IfcAPI() };
+    private state: IfcState = { models: [], api: new WebIFC.IfcAPI(), useJSON: false };
     private BVH = new BvhManager();
     private parser = new IFCParser(this.state, this.BVH);
     private subsets = new SubsetManager(this.state, this.BVH);
@@ -45,6 +45,22 @@ export class IFCManager {
      */
     setWasmPath(path: string) {
         this.state.api.SetWasmPath(path);
+    }
+
+    useJSONData(useJSON = true) {
+        this.state.useJSON = useJSON;
+    }
+
+    addModelJSONData(modelID: number, data: {[id: number]: JSONObject}) {
+        const model = this.state.models[modelID];
+        if(model) {
+           model.jsonData = data;
+        }
+    }
+
+    disposeMemory() {
+        // @ts-ignore
+        this.state.api = null;
     }
 
     /**
