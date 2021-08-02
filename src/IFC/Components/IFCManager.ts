@@ -47,10 +47,22 @@ export class IFCManager {
         this.state.api.SetWasmPath(path);
     }
 
+    /**
+     * Enables the JSON mode (which consumes way less memory) and eliminates the WASM data.
+     * Only use this in the following scenarios:
+     * - If you don't need to access the properties of the IFC
+     * - If you will provide the properties as JSON.
+     */
     useJSONData(useJSON = true) {
         this.state.useJSON = useJSON;
+        this.disposeMemory();
     }
 
+    /**
+     * Adds the properties of a model as JSON data.
+     * @modelID ID of the IFC model.
+     * @data: data as an object where the keys are the expressIDs and the values the properties.
+     */
     addModelJSONData(modelID: number, data: {[id: number]: JSONObject}) {
         const model = this.state.models[modelID];
         if(model) {
@@ -58,6 +70,12 @@ export class IFCManager {
         }
     }
 
+    /**
+     * Completely releases the WASM memory, thus drastically decreasing the memory use of the app.
+     * Only use this in the following scenarios:
+     * - If you don't need to access the properties of the IFC
+     * - If you will provide the properties as JSON.
+     */
     disposeMemory() {
         // @ts-ignore
         this.state.api = null;

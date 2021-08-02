@@ -10,14 +10,14 @@ const loader = new IfcManager(baseScene.scene, ifcModels);
 
 window.onkeydown = (event) => {
     if(event.code === "KeyB") {
-        console.log(loader.ifcLoader.ifcManager.getAllItemsOfType(0, IFCWALLSTANDARDCASE, true));
+        console.log(loader.ifcLoader.ifcManager.getSpatialStructure(0));
     }
 
     if(event.code === "KeyA") {
         loader.releaseMemory();
         console.log("Released!");
 
-        fetch('./architecture.json')
+        fetch('./basic.json')
             .then(response => response.json())
             .then(data => {
                 console.log(data);

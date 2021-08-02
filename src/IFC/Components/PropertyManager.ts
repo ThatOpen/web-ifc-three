@@ -1,8 +1,9 @@
-import { IdAttrName } from '../BaseDefinitions';
+import { IdAttrName, JSONObject } from '../BaseDefinitions';
 import { Node, IfcState, PropsNames, pName } from '../BaseDefinitions';
 import { IfcElements } from './IFCElementsMap';
 import { IFCPROJECT } from 'web-ifc';
 import { BufferGeometry } from 'three';
+import { IfcTypesMap } from './IfcTypesMap';
 
 /**
  * Contains the logic to get the properties of the items within an IFC model.
@@ -33,16 +34,32 @@ export class PropertyManager {
     }
 
     getPropertySets(modelID: number, elementID: number, recursive = false) {
-        const propSetIds = this.getAllRelatedItemsOfType(modelID, elementID, PropsNames.psets);
-        return propSetIds.map((id) => this.state.api.GetLine(modelID, id, recursive));
+        return this.state.useJSON ?
+            this.getPropertySetsJSON(modelID, elementID, recursive) :
+            this.getPropertySetsWebIfcAPI(modelID, elementID, recursive);
     }
 
     getTypeProperties(modelID: number, elementID: number, recursive = false) {
-        const typeId = this.getAllRelatedItemsOfType(modelID, elementID, PropsNames.type);
-        return typeId.map((id) => this.state.api.GetLine(modelID, id, recursive));
+        return this.state.useJSON ?
+            this.getTypePropertiesJSON(modelID, elementID, recursive) :
+            this.getTypePropertiesWebIfcAPI(modelID, elementID, recursive);
     }
 
     getSpatialStructure(modelID: number) {
+        return this.state.useJSON ?
+            this.getSpatialStructureJSON(modelID) :
+            this.getSpatialStructureWebIfcAPI(modelID);
+    }
+
+    private getSpatialStructureJSON(modelID: number) {
+        const chunks = this.getSpatialTreeChunks(modelID);
+        const projectID = this.getAllItemsOfTypeJSON(modelID, IFCPROJECT, false)[0];
+        const project = this.newIfcProject(projectID);
+        this.getSpatialNode(modelID, project, chunks);
+        return project;
+    }
+
+    private getSpatialStructureWebIfcAPI(modelID: number) {
         const chunks = this.getSpatialTreeChunks(modelID);
         const projectID = this.state.api.GetLineIDsWithType(modelID, IFCPROJECT).get(0);
         const project = this.newIfcProject(projectID);
@@ -52,16 +69,49 @@ export class PropertyManager {
 
     private getAllItemsOfTypeJSON(modelID: number, type: number, verbose: boolean) {
         const data = this.state.models[modelID].jsonData;
-        const typeName = IfcElements[type];
-        if (!typeName) throw new Error(`Type not found: ${type}`);
+        const typeName = IfcTypesMap[type];
+        if (!typeName) {
+            throw new Error(`Type not found: ${type}`);
+        }
+        return this.filterJSONItemsByType(data, typeName, verbose);
+    }
+
+    private filterJSONItemsByType(data: { [id: number]: JSONObject }, typeName: string, verbose: boolean) {
         const result: any[] = [];
         Object.keys(data).forEach(key => {
             const numKey = parseInt(key);
             if (data[numKey].type.toUpperCase() === typeName) {
-                result.push({ ...data[numKey] });
+                result.push(verbose ? { ...data[numKey] } : numKey);
             }
         });
         return result;
+    }
+
+    private getPropertySetsJSON(modelID: number, elementID: number, recursive = false) {
+        const resultIDs = this.getAllRelatedItemsOfTypeJSON(modelID, elementID, PropsNames.psets);
+        return recursive ? this.getItemsByIDJSON(modelID, resultIDs) : resultIDs;
+    }
+
+    private getItemsByIDJSON(modelID: number, ids: number[]) {
+        const data = this.state.models[modelID].jsonData;
+        const result: any[] = [];
+        ids.forEach(id => result.push(data[id]));
+        return result;
+    }
+
+    private getPropertySetsWebIfcAPI(modelID: number, elementID: number, recursive = false) {
+        const propSetIds = this.getAllRelatedItemsOfTypeWebIfcAPI(modelID, elementID, PropsNames.psets);
+        return propSetIds.map((id) => this.state.api.GetLine(modelID, id, recursive));
+    }
+
+    private getTypePropertiesJSON(modelID: number, elementID: number, recursive = false) {
+        const resultIDs = this.getAllRelatedItemsOfTypeJSON(modelID, elementID, PropsNames.type);
+        return recursive ? this.getItemsByIDJSON(modelID, resultIDs) : resultIDs;
+    }
+
+    private getTypePropertiesWebIfcAPI(modelID: number, elementID: number, recursive = false) {
+        const typeId = this.getAllRelatedItemsOfTypeWebIfcAPI(modelID, elementID, PropsNames.type);
+        return typeId.map((id) => this.state.api.GetLine(modelID, id, recursive));
     }
 
     private getAllItemsOfTypeWebIfcAPI(modelID: number, type: number, verbose: boolean) {
@@ -82,22 +132,39 @@ export class PropertyManager {
 
     private getSpatialTreeChunks(modelID: number) {
         const treeChunks: any = {};
-        this.getChunks(modelID, treeChunks, PropsNames.aggregates);
-        this.getChunks(modelID, treeChunks, PropsNames.spatial);
+        const json = this.state.useJSON;
+        if(json) {
+            this.getChunksJSON(modelID, treeChunks, PropsNames.aggregates);
+            this.getChunksJSON(modelID, treeChunks, PropsNames.spatial);
+        } else {
+            this.getChunksWebIfcAPI(modelID, treeChunks, PropsNames.aggregates);
+            this.getChunksWebIfcAPI(modelID, treeChunks, PropsNames.spatial);
+        }
         return treeChunks;
     }
 
-    private getChunks(modelID: number, chunks: any, propNames: pName) {
+    private getChunksJSON(modelID: number, chunks: any, propNames: pName) {
+        const relation = this.getAllItemsOfTypeJSON(modelID, propNames.name, true);
+        relation.forEach(rel => {
+            this.saveChunk(chunks, propNames, rel);
+        })
+    }
+
+    private getChunksWebIfcAPI(modelID: number, chunks: any, propNames: pName) {
         const relation = this.state.api.GetLineIDsWithType(modelID, propNames.name);
         for (let i = 0; i < relation.size(); i++) {
             const rel = this.state.api.GetLine(modelID, relation.get(i), false);
-            const relating = rel[propNames.relating].value;
-            const related = rel[propNames.related].map((r: any) => r.value);
-            if (chunks[relating] == undefined) {
-                chunks[relating] = related;
-            } else {
-                chunks[relating] = chunks[relating].concat(related);
-            }
+            this.saveChunk(chunks, propNames, rel);
+        }
+    }
+
+    private saveChunk(chunks: any, propNames: pName, rel: any) {
+        const relating = rel[propNames.relating].value;
+        const related = rel[propNames.related].map((r: any) => r.value);
+        if (chunks[relating] == undefined) {
+            chunks[relating] = related;
+        } else {
+            chunks[relating] = chunks[relating].concat(related);
         }
     }
 
@@ -108,7 +175,7 @@ export class PropertyManager {
 
     private getChildren(modelID: number, node: Node, treeChunks: any, propNames: pName) {
         const children = treeChunks[node.expressID];
-        if (children == undefined || children == null) return;
+        if (children == undefined) return;
         const prop = propNames.key as keyof Node;
         (node[prop] as Node[]) = children.map((child: number) => {
             const node = this.newNode(modelID, child);
@@ -127,7 +194,17 @@ export class PropertyManager {
         };
     }
 
-    private getAllRelatedItemsOfType(modelID: number, id: number, propNames: pName) {
+    private getAllRelatedItemsOfTypeJSON(modelID: number, id: number, propNames: pName) {
+        const lines = this.getAllItemsOfTypeJSON(modelID, propNames.name, true);
+        const IDs: number[] = [];
+        lines.forEach(line => {
+            const isRelated = this.isRelated(id, line, propNames);
+            if (isRelated) this.getRelated(line, propNames, IDs);
+        });
+        return IDs;
+    }
+
+    private getAllRelatedItemsOfTypeWebIfcAPI(modelID: number, id: number, propNames: pName) {
         const lines = this.state.api.GetLineIDsWithType(modelID, propNames.name);
         const IDs: number[] = [];
         for (let i = 0; i < lines.size(); i++) {
