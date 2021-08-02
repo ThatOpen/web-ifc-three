@@ -168,7 +168,7 @@ export class IFCManager {
      */
     getIfcType(modelID: number, id: number) {
         const typeID = this.state.models[modelID].types[id];
-        return IfcElements[typeID.toString()];
+        return IfcElements[typeID];
     }
 
     /**

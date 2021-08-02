@@ -185,7 +185,7 @@ export class PropertyManager {
     }
 
     private newNode(modelID: number, id: number) {
-        const typeID = this.state.models[modelID].types[id].toString();
+        const typeID = this.state.models[modelID].types[id];
         const typeName = IfcElements[typeID];
         return {
             expressID: id,
