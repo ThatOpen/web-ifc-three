@@ -4,7 +4,7 @@ import { SubsetManager } from './SubsetManager';
 import { PropertyManager } from './PropertyManager';
 import { IfcElements } from './IFCElementsMap';
 import { TypeManager } from './TypeManager';
-import { HighlightConfigOfModel, IfcState } from '../BaseDefinitions';
+import { HighlightConfigOfModel, IfcState, JSONObject } from '../BaseDefinitions';
 import { BufferGeometry, Material, Scene } from 'three';
 import { IFCModel } from './IFCModel';
 import { BvhManager } from './BvhManager';
@@ -14,7 +14,7 @@ import { ItemsHider } from './ItemsHider';
  * Contains all the logic to work with the loaded IFC files (select, edit, etc).
  */
 export class IFCManager {
-    private state: IfcState = { models: [], api: new WebIFC.IfcAPI() };
+    private state: IfcState = { models: [], api: new WebIFC.IfcAPI(), useJSON: false };
     private BVH = new BvhManager();
     private parser = new IFCParser(this.state, this.BVH);
     private subsets = new SubsetManager(this.state, this.BVH);
@@ -45,6 +45,40 @@ export class IFCManager {
      */
     setWasmPath(path: string) {
         this.state.api.SetWasmPath(path);
+    }
+
+    /**
+     * Enables the JSON mode (which consumes way less memory) and eliminates the WASM data.
+     * Only use this in the following scenarios:
+     * - If you don't need to access the properties of the IFC
+     * - If you will provide the properties as JSON.
+     */
+    useJSONData(useJSON = true) {
+        this.state.useJSON = useJSON;
+        this.disposeMemory();
+    }
+
+    /**
+     * Adds the properties of a model as JSON data.
+     * @modelID ID of the IFC model.
+     * @data: data as an object where the keys are the expressIDs and the values the properties.
+     */
+    addModelJSONData(modelID: number, data: {[id: number]: JSONObject}) {
+        const model = this.state.models[modelID];
+        if(model) {
+           model.jsonData = data;
+        }
+    }
+
+    /**
+     * Completely releases the WASM memory, thus drastically decreasing the memory use of the app.
+     * Only use this in the following scenarios:
+     * - If you don't need to access the properties of the IFC
+     * - If you will provide the properties as JSON.
+     */
+    disposeMemory() {
+        // @ts-ignore
+        this.state.api = null;
     }
 
     /**

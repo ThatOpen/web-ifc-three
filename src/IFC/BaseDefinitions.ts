@@ -66,11 +66,19 @@ export interface IfcModel {
     mesh: IfcMesh;
     items: GeometriesByMaterials;
     types: TypesMap;
+    jsonData: {[id: number]: JSONObject};
+}
+
+export interface JSONObject {
+    expressID: number;
+    type: string;
+    [key: string]: any;
 }
 
 export interface IfcState {
     models: { [modelID: number]: IfcModel };
     api: IfcAPI;
+    useJSON: boolean;
 }
 
 export interface IfcMesh extends Mesh {
