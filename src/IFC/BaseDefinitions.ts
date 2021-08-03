@@ -1,10 +1,10 @@
 import { BufferAttribute, BufferGeometry, Material, Mesh, Scene } from 'three';
 import { BufferGeometryUtils } from 'three/examples/jsm/utils/BufferGeometryUtils';
 import {
-    IFCRELAGGREGATES,
+    IFCRELAGGREGATES, IFCRELASSOCIATESMATERIAL,
     IFCRELCONTAINEDINSPATIALSTRUCTURE,
     IFCRELDEFINESBYPROPERTIES,
-    IFCRELDEFINESBYTYPE,
+    IFCRELDEFINESBYTYPE
 } from 'web-ifc';
 import { IfcAPI } from 'web-ifc';
 
@@ -116,6 +116,12 @@ export const PropsNames = {
         relating: 'RelatingPropertyDefinition',
         related: 'RelatedObjects',
         key: 'hasPsets'
+    },
+    materials: {
+        name: IFCRELASSOCIATESMATERIAL,
+        relating: 'RelatingMaterial',
+        related: 'RelatedObjects',
+        key: 'hasMaterial'
     },
     type: {
         name: IFCRELDEFINESBYTYPE,

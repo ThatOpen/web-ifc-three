@@ -10,7 +10,8 @@ const loader = new IfcManager(baseScene.scene, ifcModels);
 
 window.onkeydown = (event) => {
     if(event.code === "KeyB") {
-        console.log(loader.ifcLoader.ifcManager.getSpatialStructure(0));
+        const wall = loader.ifcLoader.ifcManager.getAllItemsOfType(0, IFCWALLSTANDARDCASE, false)[0];
+        console.log(loader.ifcLoader.ifcManager.getMaterialsProperties(0, wall, true));
     }
 
     if(event.code === "KeyA") {

@@ -67763,6 +67763,12 @@ const PropsNames = {
     related: 'RelatedObjects',
     key: 'hasPsets'
   },
+  materials: {
+    name: IFCRELASSOCIATESMATERIAL,
+    relating: 'RelatingMaterial',
+    related: 'RelatedObjects',
+    key: 'hasMaterial'
+  },
   type: {
     name: IFCRELDEFINESBYTYPE,
     relating: 'RelatingType',
@@ -69101,14 +69107,20 @@ class PropertyManager {
 
   getPropertySets(modelID, elementID, recursive = false) {
     return this.state.useJSON ?
-      this.getPropertySetsJSON(modelID, elementID, recursive) :
-      this.getPropertySetsWebIfcAPI(modelID, elementID, recursive);
+      this.getPropertyJSON(modelID, elementID, recursive, PropsNames.psets) :
+      this.getPropertyWebIfcAPI(modelID, elementID, recursive, PropsNames.psets);
   }
 
   getTypeProperties(modelID, elementID, recursive = false) {
     return this.state.useJSON ?
-      this.getTypePropertiesJSON(modelID, elementID, recursive) :
-      this.getTypePropertiesWebIfcAPI(modelID, elementID, recursive);
+      this.getPropertyJSON(modelID, elementID, recursive, PropsNames.type) :
+      this.getPropertyWebIfcAPI(modelID, elementID, recursive, PropsNames.type);
+  }
+
+  getMaterialsProperties(modelID, elementID, recursive = false) {
+    return this.state.useJSON ?
+      this.getPropertyJSON(modelID, elementID, recursive, PropsNames.materials) :
+      this.getPropertyWebIfcAPI(modelID, elementID, recursive, PropsNames.materials);
   }
 
   getSpatialStructure(modelID) {
@@ -69155,11 +69167,6 @@ class PropertyManager {
     return result;
   }
 
-  getPropertySetsJSON(modelID, elementID, recursive = false) {
-    const resultIDs = this.getAllRelatedItemsOfTypeJSON(modelID, elementID, PropsNames.psets);
-    return recursive ? this.getItemsByIDJSON(modelID, resultIDs) : resultIDs;
-  }
-
   getItemsByIDJSON(modelID, ids) {
     const data = this.state.models[modelID].jsonData;
     const result = [];
@@ -69167,19 +69174,48 @@ class PropertyManager {
     return result;
   }
 
-  getPropertySetsWebIfcAPI(modelID, elementID, recursive = false) {
-    const propSetIds = this.getAllRelatedItemsOfTypeWebIfcAPI(modelID, elementID, PropsNames.psets);
+  getPropertyJSON(modelID, elementID, recursive = false, propName) {
+    const resultIDs = this.getAllRelatedItemsOfTypeJSON(modelID, elementID, propName);
+    const result = this.getItemsByIDJSON(modelID, resultIDs);
+    if (recursive) {
+      result.forEach(result => this.getJSONReferencesRecursively(modelID, result));
+    }
+    return result;
+  }
+
+  getJSONReferencesRecursively(modelID, jsonObject) {
+    if (jsonObject == undefined)
+      return;
+    const keys = Object.keys(jsonObject);
+    for (let i = 0; i < keys.length; i++) {
+      const key = keys[i];
+      this.getJSONItem(modelID, jsonObject, key);
+    }
+  }
+
+  getJSONItem(modelID, jsonObject, key) {
+    if (Array.isArray(jsonObject[key])) {
+      return this.getMultipleJSONItems(modelID, jsonObject, key);
+    }
+    if (jsonObject[key] && jsonObject[key].type === 5) {
+      jsonObject[key] = this.getItemsByIDJSON(modelID, [jsonObject[key].value])[0];
+      this.getJSONReferencesRecursively(modelID, jsonObject[key]);
+    }
+  }
+
+  getMultipleJSONItems(modelID, jsonObject, key) {
+    jsonObject[key] = jsonObject[key].map((item) => {
+      if (item.type === 5) {
+        item = this.getItemsByIDJSON(modelID, [item.value])[0];
+        this.getJSONReferencesRecursively(modelID, item);
+      }
+      return item;
+    });
+  }
+
+  getPropertyWebIfcAPI(modelID, elementID, recursive = false, propName) {
+    const propSetIds = this.getAllRelatedItemsOfTypeWebIfcAPI(modelID, elementID, propName);
     return propSetIds.map((id) => this.state.api.GetLine(modelID, id, recursive));
-  }
-
-  getTypePropertiesJSON(modelID, elementID, recursive = false) {
-    const resultIDs = this.getAllRelatedItemsOfTypeJSON(modelID, elementID, PropsNames.type);
-    return recursive ? this.getItemsByIDJSON(modelID, resultIDs) : resultIDs;
-  }
-
-  getTypePropertiesWebIfcAPI(modelID, elementID, recursive = false) {
-    const typeId = this.getAllRelatedItemsOfTypeWebIfcAPI(modelID, elementID, PropsNames.type);
-    return typeId.map((id) => this.state.api.GetLine(modelID, id, recursive));
   }
 
   getAllItemsOfTypeWebIfcAPI(modelID, type, verbose) {
@@ -69593,6 +69629,10 @@ class IFCManager {
 
   getTypeProperties(modelID, id, recursive = false) {
     return this.properties.getTypeProperties(modelID, id, recursive);
+  }
+
+  getMaterialsProperties(modelID, id, recursive = false) {
+    return this.properties.getMaterialsProperties(modelID, id, recursive);
   }
 
   getIfcType(modelID, id) {
@@ -73244,7 +73284,8 @@ const loader = new IfcManager(baseScene.scene, ifcModels);
 
 window.onkeydown = (event) => {
     if(event.code === "KeyB") {
-        console.log(loader.ifcLoader.ifcManager.getSpatialStructure(0));
+        const wall = loader.ifcLoader.ifcManager.getAllItemsOfType(0, IFCWALLSTANDARDCASE, false)[0];
+        console.log(loader.ifcLoader.ifcManager.getMaterialsProperties(0, wall, true));
     }
 
     if(event.code === "KeyA") {

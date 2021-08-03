@@ -162,6 +162,16 @@ export class IFCManager {
     }
 
     /**
+     * Gets the materials assigned to the given element.
+     * @modelID ID of the IFC model.
+     * @id Express ID of the element.
+     * @recursive If true, this gets the native properties of the referenced elements recursively.
+     */
+    getMaterialsProperties(modelID: number, id: number, recursive = false) {
+        return this.properties.getMaterialsProperties(modelID, id, recursive);
+    }
+
+    /**
      * Gets the ifc type of the specified item.
      * @modelID ID of the IFC model.
      * @id Express ID of the element.
