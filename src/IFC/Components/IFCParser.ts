@@ -43,7 +43,7 @@ export class IFCParser {
 
     private newIfcModel(buffer: any) {
         const data = new Uint8Array(buffer);
-        const modelID = this.state.api.OpenModel(data);
+        const modelID = this.state.api.OpenModel(data, this.state.webIfcSettings);
         this.state.models[modelID] = {
             modelID,
             mesh: {} as IfcMesh,

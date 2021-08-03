@@ -9,6 +9,7 @@ import { BufferGeometry, Material, Object3D, Scene } from 'three';
 import { IFCModel } from './IFCModel';
 import { BvhManager } from './BvhManager';
 import { ItemsHider } from './ItemsHider';
+import { LoaderSettings } from 'web-ifc';
 
 /**
  * Contains all the logic to work with the loaded IFC files (select, edit, etc).
@@ -48,6 +49,13 @@ export class IFCManager {
     }
 
     /**
+     * Applies a configuration for [web-ifc](https://ifcjs.github.io/info/docs/Guide/web-ifc/Introduction).
+     */
+    applyWebIfcConfig(settings: LoaderSettings) {
+        this.state.webIfcSettings = settings;
+    }
+
+    /**
      * Enables the JSON mode (which consumes way less memory) and eliminates the WASM data.
      * Only use this in the following scenarios:
      * - If you don't need to access the properties of the IFC
@@ -63,10 +71,10 @@ export class IFCManager {
      * @modelID ID of the IFC model.
      * @data: data as an object where the keys are the expressIDs and the values the properties.
      */
-    addModelJSONData(modelID: number, data: {[id: number]: JSONObject}) {
+    addModelJSONData(modelID: number, data: { [id: number]: JSONObject }) {
         const model = this.state.models[modelID];
-        if(model) {
-           model.jsonData = data;
+        if (model) {
+            model.jsonData = data;
         }
     }
 
@@ -79,6 +87,7 @@ export class IFCManager {
     disposeMemory() {
         // @ts-ignore
         this.state.api = null;
+        this.state.api = new WebIFC.IfcAPI();
     }
 
     /**
@@ -86,7 +95,7 @@ export class IFCManager {
      * Courtesy of gkjohnson's [work](https://github.com/gkjohnson/three-mesh-bvh).
      * Import these objects from his library and pass them as arguments. IFC.js takes care of the rest!
      */
-    setupThreeMeshBVH(computeBoundsTree: any, disposeBoundsTree: any, acceleratedRaycast: any ){
+    setupThreeMeshBVH(computeBoundsTree: any, disposeBoundsTree: any, acceleratedRaycast: any) {
         this.BVH.initializeMeshBVH(computeBoundsTree, disposeBoundsTree, acceleratedRaycast);
     }
 

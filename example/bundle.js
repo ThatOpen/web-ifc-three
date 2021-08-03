@@ -67795,7 +67795,7 @@ class IFCParser {
 
   newIfcModel(buffer) {
     const data = new Uint8Array(buffer);
-    const modelID = this.state.api.OpenModel(data);
+    const modelID = this.state.api.OpenModel(data, this.state.webIfcSettings);
     this.state.models[modelID] = {
       modelID,
       mesh: {},
@@ -69585,6 +69585,10 @@ class IFCManager {
     this.state.api.SetWasmPath(path);
   }
 
+  applyWebIfcConfig(settings) {
+    this.state.webIfcSettings = settings;
+  }
+
   useJSONData(useJSON = true) {
     this.state.useJSON = useJSON;
     this.disposeMemory();
@@ -69599,6 +69603,7 @@ class IFCManager {
 
   disposeMemory() {
     this.state.api = null;
+    this.state.api = new IfcAPI();
   }
 
   setupThreeMeshBVH(computeBoundsTree, disposeBoundsTree, acceleratedRaycast) {
@@ -73275,30 +73280,10 @@ class IfcManager {
         const ifcModel = await this.ifcLoader.loadAsync(ifcURL);
         this.ifcModels.push(ifcModel);
         this.scene.add(ifcModel);
-        ifcModel.position.x = 1;
     }
 }
 
 const ifcModels = [];
 const baseScene = new ThreeScene();
 new Picker(baseScene, ifcModels);
-const loader = new IfcManager(baseScene.scene, ifcModels);
-
-window.onkeydown = (event) => {
-    if(event.code === "KeyB") {
-        const wall = loader.ifcLoader.ifcManager.getAllItemsOfType(0, IFCWALLSTANDARDCASE, false)[0];
-        console.log(loader.ifcLoader.ifcManager.getMaterialsProperties(0, wall, true));
-    }
-
-    if(event.code === "KeyA") {
-        loader.releaseMemory();
-        console.log("Released!");
-
-        fetch('./basic.json')
-            .then(response => response.json())
-            .then(data => {
-                console.log(data);
-                loader.loadJSONData(0, data);
-            });
-    }
-};
+new IfcManager(baseScene.scene, ifcModels);

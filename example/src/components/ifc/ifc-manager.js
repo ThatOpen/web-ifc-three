@@ -44,7 +44,5 @@ export class IfcManager {
         const ifcModel = await this.ifcLoader.loadAsync(ifcURL);
         this.ifcModels.push(ifcModel);
         this.scene.add(ifcModel);
-        ifcModel.position.x = 1;
     }
 }
-

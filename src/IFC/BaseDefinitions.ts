@@ -4,7 +4,7 @@ import {
     IFCRELAGGREGATES, IFCRELASSOCIATESMATERIAL,
     IFCRELCONTAINEDINSPATIALSTRUCTURE,
     IFCRELDEFINESBYPROPERTIES,
-    IFCRELDEFINESBYTYPE
+    IFCRELDEFINESBYTYPE, LoaderSettings
 } from 'web-ifc';
 import { IfcAPI } from 'web-ifc';
 
@@ -81,6 +81,7 @@ export interface IfcState {
     models: { [modelID: number]: IfcModel };
     api: IfcAPI;
     useJSON: boolean;
+    webIfcSettings?: LoaderSettings;
 }
 
 export interface IfcMesh extends Mesh {
