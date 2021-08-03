@@ -1,4 +1,4 @@
-import { BufferAttribute, BufferGeometry, Material, Mesh, Scene } from 'three';
+import { BufferAttribute, BufferGeometry, Material, Mesh, Object3D } from 'three';
 import { BufferGeometryUtils } from 'three/examples/jsm/utils/BufferGeometryUtils';
 import {
     IFCRELAGGREGATES, IFCRELASSOCIATESMATERIAL,
@@ -25,16 +25,17 @@ export const newIntAttr = (data: any[], size: number) => {
     return new BufferAttribute(new Uint32Array(data), size);
 };
 
+//TODO: Rename "scene" to "parent" in the next major release
 export interface HighlightConfig {
-    scene: Scene;
+    scene: Object3D;
     ids: number[];
     removePrevious: boolean;
     material?: Material;
-};
+}
 
 export interface HighlightConfigOfModel extends HighlightConfig {
     modelID: number;
-};
+}
 
 export const DEFAULT = 'default';
 
@@ -66,12 +67,13 @@ export interface IfcModel {
     mesh: IfcMesh;
     items: GeometriesByMaterials;
     types: TypesMap;
-    jsonData: {[id: number]: JSONObject};
+    jsonData: { [id: number]: JSONObject };
 }
 
 export interface JSONObject {
     expressID: number;
     type: string;
+
     [key: string]: any;
 }
 
@@ -129,4 +131,4 @@ export const PropsNames = {
         related: 'RelatedObjects',
         key: 'hasType'
     }
-}
+};

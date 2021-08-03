@@ -29041,8 +29041,9 @@ class ItemSelector {
     }
 
     highlightModel(){
-        this.currentModel.createSubset({
-            scene: this.scene,
+        this.currentModel.ifcManager.createSubset({
+            modelID: this.currentModel.modelID,
+            scene: this.currentModel,
             ids: [this.currentItemID],
             removePrevious: true,
             material: this.material
@@ -29066,7 +29067,7 @@ class ItemSelector {
         if (!this.currentModel) {
             throw new Error ("The selected item doesn't belong to a model!");
         }
-        this.currentItemID = this.currentModel.getExpressId(item.object.geometry, item.faceIndex);
+        this.currentItemID = this.currentModel.ifcManager.getExpressId(item.object.geometry, item.faceIndex);
     }
 
     removePreviousSelection(){
@@ -67957,12 +67958,12 @@ class SubsetManager {
     return this.selected[currentMat].mesh;
   }
 
-  removeSubset(modelID, scene, material) {
+  removeSubset(modelID, parent, material) {
     const currentMat = this.matIDNoConfig(modelID, material);
     if (!this.selected[currentMat])
       return;
-    if (scene)
-      scene.remove(this.selected[currentMat].mesh);
+    if (parent)
+      parent.remove(this.selected[currentMat].mesh);
     delete this.selected[currentMat];
   }
 
@@ -68027,11 +68028,11 @@ class SubsetManager {
     };
   }
 
-  updatePreviousSelection(scene, config) {
+  updatePreviousSelection(parent, config) {
     const previous = this.selected[this.matID(config)];
     if (!previous)
       return this.newSelectionGroup(config);
-    scene.remove(previous.mesh);
+    parent.remove(previous.mesh);
     config.removePrevious
       ? (previous.ids = new Set(config.ids))
       : config.ids.forEach((id) => previous.ids.add(id));
@@ -69372,57 +69373,57 @@ class TypeManager {
 
 let modelIdCounter = 0;
 
-class IFCModel extends Group {
+class IFCModel extends Mesh {
 
-  constructor(mesh, ifc) {
-    super();
-    this.mesh = mesh;
-    this.ifc = ifc;
+  constructor(geometry, materials, ifcManager) {
+    super(geometry, materials);
+    this.ifcManager = ifcManager;
     this.modelID = modelIdCounter++;
+    this.mesh = this;
   }
 
   setWasmPath(path) {
-    this.ifc.setWasmPath(path);
+    this.ifcManager.setWasmPath(path);
   }
 
   close(scene) {
-    this.ifc.close(this.modelID, scene);
+    this.ifcManager.close(this.modelID, scene);
   }
 
   getExpressId(geometry, faceIndex) {
-    return this.ifc.getExpressId(geometry, faceIndex);
+    return this.ifcManager.getExpressId(geometry, faceIndex);
   }
 
   getAllItemsOfType(type, verbose) {
-    return this.ifc.getAllItemsOfType(this.modelID, type, verbose);
+    return this.ifcManager.getAllItemsOfType(this.modelID, type, verbose);
   }
 
   getItemProperties(id, recursive = false) {
-    return this.ifc.getItemProperties(this.modelID, id, recursive);
+    return this.ifcManager.getItemProperties(this.modelID, id, recursive);
   }
 
   getPropertySets(id, recursive = false) {
-    return this.ifc.getPropertySets(this.modelID, id, recursive);
+    return this.ifcManager.getPropertySets(this.modelID, id, recursive);
   }
 
   getTypeProperties(id, recursive = false) {
-    return this.ifc.getTypeProperties(this.modelID, id, recursive);
+    return this.ifcManager.getTypeProperties(this.modelID, id, recursive);
   }
 
   getIfcType(id) {
-    return this.ifc.getIfcType(this.modelID, id);
+    return this.ifcManager.getIfcType(this.modelID, id);
   }
 
   getSpatialStructure() {
-    return this.ifc.getSpatialStructure(this.modelID);
+    return this.ifcManager.getSpatialStructure(this.modelID);
   }
 
   getSubset(material) {
-    return this.ifc.getSubset(this.modelID, material);
+    return this.ifcManager.getSubset(this.modelID, material);
   }
 
-  removeSubset(scene, material) {
-    this.ifc.removeSubset(this.modelID, scene, material);
+  removeSubset(parent, material) {
+    this.ifcManager.removeSubset(this.modelID, parent, material);
   }
 
   createSubset(config) {
@@ -69430,23 +69431,23 @@ class IFCModel extends Group {
       ...config,
       modelID: this.modelID
     };
-    return this.ifc.createSubset(modelConfig);
+    return this.ifcManager.createSubset(modelConfig);
   }
 
   hideItems(ids) {
-    this.ifc.hideItems(this.modelID, ids);
+    this.ifcManager.hideItems(this.modelID, ids);
   }
 
   hideAllItems() {
-    this.ifc.hideAllItems(this.modelID);
+    this.ifcManager.hideAllItems(this.modelID);
   }
 
   showItems(ids) {
-    this.ifc.showItems(this.modelID, ids);
+    this.ifcManager.showItems(this.modelID, ids);
   }
 
-  showAllItems(modelID) {
-    this.ifc.showAllItems(this.modelID);
+  showAllItems() {
+    this.ifcManager.showAllItems(this.modelID);
   }
 
 }
@@ -69577,7 +69578,7 @@ class IFCManager {
     const mesh = await this.parser.parse(buffer);
     this.types.getAllTypes();
     this.hider.processCoordinates(mesh.modelID);
-    return new IFCModel(mesh, this);
+    return new IFCModel(mesh.geometry, mesh.material, this);
   }
 
   setWasmPath(path) {
@@ -69648,8 +69649,8 @@ class IFCManager {
     return this.subsets.getSubset(modelID, material);
   }
 
-  removeSubset(modelID, scene, material) {
-    this.subsets.removeSubset(modelID, scene, material);
+  removeSubset(modelID, parent, material) {
+    this.subsets.removeSubset(modelID, parent, material);
   }
 
   createSubset(config) {
@@ -73273,7 +73274,8 @@ class IfcManager {
         const ifcURL = URL.createObjectURL(changed.target.files[0]);
         const ifcModel = await this.ifcLoader.loadAsync(ifcURL);
         this.ifcModels.push(ifcModel);
-        this.scene.add(ifcModel.mesh);
+        this.scene.add(ifcModel);
+        ifcModel.position.x = 1;
     }
 }
 

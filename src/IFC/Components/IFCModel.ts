@@ -1,22 +1,30 @@
-import { BufferGeometry, Group, Material, Mesh, Scene } from 'three';
-import { HighlightConfig } from '../BaseDefinitions';
+import { BufferGeometry, Material, Mesh, Object3D, Scene } from 'three';
 import { IFCManager } from './IFCManager';
+import { HighlightConfig } from '../BaseDefinitions';
 
 let modelIdCounter = 0;
 
 /**
  * Represents an IFC model. This object is returned by the `IFCLoader` after loading an IFC.
- * @mesh the `THREE.Mesh` that contains the geometry of the IFC.
- * @modelID the ID of the IFC model.
+ * @geometry `THREE.Buffergeometry`, see Three.js documentation.
+ * @materials `THREE.Material[]`, see Three.js documentation.
+ * @manager contains all the logic to work with IFC.
  */
-export class IFCModel extends Group {
-    modelID = modelIdCounter++
+export class IFCModel extends Mesh {
+    modelID = modelIdCounter++;
 
-    constructor(public mesh: Mesh, private ifc: IFCManager) {
-        super();
+    /**
+     * @deprecated `IfcModel` is already a mesh; you can place it in the scene directly.
+     */
+    mesh = this;
+
+    constructor(geometry: BufferGeometry, materials: Material | Material[], public ifcManager: IFCManager) {
+        super(geometry, materials);
     }
 
     /**
+     * @deprecated Use `IfcModel.ifcManager.setWasmPath` instead.
+     *
      * Sets the relative path of web-ifc.wasm file in the project.
      * Beware: you **must** serve this file in your page; this means
      * that you have to copy this files from *node_modules/web-ifc*
@@ -31,28 +39,34 @@ export class IFCModel extends Group {
      * @path Relative path to web-ifc.wasm.
      */
     setWasmPath(path: string) {
-        this.ifc.setWasmPath(path);
+        this.ifcManager.setWasmPath(path);
     }
 
     /**
+     * @deprecated Use `IfcModel.ifcManager.close` instead.
+     *
      * Closes the specified model and deletes it from the [scene](https://threejs.org/docs/#api/en/scenes/Scene).
      * @scene Scene where the model is (if it's located in a scene).
      */
     close(scene?: Scene) {
-        this.ifc.close(this.modelID, scene);
+        this.ifcManager.close(this.modelID, scene);
     }
 
     /**
+     * @deprecated Use `IfcModel.ifcManager.getExpressId` instead.
+     *
      * Gets the **Express ID** to which the given face belongs.
      * This ID uniquely identifies this entity within this IFC file.
      * @geometry The geometry of the IFC model.
      * @faceIndex The index of the face of a geometry.You can easily get this index using the [Raycaster](https://threejs.org/docs/#api/en/core/Raycaster).
      */
     getExpressId(geometry: BufferGeometry, faceIndex: number) {
-        return this.ifc.getExpressId(geometry, faceIndex);
+        return this.ifcManager.getExpressId(geometry, faceIndex);
     }
 
     /**
+     * @deprecated Use `IfcModel.ifcManager.getAllItemsOfType` instead.
+     *
      * Returns all items of the specified type. You can import
      * the types from *web-ifc*.
      *
@@ -65,29 +79,35 @@ export class IFCModel extends Group {
      * @verbose If false (default), this only gets IDs. If true, this also gets the native properties of all the fetched items.
      */
     getAllItemsOfType(type: number, verbose: boolean) {
-        return this.ifc.getAllItemsOfType(this.modelID, type, verbose);
+        return this.ifcManager.getAllItemsOfType(this.modelID, type, verbose);
     }
 
     /**
+     * @deprecated Use `IfcModel.ifcManager.getItemProperties` instead.
+     *
      * Gets the native properties of the given element.
      * @id Express ID of the element.
      * @recursive Wether you want to get the information of the referenced elements recursively.
      */
     getItemProperties(id: number, recursive = false) {
-        return this.ifc.getItemProperties(this.modelID, id, recursive);
+        return this.ifcManager.getItemProperties(this.modelID, id, recursive);
     }
 
     /**
+     * @deprecated Use `IfcModel.ifcManager.getPropertySets` instead.
+     *
      * Gets the [property sets](https://standards.buildingsmart.org/IFC/DEV/IFC4_2/FINAL/HTML/schema/ifckernel/lexical/ifcpropertyset.htm)
      * assigned to the given element.
      * @id Express ID of the element.
      * @recursive If true, this gets the native properties of the referenced elements recursively.
      */
     getPropertySets(id: number, recursive = false) {
-        return this.ifc.getPropertySets(this.modelID, id, recursive);
+        return this.ifcManager.getPropertySets(this.modelID, id, recursive);
     }
 
     /**
+     * @deprecated Use `IfcModel.ifcManager.getTypeProperties` instead.
+     *
      * Gets the properties of the type assigned to the element.
      * For example, if applied to a wall (IfcWall), this would get back the information
      * contained in the IfcWallType assigned to it, if any.
@@ -95,18 +115,22 @@ export class IFCModel extends Group {
      * @recursive If true, this gets the native properties of the referenced elements recursively.
      */
     getTypeProperties(id: number, recursive = false) {
-        return this.ifc.getTypeProperties(this.modelID, id, recursive);
+        return this.ifcManager.getTypeProperties(this.modelID, id, recursive);
     }
 
     /**
+     * @deprecated Use `IfcModel.ifcManager.getIfcType` instead.
+     *
      * Gets the ifc type of the specified item.
      * @id Express ID of the element.
      */
     getIfcType(id: number) {
-        return this.ifc.getIfcType(this.modelID, id);
+        return this.ifcManager.getIfcType(this.modelID, id);
     }
 
     /**
+     * @deprecated Use `IfcModel.ifcManager.getSpatialStructure` instead.
+     *
      * Gets the spatial structure of the project. The
      * [spatial structure](https://standards.buildingsmart.org/IFC/DEV/IFC4_2/FINAL/HTML/schema/ifcproductextension/lexical/ifcspatialstructureelement.htm)
      * is the hierarchical structure that organizes every IFC project (all physical items
@@ -116,67 +140,81 @@ export class IFCModel extends Group {
      * one or more IfcSpaces.
      */
     getSpatialStructure() {
-        return this.ifc.getSpatialStructure(this.modelID);
+        return this.ifcManager.getSpatialStructure(this.modelID);
     }
 
     /**
+     * @deprecated Use `IfcModel.ifcManager.getSubset` instead.
+     *
      * Gets the mesh of the subset with the specified [material](https://threejs.org/docs/#api/en/materials/Material).
      * If no material is given, this returns the subset with the original materials.
      * @material Material assigned to the subset, if any.
      */
     getSubset(material?: Material) {
-        return this.ifc.getSubset(this.modelID, material);
+        return this.ifcManager.getSubset(this.modelID, material);
     }
 
     /**
+     * @deprecated Use `IfcModel.ifcManager.removeSubset` instead.
+     *
      * Removes the specified subset.
-     * @scene Scene where the subset is.
+     * @parent The parent where the subset is (can be any `THREE.Object3D`).
      * @material Material assigned to the subset, if any.
      */
-    removeSubset(scene?: Scene, material?: Material) {
-        this.ifc.removeSubset(this.modelID, scene, material);
+    removeSubset(parent?: Object3D, material?: Material) {
+        this.ifcManager.removeSubset(this.modelID, parent, material);
     }
 
     /**
+     * @deprecated Use `IfcModel.ifcManager.createSubset` instead.
+     *
      * Creates a new geometric subset.
      * @config A configuration object with the following options:
-     * - **scene**: Scene where the model is located.
+     * - **scene**: `THREE.Object3D` where the model is located.
      * - **ids**: Express IDs of the items of the model that will conform the subset.
      * - **removePrevious**: Wether to remove the previous subset of this model with this material.
      * - **material**: (optional) Wether to apply a material to the subset
      */
     createSubset(config: HighlightConfig) {
-        const modelConfig = {...config, modelID: this.modelID};
-        return this.ifc.createSubset(modelConfig);
+        const modelConfig = { ...config, modelID: this.modelID };
+        return this.ifcManager.createSubset(modelConfig);
     }
 
     /**
+     * @deprecated Use `IfcModel.ifcManager.hideItems` instead.
+     *
      * Hides the selected items in the specified model
      * @ids Express ID of the elements.
      */
     hideItems(ids: number[]) {
-        this.ifc.hideItems(this.modelID, ids);
+        this.ifcManager.hideItems(this.modelID, ids);
     }
 
     /**
+     * @deprecated Use `IfcModel.ifcManager.hideAllItems` instead.
+     *
      * Hides all the items of the specified model
      */
     hideAllItems() {
-        this.ifc.hideAllItems(this.modelID);
+        this.ifcManager.hideAllItems(this.modelID);
     }
 
     /**
+     * @deprecated Use `IfcModel.ifcManager.showItems` instead.
+     *
      * Hides all the items of the specified model
      * @ids Express ID of the elements.
      */
     showItems(ids: number[]) {
-        this.ifc.showItems(this.modelID, ids);
+        this.ifcManager.showItems(this.modelID, ids);
     }
 
     /**
+     * @deprecated Use `IfcModel.ifcManager.showAllItems` instead.
+     *
      * Shows all the items of the specified model
      */
-    showAllItems(modelID: number) {
-        this.ifc.showAllItems(this.modelID);
+    showAllItems() {
+        this.ifcManager.showAllItems(this.modelID);
     }
 }

@@ -5,7 +5,7 @@ import { PropertyManager } from './PropertyManager';
 import { IfcElements } from './IFCElementsMap';
 import { TypeManager } from './TypeManager';
 import { HighlightConfigOfModel, IfcState, JSONObject } from '../BaseDefinitions';
-import { BufferGeometry, Material, Scene } from 'three';
+import { BufferGeometry, Material, Object3D, Scene } from 'three';
 import { IFCModel } from './IFCModel';
 import { BvhManager } from './BvhManager';
 import { ItemsHider } from './ItemsHider';
@@ -26,7 +26,7 @@ export class IFCManager {
         const mesh = await this.parser.parse(buffer);
         this.types.getAllTypes();
         this.hider.processCoordinates(mesh.modelID);
-        return new IFCModel(mesh, this);
+        return new IFCModel(mesh.geometry, mesh.material, this);
     }
 
     /**
@@ -208,17 +208,17 @@ export class IFCManager {
     /**
      * Removes the specified subset.
      * @modelID ID of the IFC model.
-     * @scene Scene where the subset is.
+     * @parent The parent where the subset is (can be any `THREE.Object3D`).
      * @material Material assigned to the subset, if any.
      */
-    removeSubset(modelID: number, scene?: Scene, material?: Material) {
-        this.subsets.removeSubset(modelID, scene, material);
+    removeSubset(modelID: number, parent?: Object3D, material?: Material) {
+        this.subsets.removeSubset(modelID, parent, material);
     }
 
     /**
      * Creates a new geometric subset.
      * @config A configuration object with the following options:
-     * - **scene**: Scene where the model is located.
+     * - **scene**: `THREE.Object3D` where the model is located.
      * - **modelID**: ID of the model.
      * - **ids**: Express IDs of the items of the model that will conform the subset.
      * - **removePrevious**: wether to remove the previous subset of this model with this material.

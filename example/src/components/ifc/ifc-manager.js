@@ -43,7 +43,8 @@ export class IfcManager {
         const ifcURL = URL.createObjectURL(changed.target.files[0]);
         const ifcModel = await this.ifcLoader.loadAsync(ifcURL);
         this.ifcModels.push(ifcModel);
-        this.scene.add(ifcModel.mesh);
+        this.scene.add(ifcModel);
+        ifcModel.position.x = 1;
     }
 }
 

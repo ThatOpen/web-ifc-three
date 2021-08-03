@@ -24,8 +24,9 @@ export class ItemSelector {
     }
 
     highlightModel(){
-        this.currentModel.createSubset({
-            scene: this.scene,
+        this.currentModel.ifcManager.createSubset({
+            modelID: this.currentModel.modelID,
+            scene: this.currentModel,
             ids: [this.currentItemID],
             removePrevious: true,
             material: this.material
@@ -49,7 +50,7 @@ export class ItemSelector {
         if (!this.currentModel) {
             throw new Error ("The selected item doesn't belong to a model!");
         }
-        this.currentItemID = this.currentModel.getExpressId(item.object.geometry, item.faceIndex);
+        this.currentItemID = this.currentModel.ifcManager.getExpressId(item.object.geometry, item.faceIndex);
     }
 
     removePreviousSelection(){

@@ -1,4 +1,4 @@
-import { BufferGeometry, Material, Mesh, MeshLambertMaterial, Scene } from 'three';
+import { BufferGeometry, Material, Mesh, Object3D } from 'three';
 import {
     IfcState,
     GeometriesByMaterials,
@@ -30,10 +30,10 @@ export class SubsetManager {
         return this.selected[currentMat].mesh;
     }
 
-    removeSubset(modelID: number, scene?: Scene, material?: Material) {
+    removeSubset(modelID: number, parent?: Object3D, material?: Material) {
         const currentMat = this.matIDNoConfig(modelID, material);
         if (!this.selected[currentMat]) return;
-        if (scene) scene.remove(this.selected[currentMat].mesh);
+        if (parent) parent.remove(this.selected[currentMat].mesh);
         delete this.selected[currentMat];
     }
 
@@ -93,10 +93,10 @@ export class SubsetManager {
         return { geomsByMaterial, materials };
     }
 
-    private updatePreviousSelection(scene: Scene, config: HighlightConfigOfModel) {
+    private updatePreviousSelection(parent: Object3D, config: HighlightConfigOfModel) {
         const previous = this.selected[this.matID(config)];
         if (!previous) return this.newSelectionGroup(config);
-        scene.remove(previous.mesh);
+        parent.remove(previous.mesh);
         config.removePrevious
             ? (previous.ids = new Set(config.ids))
             : config.ids.forEach((id) => previous.ids.add(id));
