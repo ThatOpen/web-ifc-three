@@ -69135,7 +69135,9 @@ class PropertyManager {
     const projectID = this.getAllItemsOfTypeJSON(modelID, IFCPROJECT, false)[0];
     const project = this.newIfcProject(projectID);
     this.getSpatialNode(modelID, project, chunks);
-    return project;
+    return {
+      ...project
+    };
   }
 
   getSpatialStructureWebIfcAPI(modelID) {
@@ -69171,7 +69173,9 @@ class PropertyManager {
   getItemsByIDJSON(modelID, ids) {
     const data = this.state.models[modelID].jsonData;
     const result = [];
-    ids.forEach(id => result.push(data[id]));
+    ids.forEach(id => result.push({
+      ...data[id]
+    }));
     return result;
   }
 
