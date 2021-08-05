@@ -69096,7 +69096,9 @@ class PropertyManager {
 
   getItemProperties(modelID, id, recursive = false) {
     return this.state.useJSON ?
-      this.state.models[modelID].jsonData[id] :
+      {
+        ...this.state.models[modelID].jsonData[id]
+      } :
       this.state.api.GetLine(modelID, id, recursive);
   }
 
