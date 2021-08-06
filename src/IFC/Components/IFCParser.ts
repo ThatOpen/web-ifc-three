@@ -28,6 +28,7 @@ export class IFCParser {
     private state: IfcState;
     private BVH: BvhManager;
     private currentID: number;
+    private loadedModels = 0;
 
     constructor(state: IfcState, BVH: BvhManager) {
         this.currentID = -1;
@@ -37,20 +38,22 @@ export class IFCParser {
 
     async parse(buffer: any) {
         if (this.state.api.wasmModule === undefined) await this.state.api.Init();
-        this.currentID = this.newIfcModel(buffer);
+        this.newIfcModel(buffer);
+        this.loadedModels++;
         return this.loadAllGeometry();
     }
 
     private newIfcModel(buffer: any) {
         const data = new Uint8Array(buffer);
-        const modelID = this.state.api.OpenModel(data, this.state.webIfcSettings);
-        this.state.models[modelID] = {
-            modelID,
+        const webIfcModelID = this.state.api.OpenModel(data, this.state.webIfcSettings);
+        this.currentID = this.state.useJSON ? this.loadedModels : webIfcModelID;
+        this.state.models[this.currentID] = {
+            modelID: this.currentID,
             mesh: {} as IfcMesh,
             items: {},
             types: {},
-            jsonData: {} };
-        return modelID;
+            jsonData: {}
+        };
     }
 
     private loadAllGeometry() {

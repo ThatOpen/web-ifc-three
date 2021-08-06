@@ -67781,6 +67781,7 @@ const PropsNames = {
 class IFCParser {
 
   constructor(state, BVH) {
+    this.loadedModels = 0;
     this.currentID = -1;
     this.state = state;
     this.BVH = BVH;
@@ -67789,21 +67790,22 @@ class IFCParser {
   async parse(buffer) {
     if (this.state.api.wasmModule === undefined)
       await this.state.api.Init();
-    this.currentID = this.newIfcModel(buffer);
+    this.newIfcModel(buffer);
+    this.loadedModels++;
     return this.loadAllGeometry();
   }
 
   newIfcModel(buffer) {
     const data = new Uint8Array(buffer);
-    const modelID = this.state.api.OpenModel(data, this.state.webIfcSettings);
-    this.state.models[modelID] = {
-      modelID,
+    const webIfcModelID = this.state.api.OpenModel(data, this.state.webIfcSettings);
+    this.currentID = this.state.useJSON ? this.loadedModels : webIfcModelID;
+    this.state.models[this.currentID] = {
+      modelID: this.currentID,
       mesh: {},
       items: {},
       types: {},
       jsonData: {}
     };
-    return modelID;
   }
 
   loadAllGeometry() {
