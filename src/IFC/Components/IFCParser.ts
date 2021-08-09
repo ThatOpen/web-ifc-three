@@ -25,16 +25,14 @@ import { BvhManager } from './BvhManager';
  * Reads all the geometry of the IFC file and generates an optimized `THREE.Mesh`.
  */
 export class IFCParser {
-    private state: IfcState;
-    private BVH: BvhManager;
-    private currentID: number;
-    private loadedModels = 0;
+    loadedModels = 0;
+    // Represents the index of the model in webIfcAPI
+    private currentWebIfcID = -1;
+    // When using JSON data for optimization, webIfcAPI is reinitialized every time a model is loaded
+    // This means that currentID is always 0, while currentModelID is the real index of stored models
+    private currentModelID = -1;
 
-    constructor(state: IfcState, BVH: BvhManager) {
-        this.currentID = -1;
-        this.state = state;
-        this.BVH = BVH;
-    }
+    constructor(private state: IfcState, private BVH: BvhManager) {}
 
     async parse(buffer: any) {
         if (this.state.api.wasmModule === undefined) await this.state.api.Init();
@@ -45,10 +43,10 @@ export class IFCParser {
 
     private newIfcModel(buffer: any) {
         const data = new Uint8Array(buffer);
-        const webIfcModelID = this.state.api.OpenModel(data, this.state.webIfcSettings);
-        this.currentID = this.state.useJSON ? this.loadedModels : webIfcModelID;
-        this.state.models[this.currentID] = {
-            modelID: this.currentID,
+        this.currentWebIfcID = this.state.api.OpenModel(data, this.state.webIfcSettings);
+        this.currentModelID = this.state.useJSON ? this.loadedModels : this.currentWebIfcID;
+        this.state.models[this.currentModelID] = {
+            modelID: this.currentModelID,
             mesh: {} as IfcMesh,
             items: {},
             types: {},
@@ -65,13 +63,13 @@ export class IFCParser {
         const { geometry, materials } = this.getGeometryAndMaterials();
         this.BVH.applyThreeMeshBVH(geometry);
         const mesh = new Mesh(geometry, materials) as IfcMesh;
-        mesh.modelID = this.currentID;
-        this.state.models[this.currentID].mesh = mesh;
+        mesh.modelID = this.currentModelID;
+        this.state.models[this.currentModelID].mesh = mesh;
         return mesh;
     }
 
     private getGeometryAndMaterials() {
-        const items = this.state.models[this.currentID].items;
+        const items = this.state.models[this.currentModelID].items;
         const mergedByMaterial: BufferGeometry[] = [];
         const materials: Material[] = [];
         for (let materialID in items) {
@@ -84,7 +82,7 @@ export class IFCParser {
     }
 
     private saveAllPlacedGeometriesByMaterial() {
-        const flatMeshes = this.state.api.LoadAllGeometry(this.currentID);
+        const flatMeshes = this.state.api.LoadAllGeometry(this.currentWebIfcID);
         for (let i = 0; i < flatMeshes.size(); i++) {
             const flatMesh = flatMeshes.get(i);
             const placedGeom = flatMesh.geometries;
@@ -103,7 +101,7 @@ export class IFCParser {
     }
 
     private getBufferGeometry(placed: PlacedGeometry) {
-        const geometry = this.state.api.GetGeometry(this.currentID, placed.geometryExpressID);
+        const geometry = this.state.api.GetGeometry(this.currentWebIfcID, placed.geometryExpressID);
         const vertexData = this.getVertices(geometry);
         const indices = this.getIndices(geometry);
         const { vertices, normals } = this.extractVertexData(vertexData);
@@ -152,7 +150,7 @@ export class IFCParser {
         const colorID = `${color.x}${color.y}${color.z}${color.w}`;
         this.storeGeometryAttribute(id, geom);
         this.createMaterial(colorID, color);
-        const item = this.state.models[this.currentID].items[colorID];
+        const item = this.state.models[this.currentModelID].items[colorID];
         const currentGeom = item.geometries[id];
         if (!currentGeom) return (item.geometries[id] = geom);
         const merged = merge([currentGeom, geom]);
@@ -166,7 +164,7 @@ export class IFCParser {
     }
 
     private createMaterial(colorID: string, color: ifcColor) {
-        const items = this.state.models[this.currentID].items;
+        const items = this.state.models[this.currentModelID].items;
         if (items[colorID]) return;
         const col = new Color(color.x, color.y, color.z);
         const newMaterial = new MeshLambertMaterial({ color: col, side: DoubleSide });

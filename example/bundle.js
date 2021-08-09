@@ -67781,10 +67781,11 @@ const PropsNames = {
 class IFCParser {
 
   constructor(state, BVH) {
-    this.loadedModels = 0;
-    this.currentID = -1;
     this.state = state;
     this.BVH = BVH;
+    this.loadedModels = 0;
+    this.currentWebIfcID = -1;
+    this.currentModelID = -1;
   }
 
   async parse(buffer) {
@@ -67797,10 +67798,10 @@ class IFCParser {
 
   newIfcModel(buffer) {
     const data = new Uint8Array(buffer);
-    const webIfcModelID = this.state.api.OpenModel(data, this.state.webIfcSettings);
-    this.currentID = this.state.useJSON ? this.loadedModels : webIfcModelID;
-    this.state.models[this.currentID] = {
-      modelID: this.currentID,
+    this.currentWebIfcID = this.state.api.OpenModel(data, this.state.webIfcSettings);
+    this.currentModelID = this.state.useJSON ? this.loadedModels : this.currentWebIfcID;
+    this.state.models[this.currentModelID] = {
+      modelID: this.currentModelID,
       mesh: {},
       items: {},
       types: {},
@@ -67817,13 +67818,13 @@ class IFCParser {
     const {geometry, materials} = this.getGeometryAndMaterials();
     this.BVH.applyThreeMeshBVH(geometry);
     const mesh = new Mesh(geometry, materials);
-    mesh.modelID = this.currentID;
-    this.state.models[this.currentID].mesh = mesh;
+    mesh.modelID = this.currentModelID;
+    this.state.models[this.currentModelID].mesh = mesh;
     return mesh;
   }
 
   getGeometryAndMaterials() {
-    const items = this.state.models[this.currentID].items;
+    const items = this.state.models[this.currentModelID].items;
     const mergedByMaterial = [];
     const materials = [];
     for (let materialID in items) {
@@ -67839,7 +67840,7 @@ class IFCParser {
   }
 
   saveAllPlacedGeometriesByMaterial() {
-    const flatMeshes = this.state.api.LoadAllGeometry(this.currentID);
+    const flatMeshes = this.state.api.LoadAllGeometry(this.currentWebIfcID);
     for (let i = 0; i < flatMeshes.size(); i++) {
       const flatMesh = flatMeshes.get(i);
       const placedGeom = flatMesh.geometries;
@@ -67858,7 +67859,7 @@ class IFCParser {
   }
 
   getBufferGeometry(placed) {
-    const geometry = this.state.api.GetGeometry(this.currentID, placed.geometryExpressID);
+    const geometry = this.state.api.GetGeometry(this.currentWebIfcID, placed.geometryExpressID);
     const vertexData = this.getVertices(geometry);
     const indices = this.getIndices(geometry);
     const {vertices, normals} = this.extractVertexData(vertexData);
@@ -67911,7 +67912,7 @@ class IFCParser {
     const colorID = `${color.x}${color.y}${color.z}${color.w}`;
     this.storeGeometryAttribute(id, geom);
     this.createMaterial(colorID, color);
-    const item = this.state.models[this.currentID].items[colorID];
+    const item = this.state.models[this.currentModelID].items[colorID];
     const currentGeom = item.geometries[id];
     if (!currentGeom)
       return (item.geometries[id] = geom);
@@ -67926,7 +67927,7 @@ class IFCParser {
   }
 
   createMaterial(colorID, color) {
-    const items = this.state.models[this.currentID].items;
+    const items = this.state.models[this.currentModelID].items;
     if (items[colorID])
       return;
     const col = new Color(color.x, color.y, color.z);
@@ -69301,13 +69302,19 @@ class PropertyManager {
   }
 
   newNode(modelID, id) {
-    const typeID = this.state.models[modelID].types[id];
-    const typeName = IfcElements[typeID];
+    const typeName = this.getNodeType(modelID, id);
     return {
       expressID: id,
       type: typeName,
       children: []
     };
+  }
+
+  getNodeType(modelID, id) {
+    if (this.state.useJSON)
+      return this.state.models[modelID].jsonData[id].type;
+    const typeID = this.state.models[modelID].types[id];
+    return IfcElements[typeID];
   }
 
   getAllRelatedItemsOfTypeJSON(modelID, id, propNames) {
@@ -69584,7 +69591,7 @@ class IFCManager {
 
   async parse(buffer) {
     const mesh = await this.parser.parse(buffer);
-    this.types.getAllTypes();
+    this.state.useJSON ? this.disposeMemory() : this.types.getAllTypes();
     this.hider.processCoordinates(mesh.modelID);
     return new IFCModel(mesh.geometry, mesh.material, this);
   }
@@ -69620,8 +69627,9 @@ class IFCManager {
 
   close(modelID, scene) {
     this.state.api.CloseModel(modelID);
-    if (scene)
+    if (scene) {
       scene.remove(this.state.models[modelID].mesh);
+    }
     delete this.state.models[modelID];
   }
 

@@ -214,13 +214,18 @@ export class PropertyManager {
     }
 
     private newNode(modelID: number, id: number) {
-        const typeID = this.state.models[modelID].types[id];
-        const typeName = IfcElements[typeID];
+        const typeName = this.getNodeType(modelID, id);
         return {
             expressID: id,
             type: typeName,
             children: []
         };
+    }
+
+    private getNodeType(modelID: number, id: number) {
+        if(this.state.useJSON) return this.state.models[modelID].jsonData[id].type;
+        const typeID = this.state.models[modelID].types[id];
+        return IfcElements[typeID];
     }
 
     private getAllRelatedItemsOfTypeJSON(modelID: number, id: number, propNames: pName) {
