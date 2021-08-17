@@ -30,6 +30,10 @@ export class IFCManager {
         return new IFCModel(mesh.geometry, mesh.material, this);
     }
 
+    getAndClearErrors(modelID: number){
+        return this.parser.getAndClearErrors(modelID);
+    }
+
     /**
      * Sets the relative path of web-ifc.wasm file in the project.
      * Beware: you **must** serve this file in your page; this means
