@@ -41,6 +41,10 @@ export class IFCParser {
         return this.loadAllGeometry();
     }
 
+    getAndClearErrors(modelId: number){
+        return this.state.api.GetAndClearErrors(modelId);
+    }
+
     private newIfcModel(buffer: any) {
         const data = new Uint8Array(buffer);
         this.currentWebIfcID = this.state.api.OpenModel(data, this.state.webIfcSettings);
