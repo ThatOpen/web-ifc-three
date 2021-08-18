@@ -1,6 +1,8 @@
 {
-  "exclude": ["../**/node_modules", "../**/dist", "../**/example", "../**/rollup.config.js"],
-  "include": ["../src/**/*"],
+  "exclude": ["../**/node_modules", "../**/dist", "../**/example", "../**/rollup.config.js", "../**/test"],
+  "include": [
+    "../src/**/*"
+  ],
   "compilerOptions": {
     /* Visit https://aka.ms/tsconfig.json to read more about this file */
 

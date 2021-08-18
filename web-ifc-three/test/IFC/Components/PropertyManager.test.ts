@@ -1,9 +1,9 @@
-import {PropertyManager} from "./PropertyManager";
+import {PropertyManager} from "../../../src/IFC/Components/PropertyManager";
 import {BufferAttribute, BufferGeometry} from "three";
 import * as WebIFC from "web-ifc";
 import {Handle, IfcGloballyUniqueId, IfcPropertySet, IfcRelDefinesByProperties, IfcWall} from "web-ifc";
-import {IdAttrName} from "../BaseDefinitions";
-import {mockAndSpyGetLineIDsWithType} from "../../../test/GetLineIDsWithType.mock";
+import {IdAttrName} from "../../../src/IFC/BaseDefinitions";
+import {mockAndSpyGetLineIDsWithType} from "../../GetLineIDsWithType.mock";
 
 describe("PropertyManager", () => {
 
