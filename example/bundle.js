@@ -32408,7 +32408,7 @@ var require_web_ifc = __commonJS({
         function isFileURI(filename) {
           return hasPrefix(filename, fileURIPrefix);
         }
-        var wasmBinaryFile = "web-ifc.wasm";
+        var wasmBinaryFile = WasmPath + "web-ifc.wasm";
         if (!isDataURI(wasmBinaryFile)) {
           wasmBinaryFile = locateFile(wasmBinaryFile);
         }
@@ -32444,7 +32444,7 @@ var require_web_ifc = __commonJS({
           function receiveInstance(instance, module2) {
             var exports3 = instance.exports;
             Module["asm"] = exports3;
-            wasmTable = Module["asm"]["Z"];
+            wasmTable = Module["asm"]["X"];
             removeRunDependency();
           }
           addRunDependency();
@@ -35764,56 +35764,6 @@ var require_web_ifc = __commonJS({
             return __emval_register(value);
           }, "argPackAdvance": 8, "readValueFromPointer": simpleReadValueFromPointer, destructorFunction: null });
         }
-        function enumReadValueFromPointer(name2, shift, signed) {
-          switch (shift) {
-            case 0:
-              return function(pointer) {
-                var heap = signed ? HEAP8 : HEAPU8;
-                return this["fromWireType"](heap[pointer >>> 0]);
-              };
-            case 1:
-              return function(pointer) {
-                var heap = signed ? HEAP16 : HEAPU16;
-                return this["fromWireType"](heap[pointer >>> 1]);
-              };
-            case 2:
-              return function(pointer) {
-                var heap = signed ? HEAP32 : HEAPU32;
-                return this["fromWireType"](heap[pointer >>> 2]);
-              };
-            default:
-              throw new TypeError("Unknown integer type: " + name2);
-          }
-        }
-        function __embind_register_enum(rawType, name2, size, isSigned) {
-          var shift = getShiftFromSize(size);
-          name2 = readLatin1String(name2);
-          function ctor() {
-          }
-          ctor.values = {};
-          registerType(rawType, { name: name2, constructor: ctor, "fromWireType": function(c) {
-            return this.constructor.values[c];
-          }, "toWireType": function(destructors, c) {
-            return c.value;
-          }, "argPackAdvance": 8, "readValueFromPointer": enumReadValueFromPointer(name2, shift, isSigned), destructorFunction: null });
-          exposePublicSymbol(name2, ctor);
-        }
-        function requireRegisteredType(rawType, humanName) {
-          var impl = registeredTypes[rawType];
-          if (impl === void 0) {
-            throwBindingError(humanName + " has unknown type " + getTypeName(rawType));
-          }
-          return impl;
-        }
-        function __embind_register_enum_value(rawEnumType, name2, enumValue) {
-          var enumType = requireRegisteredType(rawEnumType, "enum");
-          name2 = readLatin1String(name2);
-          var Enum = enumType.constructor;
-          var Value2 = Object.create(enumType.constructor.prototype, { value: { value: enumValue }, constructor: { value: createNamedFunction(enumType.name + "_" + name2, function() {
-          }) } });
-          Enum.values[enumValue] = Value2;
-          Enum[name2] = Value2;
-        }
         function _embind_repr(v) {
           if (v === null) {
             return "null";
@@ -36089,6 +36039,13 @@ var require_web_ifc = __commonJS({
             throwBindingError("Cannot use deleted val. handle = " + handle);
           }
           return emval_handle_array[handle].value;
+        }
+        function requireRegisteredType(rawType, humanName) {
+          var impl = registeredTypes[rawType];
+          if (impl === void 0) {
+            throwBindingError(humanName + " has unknown type " + getTypeName(rawType));
+          }
+          return impl;
         }
         function __emval_as(handle, returnType, destructorsRef) {
           handle = requireHandle(handle);
@@ -36633,43 +36590,43 @@ var require_web_ifc = __commonJS({
         __ATINIT__.push({ func: function() {
           ___wasm_call_ctors();
         } });
-        var asmLibraryArg = { "y": ___assert_fail, "B": ___sys_fcntl64, "Q": ___sys_ioctl, "R": ___sys_open, "W": __embind_finalize_value_array, "r": __embind_finalize_value_object, "T": __embind_register_bool, "u": __embind_register_class, "t": __embind_register_class_constructor, "d": __embind_register_class_function, "S": __embind_register_emval, "V": __embind_register_enum, "w": __embind_register_enum_value, "D": __embind_register_float, "h": __embind_register_function, "m": __embind_register_integer, "k": __embind_register_memory_view, "E": __embind_register_std_string, "x": __embind_register_std_wstring, "X": __embind_register_value_array, "i": __embind_register_value_array_element, "s": __embind_register_value_object, "f": __embind_register_value_object_field, "U": __embind_register_void, "q": __emval_as, "Y": __emval_call, "b": __emval_decref, "G": __emval_get_global, "n": __emval_get_property, "l": __emval_incref, "P": __emval_instanceof, "F": __emval_is_number, "z": __emval_new_array, "g": __emval_new_cstring, "v": __emval_new_object, "p": __emval_run_destructors, "j": __emval_set_property, "e": __emval_take_value, "c": _abort, "N": _clock_gettime, "J": _emscripten_memcpy_big, "o": _emscripten_resize_heap, "L": _environ_get, "M": _environ_sizes_get, "C": _fd_close, "O": _fd_read, "H": _fd_seek, "A": _fd_write, "a": wasmMemory, "I": _setTempRet0, "K": _strftime_l };
+        var asmLibraryArg = { "x": ___assert_fail, "A": ___sys_fcntl64, "P": ___sys_ioctl, "Q": ___sys_open, "U": __embind_finalize_value_array, "s": __embind_finalize_value_object, "S": __embind_register_bool, "v": __embind_register_class, "u": __embind_register_class_constructor, "d": __embind_register_class_function, "R": __embind_register_emval, "C": __embind_register_float, "h": __embind_register_function, "m": __embind_register_integer, "k": __embind_register_memory_view, "D": __embind_register_std_string, "w": __embind_register_std_wstring, "V": __embind_register_value_array, "g": __embind_register_value_array_element, "t": __embind_register_value_object, "j": __embind_register_value_object_field, "T": __embind_register_void, "q": __emval_as, "W": __emval_call, "b": __emval_decref, "F": __emval_get_global, "n": __emval_get_property, "l": __emval_incref, "N": __emval_instanceof, "E": __emval_is_number, "y": __emval_new_array, "f": __emval_new_cstring, "r": __emval_new_object, "p": __emval_run_destructors, "i": __emval_set_property, "e": __emval_take_value, "c": _abort, "M": _clock_gettime, "I": _emscripten_memcpy_big, "o": _emscripten_resize_heap, "K": _environ_get, "L": _environ_sizes_get, "B": _fd_close, "O": _fd_read, "G": _fd_seek, "z": _fd_write, "a": wasmMemory, "H": _setTempRet0, "J": _strftime_l };
         createWasm();
         var ___wasm_call_ctors = Module["___wasm_call_ctors"] = function() {
-          return (___wasm_call_ctors = Module["___wasm_call_ctors"] = Module["asm"]["_"]).apply(null, arguments);
+          return (___wasm_call_ctors = Module["___wasm_call_ctors"] = Module["asm"]["Y"]).apply(null, arguments);
         };
         Module["_main"] = function() {
-          return (Module["_main"] = Module["asm"]["$"]).apply(null, arguments);
+          return (Module["_main"] = Module["asm"]["Z"]).apply(null, arguments);
         };
         var _malloc = Module["_malloc"] = function() {
-          return (_malloc = Module["_malloc"] = Module["asm"]["aa"]).apply(null, arguments);
+          return (_malloc = Module["_malloc"] = Module["asm"]["_"]).apply(null, arguments);
         };
         var ___getTypeName = Module["___getTypeName"] = function() {
-          return (___getTypeName = Module["___getTypeName"] = Module["asm"]["ba"]).apply(null, arguments);
+          return (___getTypeName = Module["___getTypeName"] = Module["asm"]["$"]).apply(null, arguments);
         };
         Module["___embind_register_native_and_builtin_types"] = function() {
-          return (Module["___embind_register_native_and_builtin_types"] = Module["asm"]["ca"]).apply(null, arguments);
+          return (Module["___embind_register_native_and_builtin_types"] = Module["asm"]["aa"]).apply(null, arguments);
         };
         var ___errno_location = Module["___errno_location"] = function() {
-          return (___errno_location = Module["___errno_location"] = Module["asm"]["da"]).apply(null, arguments);
+          return (___errno_location = Module["___errno_location"] = Module["asm"]["ba"]).apply(null, arguments);
         };
         var _free = Module["_free"] = function() {
-          return (_free = Module["_free"] = Module["asm"]["ea"]).apply(null, arguments);
+          return (_free = Module["_free"] = Module["asm"]["ca"]).apply(null, arguments);
         };
         Module["dynCall_jiji"] = function() {
-          return (Module["dynCall_jiji"] = Module["asm"]["fa"]).apply(null, arguments);
+          return (Module["dynCall_jiji"] = Module["asm"]["da"]).apply(null, arguments);
         };
         Module["dynCall_viijii"] = function() {
-          return (Module["dynCall_viijii"] = Module["asm"]["ga"]).apply(null, arguments);
+          return (Module["dynCall_viijii"] = Module["asm"]["ea"]).apply(null, arguments);
         };
         Module["dynCall_iiiiiijj"] = function() {
-          return (Module["dynCall_iiiiiijj"] = Module["asm"]["ha"]).apply(null, arguments);
+          return (Module["dynCall_iiiiiijj"] = Module["asm"]["fa"]).apply(null, arguments);
         };
         Module["dynCall_iiiiij"] = function() {
-          return (Module["dynCall_iiiiij"] = Module["asm"]["ia"]).apply(null, arguments);
+          return (Module["dynCall_iiiiij"] = Module["asm"]["ga"]).apply(null, arguments);
         };
         Module["dynCall_iiiiijj"] = function() {
-          return (Module["dynCall_iiiiijj"] = Module["asm"]["ja"]).apply(null, arguments);
+          return (Module["dynCall_iiiiijj"] = Module["asm"]["ha"]).apply(null, arguments);
         };
         Module["addRunDependency"] = addRunDependency;
         Module["removeRunDependency"] = removeRunDependency;
@@ -68079,8 +68036,7 @@ var IfcAPI = class {
       USE_FAST_BOOLS: false,
       CIRCLE_SEGMENTS_LOW: 5,
       CIRCLE_SEGMENTS_MEDIUM: 8,
-      CIRCLE_SEGMENTS_HIGH: 12,
-      BOOL_ABORT_THRESHOLD: 1e4
+      CIRCLE_SEGMENTS_HIGH: 12
     }, settings);
     let result = this.wasmModule.OpenModel(s);
     this.wasmModule["FS_unlink"]("/filename");
@@ -68092,8 +68048,7 @@ var IfcAPI = class {
       USE_FAST_BOOLS: false,
       CIRCLE_SEGMENTS_LOW: 5,
       CIRCLE_SEGMENTS_MEDIUM: 8,
-      CIRCLE_SEGMENTS_HIGH: 12,
-      BOOL_ABORT_THRESHOLD: 1e4
+      CIRCLE_SEGMENTS_HIGH: 12
     }, settings);
     let result = this.wasmModule.CreateModel(s);
     return result;
@@ -68114,9 +68069,6 @@ var IfcAPI = class {
       this.FlattenLine(modelID, lineData);
     }
     return lineData;
-  }
-  GetAndClearErrors(modelID) {
-    return this.wasmModule.GetAndClearErrors(modelID);
   }
   WriteLine(modelID, lineObject) {
     Object.keys(lineObject).forEach((propertyName) => {
@@ -68177,9 +68129,6 @@ var IfcAPI = class {
     }
     this.wasmModule.SetGeometryTransformation(modelID, transformationMatrix);
   }
-  GetCoordinationMatrix(modelID) {
-    return this.wasmModule.GetCoordinationMatrix(modelID);
-  }
   GetVertexArray(ptr, size) {
     return this.getSubArray(this.wasmModule.HEAPF32, ptr, size);
   }
@@ -68205,8 +68154,12 @@ var IfcAPI = class {
     return this.wasmModule.GetFlatMesh(modelID, expressID);
   }
   SetWasmPath(path) {
+    WasmPath = path;
   }
 };
+
+
+ var WasmPath = "";
 
 class BufferGeometryUtils {
 
@@ -69192,9 +69145,7 @@ class IFCParser {
     return this.loadAllGeometry();
   }
 
-  getAndClearErrors(modelId) {
-    return this.state.api.GetAndClearErrors(modelId);
-  }
+  getAndClearErrors(modelId) {}
 
   newIfcModel(buffer) {
     const data = new Uint8Array(buffer);
@@ -74737,14 +74688,6 @@ class IfcManager {
     async loadIFC(changed) {
         const ifcURL = URL.createObjectURL(changed.target.files[0]);
         const ifcModel = await this.ifcLoader.loadAsync(ifcURL);
-
-        // log errors to console
-        let errors = this.ifcLoader .GetAndClearErrors(modelID);
-        for (let i = 0; i < errors.size(); i++)
-        {
-            console.log(errors.get(i));
-        }
-
         this.ifcModels.push(ifcModel);
         this.scene.add(ifcModel);
     }

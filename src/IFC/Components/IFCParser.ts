@@ -42,7 +42,7 @@ export class IFCParser {
     }
 
     getAndClearErrors(modelId: number){
-        return this.state.api.GetAndClearErrors(modelId);
+        // return this.state.api.GetAndClearErrors(modelId);
     }
 
     private newIfcModel(buffer: any) {
