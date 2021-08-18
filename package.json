@@ -36,7 +36,7 @@
   "homepage": "https://github.com/agviegas/web-ifc-three#readme",
   "dependencies": {
     "stats.js": "^0.17.0",
-    "three": "^0.128.0",
+    "three": "^0.131.3",
     "three-mesh-bvh": "^0.3.7",
     "web-ifc": "0.0.21"
   },

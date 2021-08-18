@@ -3,6 +3,7 @@ import { IFCManager } from './IFCManager';
 import { HighlightConfig } from '../BaseDefinitions';
 
 let modelIdCounter = 0;
+const nullIfcManagerErrorMessage = "IfcManager is null!";
 
 /**
  * Represents an IFC model. This object is returned by the `IFCLoader` after loading an IFC.
@@ -12,14 +13,15 @@ let modelIdCounter = 0;
  */
 export class IFCModel extends Mesh {
     modelID = modelIdCounter++;
+    ifcManager: IFCManager | null = null;
 
     /**
      * @deprecated `IfcModel` is already a mesh; you can place it in the scene directly.
      */
     mesh = this;
 
-    constructor(geometry: BufferGeometry, materials: Material | Material[], public ifcManager: IFCManager) {
-        super(geometry, materials);
+    setIFCManager( manager: IFCManager ) {
+        this.ifcManager = manager;
     }
 
     /**
@@ -39,6 +41,7 @@ export class IFCModel extends Mesh {
      * @path Relative path to web-ifc.wasm.
      */
     setWasmPath(path: string) {
+        if(this.ifcManager === null) throw new Error(nullIfcManagerErrorMessage);
         this.ifcManager.setWasmPath(path);
     }
 
@@ -49,6 +52,7 @@ export class IFCModel extends Mesh {
      * @scene Scene where the model is (if it's located in a scene).
      */
     close(scene?: Scene) {
+        if(this.ifcManager === null) throw new Error(nullIfcManagerErrorMessage);
         this.ifcManager.close(this.modelID, scene);
     }
 
@@ -61,6 +65,7 @@ export class IFCModel extends Mesh {
      * @faceIndex The index of the face of a geometry.You can easily get this index using the [Raycaster](https://threejs.org/docs/#api/en/core/Raycaster).
      */
     getExpressId(geometry: BufferGeometry, faceIndex: number) {
+        if(this.ifcManager === null) throw new Error(nullIfcManagerErrorMessage);
         return this.ifcManager.getExpressId(geometry, faceIndex);
     }
 
@@ -79,6 +84,7 @@ export class IFCModel extends Mesh {
      * @verbose If false (default), this only gets IDs. If true, this also gets the native properties of all the fetched items.
      */
     getAllItemsOfType(type: number, verbose: boolean) {
+        if(this.ifcManager === null) throw new Error(nullIfcManagerErrorMessage);
         return this.ifcManager.getAllItemsOfType(this.modelID, type, verbose);
     }
 
@@ -90,6 +96,7 @@ export class IFCModel extends Mesh {
      * @recursive Wether you want to get the information of the referenced elements recursively.
      */
     getItemProperties(id: number, recursive = false) {
+        if(this.ifcManager === null) throw new Error(nullIfcManagerErrorMessage);
         return this.ifcManager.getItemProperties(this.modelID, id, recursive);
     }
 
@@ -102,6 +109,7 @@ export class IFCModel extends Mesh {
      * @recursive If true, this gets the native properties of the referenced elements recursively.
      */
     getPropertySets(id: number, recursive = false) {
+        if(this.ifcManager === null) throw new Error(nullIfcManagerErrorMessage);
         return this.ifcManager.getPropertySets(this.modelID, id, recursive);
     }
 
@@ -115,6 +123,7 @@ export class IFCModel extends Mesh {
      * @recursive If true, this gets the native properties of the referenced elements recursively.
      */
     getTypeProperties(id: number, recursive = false) {
+        if(this.ifcManager === null) throw new Error(nullIfcManagerErrorMessage);
         return this.ifcManager.getTypeProperties(this.modelID, id, recursive);
     }
 
@@ -125,6 +134,7 @@ export class IFCModel extends Mesh {
      * @id Express ID of the element.
      */
     getIfcType(id: number) {
+        if(this.ifcManager === null) throw new Error(nullIfcManagerErrorMessage);
         return this.ifcManager.getIfcType(this.modelID, id);
     }
 
@@ -140,6 +150,7 @@ export class IFCModel extends Mesh {
      * one or more IfcSpaces.
      */
     getSpatialStructure() {
+        if(this.ifcManager === null) throw new Error(nullIfcManagerErrorMessage);
         return this.ifcManager.getSpatialStructure(this.modelID);
     }
 
@@ -151,6 +162,7 @@ export class IFCModel extends Mesh {
      * @material Material assigned to the subset, if any.
      */
     getSubset(material?: Material) {
+        if(this.ifcManager === null) throw new Error(nullIfcManagerErrorMessage);
         return this.ifcManager.getSubset(this.modelID, material);
     }
 
@@ -162,6 +174,7 @@ export class IFCModel extends Mesh {
      * @material Material assigned to the subset, if any.
      */
     removeSubset(parent?: Object3D, material?: Material) {
+        if(this.ifcManager === null) throw new Error(nullIfcManagerErrorMessage);
         this.ifcManager.removeSubset(this.modelID, parent, material);
     }
 
@@ -176,6 +189,7 @@ export class IFCModel extends Mesh {
      * - **material**: (optional) Wether to apply a material to the subset
      */
     createSubset(config: HighlightConfig) {
+        if(this.ifcManager === null) throw new Error(nullIfcManagerErrorMessage);
         const modelConfig = { ...config, modelID: this.modelID };
         return this.ifcManager.createSubset(modelConfig);
     }
@@ -187,6 +201,7 @@ export class IFCModel extends Mesh {
      * @ids Express ID of the elements.
      */
     hideItems(ids: number[]) {
+        if(this.ifcManager === null) throw new Error(nullIfcManagerErrorMessage);
         this.ifcManager.hideItems(this.modelID, ids);
     }
 
@@ -196,6 +211,7 @@ export class IFCModel extends Mesh {
      * Hides all the items of the specified model
      */
     hideAllItems() {
+        if(this.ifcManager === null) throw new Error(nullIfcManagerErrorMessage);
         this.ifcManager.hideAllItems(this.modelID);
     }
 
@@ -206,6 +222,7 @@ export class IFCModel extends Mesh {
      * @ids Express ID of the elements.
      */
     showItems(ids: number[]) {
+        if(this.ifcManager === null) throw new Error(nullIfcManagerErrorMessage);
         this.ifcManager.showItems(this.modelID, ids);
     }
 
@@ -215,6 +232,7 @@ export class IFCModel extends Mesh {
      * Shows all the items of the specified model
      */
     showAllItems() {
+        if(this.ifcManager === null) throw new Error(nullIfcManagerErrorMessage);
         this.ifcManager.showAllItems(this.modelID);
     }
 }

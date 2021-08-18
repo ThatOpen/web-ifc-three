@@ -27,7 +27,9 @@ export class IFCManager {
         const mesh = await this.parser.parse(buffer);
         this.state.useJSON ? this.disposeMemory() : this.types.getAllTypes();
         this.hider.processCoordinates(mesh.modelID);
-        return new IFCModel(mesh.geometry, mesh.material, this);
+        const model = new IFCModel(mesh.geometry, mesh.material);
+        model.setIFCManager(this);
+        return model;
     }
 
     /**
