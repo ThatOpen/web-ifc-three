@@ -1,4 +1,4 @@
-import { IFCLoader } from 'web-ifc-three/dist/IFCLoader';
+import { IFCLoader } from '../../../../dist/index.es';
 import { acceleratedRaycast, computeBoundsTree, disposeBoundsTree } from 'three-mesh-bvh';
 
 export class IfcManager {

@@ -3,4 +3,5 @@ coverage
 yarn.lock
 .idea
 .vscode
-web-ifc-three/dist
+dist
+web-ifc.wasm

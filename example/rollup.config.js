@@ -3,11 +3,11 @@
 import resolve from '@rollup/plugin-node-resolve'; // locate and bundle dependencies in node_modules (mandatory)
 
 export default {
-  input: 'src/main.js',
+  input: 'example/src/main.js',
   output: [
     {
       format: 'cjs',
-      file: 'bundle.js'
+      file: 'example/bundle.js'
     },
   ],
   plugins: [

@@ -7,12 +7,12 @@ describe("IFCModel", () => {
 
     let ifcManager: IFCManager;
     let ifcModel: IFCModel;
-    let mesh: Mesh;
+    // let mesh: Mesh;
 
     beforeEach(() => {
         ifcManager  = new IFCManager();
-        mesh        = new Mesh();
-        ifcModel    = new IFCModel(mesh, ifcManager);
+        // mesh        = new Mesh();
+        ifcModel    = new IFCModel();
     });
 
     test('setWasmPath', () => {
