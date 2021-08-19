@@ -2,7 +2,7 @@
   "name": "web-ifc-three-root",
   "version": "0.0.50",
   "description": "This library is the implementation of [web-ifc](https://github.com/tomvandig/web-ifc) for [THREE.js](https://github.com/mrdoob/three.js/). This is the official IFCLoader of Three.js.",
-  "main": "index.js",
+  "main": "web-ifc-three/dist/index.js",
   "private": true,
   "scripts": {
     "setup-repo": "npm i -g rollup && npm i -g cpy-cli",
