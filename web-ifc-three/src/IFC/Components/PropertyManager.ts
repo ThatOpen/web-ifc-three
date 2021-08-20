@@ -51,10 +51,14 @@ export class PropertyManager {
             this.getPropertyWebIfcAPI(modelID, elementID, recursive, PropsNames.materials);
     }
 
-    getSpatialStructure(modelID: number) {
+    getSpatialStructure(modelID: number, includeProperties?: boolean) {
+        if(!this.state.useJSON && includeProperties){
+            console.warn("Including properties in getSpatialStructure with the JSON workflow disabled can lead to poor performance.")
+        }
+
         return this.state.useJSON ?
             this.getSpatialStructureJSON(modelID) :
-            this.getSpatialStructureWebIfcAPI(modelID);
+            this.getSpatialStructureWebIfcAPI(modelID, includeProperties);
     }
 
     private getSpatialStructureJSON(modelID: number) {
@@ -65,11 +69,11 @@ export class PropertyManager {
         return { ...project };
     }
 
-    private getSpatialStructureWebIfcAPI(modelID: number) {
+    private getSpatialStructureWebIfcAPI(modelID: number, includeProperties?: boolean) {
         const chunks = this.getSpatialTreeChunks(modelID);
         const projectID = this.state.api.GetLineIDsWithType(modelID, IFCPROJECT).get(0);
         const project = this.newIfcProject(projectID);
-        this.getSpatialNode(modelID, project, chunks);
+        this.getSpatialNode(modelID, project, chunks, includeProperties);
         return project;
     }
 
@@ -197,18 +201,22 @@ export class PropertyManager {
         }
     }
 
-    private getSpatialNode(modelID: number, node: Node, treeChunks: any) {
-        this.getChildren(modelID, node, treeChunks, PropsNames.aggregates);
-        this.getChildren(modelID, node, treeChunks, PropsNames.spatial);
+    private getSpatialNode(modelID: number, node: Node, treeChunks: any, includeProperties?: boolean) {
+        this.getChildren(modelID, node, treeChunks, PropsNames.aggregates, includeProperties);
+        this.getChildren(modelID, node, treeChunks, PropsNames.spatial, includeProperties);
     }
 
-    private getChildren(modelID: number, node: Node, treeChunks: any, propNames: pName) {
+    private getChildren(modelID: number, node: Node, treeChunks: any, propNames: pName, includeProperties?: boolean) {
         const children = treeChunks[node.expressID];
         if (children == undefined) return;
         const prop = propNames.key as keyof Node;
         (node[prop] as Node[]) = children.map((child: number) => {
-            const node = this.newNode(modelID, child);
-            this.getSpatialNode(modelID, node, treeChunks);
+            let node = this.newNode(modelID, child);
+            if(includeProperties){
+                const properties = this.getItemProperties(modelID, node.expressID);
+                node = { ...node, ...properties }
+            }
+            this.getSpatialNode(modelID, node, treeChunks, includeProperties);
             return node;
         });
     }

@@ -26,7 +26,7 @@
     "build": "rollup -c config/rollup.config.js && npm run build-declaration && npm run clean",
     "build-declaration": "tsc -p config/tsconfig.declaration.json",
     "clean": "esformatter --config config/esformatter.config.json dist/IFCLoader.js -i",
-    "build-example": "rollup -c example/rollup.config.js && npm run copy-wasm",
+    "build-example": "rollup -c ../example/rollup.config.js && npm run copy-wasm",
     "copy-wasm": "cpy node_modules/web-ifc/web-ifc.wasm example",
     "publish-repo": "npm run build && cpy package.json dist && cd dist && npm publish",
     "test": "jest"
