@@ -278,4 +278,11 @@ export class IFCManager {
     showAllItems(modelID: number) {
         this.hider.showAllItems(modelID);
     }
+
+    /**
+     * Returns the underlying web-ifc API.
+     */
+    get ifcAPI(){
+        return this.state.api;
+    }
 }
