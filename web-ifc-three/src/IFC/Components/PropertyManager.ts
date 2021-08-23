@@ -57,15 +57,15 @@ export class PropertyManager {
         }
 
         return this.state.useJSON ?
-            this.getSpatialStructureJSON(modelID) :
+            this.getSpatialStructureJSON(modelID, includeProperties) :
             this.getSpatialStructureWebIfcAPI(modelID, includeProperties);
     }
 
-    private getSpatialStructureJSON(modelID: number) {
+    private getSpatialStructureJSON(modelID: number, includeProperties?: boolean) {
         const chunks = this.getSpatialTreeChunks(modelID);
         const projectID = this.getAllItemsOfTypeJSON(modelID, IFCPROJECT, false)[0];
         const project = this.newIfcProject(projectID);
-        this.getSpatialNode(modelID, project, chunks);
+        this.getSpatialNode(modelID, project, chunks, includeProperties);
         return { ...project };
     }
 
