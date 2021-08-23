@@ -1,6 +1,6 @@
 {
   "name": "web-ifc-three",
-  "version": "0.0.51",
+  "version": "0.0.52",
   "author": "IFC.js",
   "license": "Mozilla Public License Version 2.0",
   "description": "This library is the implementation of [web-ifc](https://github.com/tomvandig/web-ifc) for [THREE.js](https://github.com/mrdoob/three.js/). This is the official IFCLoader of Three.js.",
@@ -29,6 +29,7 @@
     "build-example": "rollup -c ../example/rollup.config.js && npm run copy-wasm",
     "copy-wasm": "cpy node_modules/web-ifc/web-ifc.wasm example",
     "publish-repo": "npm run build && cpy package.json dist && cd dist && npm publish",
+    "watch": "rollup -c config/rollup.config.js -w",
     "test": "jest"
   },
   "dependencies": {
