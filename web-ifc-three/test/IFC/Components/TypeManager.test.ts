@@ -1,7 +1,7 @@
-import {TypeManager} from "./TypeManager";
+import {TypeManager} from "../../../src/IFC/Components/TypeManager";
 import {IfcAPI} from "web-ifc";
-import {IfcState} from "../BaseDefinitions";
-import {mockAndSpyGetLineIDsWithType} from "../../../test/GetLineIDsWithType.mock";
+import {IfcState} from "../../../src/IFC/BaseDefinitions";
+import {mockAndSpyGetLineIDsWithType} from "../../GetLineIDsWithType.mock";
 
 jest.mock('web-ifc');
 

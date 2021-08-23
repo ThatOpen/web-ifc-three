@@ -1,0 +1,65 @@
+{
+  "name": "web-ifc-three",
+  "version": "0.0.50",
+  "author": "IFC.js",
+  "license": "Mozilla Public License Version 2.0",
+  "description": "This library is the implementation of [web-ifc](https://github.com/tomvandig/web-ifc) for [THREE.js](https://github.com/mrdoob/three.js/). This is the official IFCLoader of Three.js.",
+  "main": "index.js",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/agviegas/web-ifc-three.git"
+  },
+  "keywords": [
+    "bim",
+    "openbim",
+    "ifc",
+    "architecture",
+    "engineering",
+    "construction",
+    "aec"
+  ],
+  "bugs": {
+    "url": "https://github.com/agviegas/web-ifc-three/issues"
+  },
+  "homepage": "https://github.com/agviegas/web-ifc-three#readme",
+  "scripts": {
+    "build": "rollup -c config/rollup.config.js && npm run build-declaration && npm run clean",
+    "build-declaration": "tsc -p config/tsconfig.declaration.json",
+    "clean": "esformatter --config config/esformatter.config.json dist/IFCLoader.js -i",
+    "build-example": "rollup -c ../example/rollup.config.js && npm run copy-wasm",
+    "copy-wasm": "cpy node_modules/web-ifc/web-ifc.wasm example",
+    "publish-repo": "npm run build && cpy package.json dist && cd dist && npm publish",
+    "test": "jest"
+  },
+  "dependencies": {
+    "three-mesh-bvh": "^0.3.7",
+    "web-ifc": "0.0.21"
+  },
+  "devDependencies": {
+    "@babel/core": "^7.13.8",
+    "@babel/preset-env": "^7.13.9",
+    "@babel/preset-typescript": "^7.14.5",
+    "@rollup/plugin-babel": "^5.3.0",
+    "@rollup/plugin-node-resolve": "^11.2.0",
+    "@rollup/plugin-typescript": "^8.2.0",
+    "@types/jest": "^26.0.23",
+    "@types/three": "^0.129.1",
+    "babel-jest": "^27.0.6",
+    "cpy-cli": "^3.1.1",
+    "del-cli": "^3.0.1",
+    "esformatter": "^0.11.3",
+    "jest": "^27.0.6",
+    "rollup": "^2.40.0",
+    "rollup-plugin-dts": "^2.0.1",
+    "rollup-plugin-terser": "^7.0.2",
+    "rollup-plugin-typescript2": "^0.30.0",
+    "serve": "^12.0.0",
+    "ts-jest": "^27.0.3",
+    "ts-node": "^10.0.0",
+    "tslib": "^2.2.0",
+    "typescript": "^4.3.2"
+  },
+  "peerDependencies": {
+    "three": "^0.131.3"
+  }
+}

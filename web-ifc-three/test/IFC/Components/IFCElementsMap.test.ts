@@ -135,7 +135,7 @@ import {
     IFCWINDOW,
     IFCWINDOWSTANDARDCASE
 } from "web-ifc";
-import {IfcElements} from "./IFCElementsMap";
+import {IfcElements} from "../../../src/IFC/Components/IFCElementsMap";
 
 
 describe("IfcElements", () => {

@@ -208,8 +208,8 @@ export class IFCManager {
      * one or more IfcSpaces.
      * @modelID ID of the IFC model.
      */
-    getSpatialStructure(modelID: number) {
-        return this.properties.getSpatialStructure(modelID);
+    getSpatialStructure(modelID: number, includeProperties?: boolean) {
+        return this.properties.getSpatialStructure(modelID, includeProperties);
     }
 
     /**

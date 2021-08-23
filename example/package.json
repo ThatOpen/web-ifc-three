@@ -1,15 +1,10 @@
 {
-  "name": "web-ifc-three",
+  "name": "example",
   "version": "0.0.50",
+  "author": "IFC.js",
+  "license": "Mozilla Public License Version 2.0",
   "description": "This library is the implementation of [web-ifc](https://github.com/tomvandig/web-ifc) for [THREE.js](https://github.com/mrdoob/three.js/). This is the official IFCLoader of Three.js.",
   "main": "index.js",
-  "private": true,
-  "scripts": {
-    "setup-repo": "npm i -g rollup && npm i -g cpy-cli",
-    "build": "cd ./web-ifc-three && npm run build && cd .. && cd ./example && npm run build",
-    "publish-repo": "cd ./web-ifc-three && npm run publish-repo",
-    "test": "jest"
-  },
   "repository": {
     "type": "git",
     "url": "git+https://github.com/agviegas/web-ifc-three.git"
@@ -23,14 +18,20 @@
     "construction",
     "aec"
   ],
-  "author": "",
-  "license": "Mozilla Public License Version 2.0",
   "bugs": {
     "url": "https://github.com/agviegas/web-ifc-three/issues"
   },
   "homepage": "https://github.com/agviegas/web-ifc-three#readme",
-  "workspaces": [
-    "web-ifc-three",
-    "example"
-  ]
+  "scripts": {
+    "build": "rollup -c && npm run copy-wasm",
+    "copy-wasm": "cpy ../node_modules/web-ifc/web-ifc.wasm ."
+  },
+  "dependencies": {
+    "stats.js": "^0.17.0",
+    "three": "^0.131.3",
+    "web-ifc-three": "0.0.50"
+  },
+  "devDependencies": {
+    "cpy-cli": "^3.1.1"
+  }
 }

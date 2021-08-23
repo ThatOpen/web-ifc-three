@@ -1,4 +1,4 @@
-import { IFCLoader } from '../../../../dist/IFCLoader';
+import { IFCLoader } from 'web-ifc-three/dist/IFCLoader';
 import { acceleratedRaycast, computeBoundsTree, disposeBoundsTree } from 'three-mesh-bvh';
 
 export class IfcManager {
@@ -44,5 +44,18 @@ export class IfcManager {
         const ifcModel = await this.ifcLoader.loadAsync(ifcURL);
         this.ifcModels.push(ifcModel);
         this.scene.add(ifcModel);
+
+        const t0 = performance.now();
+        const structure = this.ifcLoader.ifcManager.getSpatialStructure(ifcModel.modelID);
+        const t1 = performance.now();
+        console.log(`Call to get spatial took ${t1 - t0} milliseconds.`);
+        console.log(structure);
+
+        const t00 = performance.now();
+        const structureWithProps = this.ifcLoader.ifcManager.getSpatialStructure(ifcModel.modelID, true);
+        const t11 = performance.now();
+        console.log(`Call to get spatial with props took ${t11 - t00} milliseconds.`);
+        console.log(structureWithProps);
+
     }
 }
