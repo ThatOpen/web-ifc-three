@@ -54,8 +54,6 @@ export class PropertyManager {
     getSpatialStructure(modelID: number, includeProperties?: boolean) {
         if(!this.state.useJSON && includeProperties){
             console.warn("Including properties in getSpatialStructure with the JSON workflow disabled can lead to poor performance.")
-        }else{
-            console.warn("fine")
         }
 
         return this.state.useJSON ?
