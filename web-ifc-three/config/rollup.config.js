@@ -2,10 +2,10 @@ import resolve from '@rollup/plugin-node-resolve';
 import typescript from 'rollup-plugin-typescript2';
 
 export default {
-  input: 'src/IFCLoader.ts',
+  input: 'src/index.ts',
   output: [
     {
-      file: 'dist/IFCLoader.js',
+      file: 'dist/index.js',
       format: 'esm', // ES Modules
       sourcemap: true
     }
