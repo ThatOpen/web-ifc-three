@@ -24,11 +24,10 @@ export class IFCManager {
     private hider = new ItemsHider(this.state);
 
     async parse(buffer: ArrayBuffer) {
-        const mesh = await this.parser.parse(buffer);
-        this.state.useJSON ? this.disposeMemory() : this.types.getAllTypes();
-        this.hider.processCoordinates(mesh.modelID);
-        const model = new IFCModel(mesh.geometry, mesh.material);
+        const model = await this.parser.parse(buffer) as IFCModel;
         model.setIFCManager(this);
+        this.state.useJSON ? this.disposeMemory() : this.types.getAllTypes();
+        this.hider.processCoordinates(model.modelID);
         return model;
     }
 
@@ -112,10 +111,7 @@ export class IFCManager {
      */
     close(modelID: number, scene?: Scene) {
         this.state.api.CloseModel(modelID);
-        if (scene) {
-            const mesh = scene.children.find((child) => child.modelID === modelID);
-            scene.remove(mesh);
-        }
+        if (scene) scene.remove(this.state.models[modelID].mesh);
         delete this.state.models[modelID];
     }
 

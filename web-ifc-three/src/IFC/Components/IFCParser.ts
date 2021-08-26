@@ -20,6 +20,7 @@ import {
     Material
 } from 'three';
 import { BvhManager } from './BvhManager';
+import {IFCModel} from "./IFCModel";
 
 /**
  * Reads all the geometry of the IFC file and generates an optimized `THREE.Mesh`.
@@ -66,7 +67,7 @@ export class IFCParser {
     private generateAllGeometriesByMaterial() {
         const { geometry, materials } = this.getGeometryAndMaterials();
         this.BVH.applyThreeMeshBVH(geometry);
-        const mesh = new Mesh(geometry, materials) as IfcMesh;
+        const mesh = new IFCModel(geometry, materials);
         mesh.modelID = this.currentModelID;
         this.state.models[this.currentModelID].mesh = mesh;
         return mesh;
