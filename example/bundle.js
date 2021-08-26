@@ -82483,8 +82483,11 @@ class ItemsHider {
     const current = this.expressIDCoordinatesMap[modelID];
     const indices = [];
     ids.forEach((id) => {
-      if (current[id])
-        indices.push(...current[id]);
+      if (current[id]) {
+        for (let i = 0; i < current[id].length; i++) {
+          indices.push(current[id][i]);
+        }
+      }
     });
     const coords = this.getCoordinates(modelID);
     const initial = this.modelCoordinates[modelID];
