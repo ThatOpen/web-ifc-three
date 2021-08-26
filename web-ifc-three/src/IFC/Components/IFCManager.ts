@@ -113,7 +113,8 @@ export class IFCManager {
     close(modelID: number, scene?: Scene) {
         this.state.api.CloseModel(modelID);
         if (scene) {
-            scene.remove(this.state.models[modelID].mesh);
+            const mesh = scene.children.find((child) => child.modelID === modelID);
+            scene.remove(mesh);
         }
         delete this.state.models[modelID];
     }
