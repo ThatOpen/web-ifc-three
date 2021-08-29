@@ -86403,6 +86403,9 @@ class IfcManager {
         this.scene = scene;
         this.ifcModels = ifcModels;
         this.ifcLoader = new IFCLoader();
+        this.ifcLoader.ifcManager.applyWebIfcConfig({
+            COORDINATE_TO_ORIGIN: true
+        });
         this.setupThreeMeshBVH();
         this.setupFileOpener();
     }
