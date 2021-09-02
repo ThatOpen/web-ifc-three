@@ -82718,6 +82718,18 @@ class IFCManager {
     return this.state.api;
   }
 
+  releaseAllMemory() {
+    this.disposeMemory();
+    this.state.models = null;
+    this.state = null;
+    this.BVH = null;
+    this.parser = null;
+    this.subsets = null;
+    this.properties = null;
+    this.types = null;
+    this.hider = null;
+  }
+
 }
 
 class IFCLoader extends Loader {

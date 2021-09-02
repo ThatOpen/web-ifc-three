@@ -1,6 +1,6 @@
 {
   "name": "example",
-  "version": "0.0.55",
+  "version": "0.0.56",
   "author": "IFC.js",
   "license": "Mozilla Public License Version 2.0",
   "description": "This library is the implementation of [web-ifc](https://github.com/tomvandig/web-ifc) for [THREE.js](https://github.com/mrdoob/three.js/). This is the official IFCLoader of Three.js.",
@@ -29,7 +29,7 @@
   "dependencies": {
     "stats.js": "^0.17.0",
     "three": "^0.131.3",
-    "web-ifc-three": "0.0.55"
+    "web-ifc-three": "0.0.56"
   },
   "devDependencies": {
     "cpy-cli": "^3.1.1"

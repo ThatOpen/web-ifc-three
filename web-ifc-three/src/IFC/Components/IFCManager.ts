@@ -31,7 +31,7 @@ export class IFCManager {
         return model;
     }
 
-    getAndClearErrors(modelID: number){
+    getAndClearErrors(modelID: number) {
         return this.parser.getAndClearErrors(modelID);
     }
 
@@ -279,7 +279,30 @@ export class IFCManager {
     /**
      * Returns the underlying web-ifc API.
      */
-    get ifcAPI(){
+    get ifcAPI() {
         return this.state.api;
+    }
+
+    /**
+     * Deletes all data, releasing all memory
+     */
+    releaseAllMemory() {
+        this.disposeMemory();
+        //@ts-ignore
+        this.state.models = null;
+        //@ts-ignore
+        this.state = null;
+        //@ts-ignore
+        this.BVH = null;
+        //@ts-ignore
+        this.parser = null;
+        //@ts-ignore
+        this.subsets = null;
+        //@ts-ignore
+        this.properties = null;
+        //@ts-ignore
+        this.types = null;
+        //@ts-ignore
+        this.hider = null;
     }
 }
