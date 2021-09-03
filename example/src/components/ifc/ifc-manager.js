@@ -11,6 +11,11 @@ export class IfcManager {
         })
         this.setupThreeMeshBVH();
         this.setupFileOpener();
+
+        window.onkeydown = () => {
+            console.log(this);
+            this.cleanUp();
+        }
     }
 
     setupThreeMeshBVH() {
@@ -37,6 +42,24 @@ export class IfcManager {
         this.ifcLoader.ifcManager.disposeMemory();
     }
 
+    cleanUp() {
+
+        // Web IFC API
+        this.releaseMemory();
+
+        // IFCLoader
+
+
+
+        // Scene
+
+        this.ifcModels.forEach(model => {
+            this.scene.remove(model);
+            model.geometry.dispose();
+            model.material.forEach(mat => mat.dispose());
+        })
+    }
+
     loadJSONData(modelID, data) {
         this.ifcLoader.ifcManager.useJSONData();
         this.ifcLoader.ifcManager.addModelJSONData(modelID, data);
@@ -47,18 +70,5 @@ export class IfcManager {
         const ifcModel = await this.ifcLoader.loadAsync(ifcURL);
         this.ifcModels.push(ifcModel);
         this.scene.add(ifcModel);
-
-        const t0 = performance.now();
-        const structure = this.ifcLoader.ifcManager.getSpatialStructure(ifcModel.modelID);
-        const t1 = performance.now();
-        console.log(`Call to get spatial took ${t1 - t0} milliseconds.`);
-        console.log(structure);
-
-        const t00 = performance.now();
-        const structureWithProps = this.ifcLoader.ifcManager.getSpatialStructure(ifcModel.modelID, true);
-        const t11 = performance.now();
-        console.log(`Call to get spatial with props took ${t11 - t00} milliseconds.`);
-        console.log(structureWithProps);
-
     }
 }

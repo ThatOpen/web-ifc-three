@@ -5,7 +5,7 @@ import { PropertyManager } from './PropertyManager';
 import { IfcElements } from './IFCElementsMap';
 import { TypeManager } from './TypeManager';
 import { HighlightConfigOfModel, IfcState, JSONObject } from '../BaseDefinitions';
-import { BufferGeometry, Material, Object3D, Scene } from 'three';
+import { BufferGeometry, Material, Mesh, Object3D, Scene } from 'three';
 import { IFCModel } from './IFCModel';
 import { BvhManager } from './BvhManager';
 import { ItemsHider } from './ItemsHider';
@@ -287,22 +287,25 @@ export class IFCManager {
      * Deletes all data, releasing all memory
      */
     releaseAllMemory() {
-        this.disposeMemory();
-        //@ts-ignore
-        this.state.models = null;
-        //@ts-ignore
-        this.state = null;
-        //@ts-ignore
-        this.BVH = null;
-        //@ts-ignore
-        this.parser = null;
-        //@ts-ignore
-        this.subsets = null;
-        //@ts-ignore
-        this.properties = null;
-        //@ts-ignore
-        this.types = null;
-        //@ts-ignore
-        this.hider = null;
+        // @ts-ignore
+        this.state.api = null;
+
+        const models = Object.values(this.state.models);
+        models.forEach(model => {
+            delete model.jsonData;
+
+            this.releaseMeshMemory(model.mesh);
+        });
+    }
+
+    releaseMeshMemory(mesh: Mesh) {
+        if (mesh.geometry) {
+            mesh.geometry.dispose();
+        }
+        if (mesh.material) {
+            Array.isArray(mesh.material) ?
+                mesh.material.forEach(mat => mat.dispose()) :
+                mesh.material.dispose();
+        }
     }
 }
