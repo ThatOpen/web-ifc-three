@@ -48,6 +48,9 @@ export class MemoryCleaner {
         if (mesh.geometry) {
             mesh.geometry.dispose();
         }
+        if (mesh.parent) {
+            mesh.parent.remove(mesh);
+        }
         if (mesh.material) {
             Array.isArray(mesh.material) ?
                 mesh.material.forEach(mat => mat.dispose()) :
