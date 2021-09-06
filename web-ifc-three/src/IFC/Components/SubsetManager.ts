@@ -1,4 +1,4 @@
-import { BufferGeometry, Material, Mesh, Object3D } from 'three';
+import {BufferGeometry, Material, Mesh, Object3D} from 'three';
 import {
     IfcState,
     GeometriesByMaterials,
@@ -8,7 +8,7 @@ import {
     DEFAULT,
     HighlightConfigOfModel
 } from '../BaseDefinitions';
-import { BvhManager } from './BvhManager';
+import {BvhManager} from './BvhManager';
 
 /**
  * Contains the logic to get, create and delete geometric subsets of an IFC model. For example,
@@ -17,11 +17,25 @@ import { BvhManager } from './BvhManager';
 export class SubsetManager {
     private state: IfcState;
     private BVH: BvhManager;
-    private readonly selected: SelectedItems = {};
+    private selected: SelectedItems = {};
 
     constructor(state: IfcState, BVH: BvhManager) {
         this.state = state;
         this.BVH = BVH;
+    }
+
+    dispose() {
+        // @ts-ignore
+        this.BVH = null;
+        const items = Object.values(this.selected);
+        items.forEach(item => {
+            const mesh = item.mesh;
+            mesh.geometry.dispose();
+            Array.isArray(mesh.material) ?
+                mesh.material.forEach(mat => mat.dispose()) :
+                mesh.material.dispose();
+        });
+        this.selected = {};
     }
 
     getSubset(modelID: number, material?: Material) {
@@ -47,7 +61,7 @@ export class SubsetManager {
 
     private createSelectionInScene(config: HighlightConfigOfModel) {
         const filtered = this.filter(config);
-        const { geomsByMaterial, materials } = this.getGeomAndMat(filtered);
+        const {geomsByMaterial, materials} = this.getGeomAndMat(filtered);
         const isDefMaterial = this.isDefaultMat(config);
         const geometry = this.getMergedGeometry(geomsByMaterial, isDefMaterial);
         const mats = isDefMaterial ? materials : config.material;
@@ -90,7 +104,7 @@ export class SubsetManager {
             if (geoms.length > 1) geomsByMaterial.push(merge(geoms));
             else geomsByMaterial.push(...geoms);
         }
-        return { geomsByMaterial, materials };
+        return {geomsByMaterial, materials};
     }
 
     private updatePreviousSelection(parent: Object3D, config: HighlightConfigOfModel) {
@@ -154,7 +168,7 @@ export class SubsetManager {
             .filter((key) => ids.includes(parseInt(key, 10)))
             .reduce((obj, key) => {
                 //@ts-ignore
-                return { ...obj, [key]: geometries[key] };
+                return {...obj, [key]: geometries[key]};
             }, {});
     }
 

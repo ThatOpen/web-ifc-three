@@ -9,7 +9,7 @@ export class IfcManager {
         this.ifcLoader.ifcManager.applyWebIfcConfig({
             COORDINATE_TO_ORIGIN: true
         })
-        this.setupThreeMeshBVH();
+        // this.setupThreeMeshBVH();
         this.setupFileOpener();
 
         window.onkeydown = () => {
@@ -48,16 +48,22 @@ export class IfcManager {
         this.releaseMemory();
 
         // IFCLoader
-
-
+        this.ifcLoader.ifcManager.releaseAllMemory();
+        this.ifcLoader = null;
 
         // Scene
-
         this.ifcModels.forEach(model => {
             this.scene.remove(model);
             model.geometry.dispose();
-            model.material.forEach(mat => mat.dispose());
-        })
+            if(model.material.length){
+                model.material.forEach(mat => mat.dispose());
+            }
+            else {
+                model.material.dispose();
+            }
+        });
+
+        this.ifcModels.length = 0;
     }
 
     loadJSONData(modelID, data) {

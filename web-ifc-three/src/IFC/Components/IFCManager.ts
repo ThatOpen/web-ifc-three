@@ -1,21 +1,21 @@
 import * as WebIFC from 'web-ifc';
-import { IFCParser } from './IFCParser';
-import { SubsetManager } from './SubsetManager';
-import { PropertyManager } from './PropertyManager';
-import { IfcElements } from './IFCElementsMap';
-import { TypeManager } from './TypeManager';
-import { HighlightConfigOfModel, IfcState, JSONObject } from '../BaseDefinitions';
-import { BufferGeometry, Material, Mesh, Object3D, Scene } from 'three';
-import { IFCModel } from './IFCModel';
-import { BvhManager } from './BvhManager';
-import { ItemsHider } from './ItemsHider';
-import { LoaderSettings } from 'web-ifc';
+import {IFCParser} from './IFCParser';
+import {SubsetManager} from './SubsetManager';
+import {PropertyManager} from './PropertyManager';
+import {IfcElements} from './IFCElementsMap';
+import {TypeManager} from './TypeManager';
+import {HighlightConfigOfModel, IfcModel, IfcState, JSONObject} from '../BaseDefinitions';
+import {BufferGeometry, Material, Mesh, Object3D, Scene} from 'three';
+import {IFCModel} from './IFCModel';
+import {BvhManager} from './BvhManager';
+import {ItemsHider} from './ItemsHider';
+import {LoaderSettings} from 'web-ifc';
 
 /**
  * Contains all the logic to work with the loaded IFC files (select, edit, etc).
  */
 export class IFCManager {
-    private state: IfcState = { models: [], api: new WebIFC.IfcAPI(), useJSON: false };
+    private state: IfcState = {models: [], api: new WebIFC.IfcAPI(), useJSON: false};
     private BVH = new BvhManager();
     private parser = new IFCParser(this.state, this.BVH);
     private subsets = new SubsetManager(this.state, this.BVH);
@@ -287,15 +287,55 @@ export class IFCManager {
      * Deletes all data, releasing all memory
      */
     releaseAllMemory() {
+        this.subsets.dispose();
+        this.hider.dispose();
+        this.releaseAllModels();
         // @ts-ignore
         this.state.api = null;
+        // @ts-ignore
+        this.state.models = null;
+        // @ts-ignore
+        this.state = null;
+    }
 
+    releaseAllModels() {
         const models = Object.values(this.state.models);
         models.forEach(model => {
-            delete model.jsonData;
-
-            this.releaseMeshMemory(model.mesh);
+            this.releaseMeshModelMemory(model);
+            this.releaseJSONMemory(model);
+            this.releaseGeometryByMaterials(model);
+            // @ts-ignore
+            model.types = null;
         });
+    }
+
+    releaseGeometryByMaterials(model: IfcModel) {
+        const keys = Object.keys(model.items);
+        keys.forEach(key => {
+            const geomsByMat = model.items[key];
+            geomsByMat.material.dispose();
+            // @ts-ignore
+            geomsByMat.material = null;
+
+            Object.values(geomsByMat.geometries).forEach(geom => geom.dispose());
+            // @ts-ignore
+            geomsByMat.geometries = null;
+        });
+        // @ts-ignore
+        model.items = null;
+    }
+
+    releaseJSONMemory(model: IfcModel) {
+        const keys = Object.keys(model.jsonData);
+        keys.forEach((key) => delete model.jsonData[parseInt(key)]);
+        // @ts-ignore
+        model.jsonData = null;
+    }
+
+    releaseMeshModelMemory(model: IfcModel) {
+        this.releaseMeshMemory(model.mesh);
+        // @ts-ignore
+        model.mesh = null;
     }
 
     releaseMeshMemory(mesh: Mesh) {
@@ -306,6 +346,12 @@ export class IFCManager {
             Array.isArray(mesh.material) ?
                 mesh.material.forEach(mat => mat.dispose()) :
                 mesh.material.dispose();
+        }
+        if(mesh.children.length > 0) {
+            mesh.children.forEach(child => {
+                if(child.type === "Mesh") this.releaseMeshMemory(child as Mesh);
+                mesh.remove(child);
+            })
         }
     }
 }
