@@ -81001,8 +81001,7 @@ class IFCParser {
     const currentGeom = item.geometries[id];
     if (!currentGeom)
       return (item.geometries[id] = geom);
-    const merged = merge([currentGeom, geom]);
-    item.geometries[id] = merged;
+    item.geometries[id] = merge([currentGeom, geom]);
   }
 
   storeGeometryAttribute(id, geometry) {
@@ -81037,6 +81036,19 @@ class SubsetManager {
     this.selected = {};
     this.state = state;
     this.BVH = BVH;
+  }
+
+  dispose() {
+    this.BVH = null;
+    const items = Object.values(this.selected);
+    items.forEach(item => {
+      const mesh = item.mesh;
+      mesh.geometry.dispose();
+      Array.isArray(mesh.material) ?
+        mesh.material.forEach(mat => mat.dispose()) :
+        mesh.material.dispose();
+    });
+    this.selected = {};
   }
 
   getSubset(modelID, material) {
@@ -82514,6 +82526,11 @@ class ItemsHider {
 
   ;
 
+  dispose() {
+    this.modelCoordinates = {};
+    this.expressIDCoordinatesMap = {};
+  }
+
   processCoordinates(modelID) {
     const attributes = this.getAttributes(modelID);
     const ids = Array. from (attributes.expressID.array);
@@ -82589,6 +82606,68 @@ class ItemsHider {
 
 }
 
+class MemoryCleaner {
+
+  constructor(state) {
+    this.state = state;
+  }
+
+  ;
+
+  releaseAllModels() {
+    const models = Object.values(this.state.models);
+    models.forEach(model => {
+      this.releaseMeshModelMemory(model);
+      this.releaseJSONMemory(model);
+      this.releaseGeometryByMaterials(model);
+      model.types = null;
+    });
+  }
+
+  releaseGeometryByMaterials(model) {
+    const keys = Object.keys(model.items);
+    keys.forEach(key => {
+      const geomsByMat = model.items[key];
+      geomsByMat.material.dispose();
+      geomsByMat.material = null;
+      Object.values(geomsByMat.geometries).forEach(geom => geom.dispose());
+      geomsByMat.geometries = null;
+    });
+    model.items = null;
+  }
+
+  releaseJSONMemory(model) {
+    const keys = Object.keys(model.jsonData);
+    keys.forEach((key) => delete model.jsonData[parseInt(key)]
+    );
+    model.jsonData = null;
+  }
+
+  releaseMeshModelMemory(model) {
+    this.releaseMeshMemory(model.mesh);
+    model.mesh = null;
+  }
+
+  releaseMeshMemory(mesh) {
+    if (mesh.geometry) {
+      mesh.geometry.dispose();
+    }
+    if (mesh.material) {
+      Array.isArray(mesh.material) ?
+        mesh.material.forEach(mat => mat.dispose()) :
+        mesh.material.dispose();
+    }
+    if (mesh.children.length > 0) {
+      mesh.children.forEach(child => {
+        if (child.type === "Mesh")
+          this.releaseMeshMemory(child);
+        mesh.remove(child);
+      });
+    }
+  }
+
+}
+
 class IFCManager {
 
   constructor() {
@@ -82603,6 +82682,7 @@ class IFCManager {
     this.properties = new PropertyManager(this.state);
     this.types = new TypeManager(this.state);
     this.hider = new ItemsHider(this.state);
+    this.cleaner = new MemoryCleaner(this.state);
   }
 
   async parse(buffer) {
@@ -82719,15 +82799,12 @@ class IFCManager {
   }
 
   releaseAllMemory() {
-    this.disposeMemory();
+    this.subsets.dispose();
+    this.hider.dispose();
+    this.cleaner.releaseAllModels();
+    this.state.api = null;
     this.state.models = null;
     this.state = null;
-    this.BVH = null;
-    this.parser = null;
-    this.subsets = null;
-    this.properties = null;
-    this.types = null;
-    this.hider = null;
   }
 
 }
@@ -86477,6 +86554,11 @@ class IfcManager {
         });
         this.setupThreeMeshBVH();
         this.setupFileOpener();
+
+        window.onkeydown = () => {
+            console.log(this);
+            this.cleanUp();
+        };
     }
 
     setupThreeMeshBVH() {
@@ -86503,6 +86585,30 @@ class IfcManager {
         this.ifcLoader.ifcManager.disposeMemory();
     }
 
+    cleanUp() {
+
+        // Web IFC API
+        this.releaseMemory();
+
+        // IFCLoader
+        this.ifcLoader.ifcManager.releaseAllMemory();
+        this.ifcLoader = null;
+
+        // Scene
+        this.ifcModels.forEach(model => {
+            this.scene.remove(model);
+            model.geometry.dispose();
+            if(model.material.length){
+                model.material.forEach(mat => mat.dispose());
+            }
+            else {
+                model.material.dispose();
+            }
+        });
+
+        this.ifcModels.length = 0;
+    }
+
     loadJSONData(modelID, data) {
         this.ifcLoader.ifcManager.useJSONData();
         this.ifcLoader.ifcManager.addModelJSONData(modelID, data);
@@ -86513,19 +86619,6 @@ class IfcManager {
         const ifcModel = await this.ifcLoader.loadAsync(ifcURL);
         this.ifcModels.push(ifcModel);
         this.scene.add(ifcModel);
-
-        const t0 = performance.now();
-        const structure = this.ifcLoader.ifcManager.getSpatialStructure(ifcModel.modelID);
-        const t1 = performance.now();
-        console.log(`Call to get spatial took ${t1 - t0} milliseconds.`);
-        console.log(structure);
-
-        const t00 = performance.now();
-        const structureWithProps = this.ifcLoader.ifcManager.getSpatialStructure(ifcModel.modelID, true);
-        const t11 = performance.now();
-        console.log(`Call to get spatial with props took ${t11 - t00} milliseconds.`);
-        console.log(structureWithProps);
-
     }
 }
 

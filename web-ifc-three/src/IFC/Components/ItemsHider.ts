@@ -13,6 +13,11 @@ export class ItemsHider {
         this.state = state;
     };
 
+    dispose() {
+        this.modelCoordinates = {};
+        this.expressIDCoordinatesMap = {};
+    }
+
     processCoordinates(modelID: number) {
         const attributes = this.getAttributes(modelID);
         const ids = Array.from(attributes.expressID.array);
