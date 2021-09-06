@@ -158,8 +158,7 @@ export class IFCParser {
         const item = this.state.models[this.currentModelID].items[colorID];
         const currentGeom = item.geometries[id];
         if (!currentGeom) return (item.geometries[id] = geom);
-        const merged = merge([currentGeom, geom]);
-        item.geometries[id] = merged;
+        item.geometries[id] = merge([currentGeom, geom]);
     }
 
     private storeGeometryAttribute(id: number, geometry: BufferGeometry) {

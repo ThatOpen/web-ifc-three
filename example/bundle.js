@@ -81001,8 +81001,7 @@ class IFCParser {
     const currentGeom = item.geometries[id];
     if (!currentGeom)
       return (item.geometries[id] = geom);
-    const merged = merge([currentGeom, geom]);
-    item.geometries[id] = merged;
+    item.geometries[id] = merge([currentGeom, geom]);
   }
 
   storeGeometryAttribute(id, geometry) {
@@ -82607,6 +82606,68 @@ class ItemsHider {
 
 }
 
+class MemoryCleaner {
+
+  constructor(state) {
+    this.state = state;
+  }
+
+  ;
+
+  releaseAllModels() {
+    const models = Object.values(this.state.models);
+    models.forEach(model => {
+      this.releaseMeshModelMemory(model);
+      this.releaseJSONMemory(model);
+      this.releaseGeometryByMaterials(model);
+      model.types = null;
+    });
+  }
+
+  releaseGeometryByMaterials(model) {
+    const keys = Object.keys(model.items);
+    keys.forEach(key => {
+      const geomsByMat = model.items[key];
+      geomsByMat.material.dispose();
+      geomsByMat.material = null;
+      Object.values(geomsByMat.geometries).forEach(geom => geom.dispose());
+      geomsByMat.geometries = null;
+    });
+    model.items = null;
+  }
+
+  releaseJSONMemory(model) {
+    const keys = Object.keys(model.jsonData);
+    keys.forEach((key) => delete model.jsonData[parseInt(key)]
+    );
+    model.jsonData = null;
+  }
+
+  releaseMeshModelMemory(model) {
+    this.releaseMeshMemory(model.mesh);
+    model.mesh = null;
+  }
+
+  releaseMeshMemory(mesh) {
+    if (mesh.geometry) {
+      mesh.geometry.dispose();
+    }
+    if (mesh.material) {
+      Array.isArray(mesh.material) ?
+        mesh.material.forEach(mat => mat.dispose()) :
+        mesh.material.dispose();
+    }
+    if (mesh.children.length > 0) {
+      mesh.children.forEach(child => {
+        if (child.type === "Mesh")
+          this.releaseMeshMemory(child);
+        mesh.remove(child);
+      });
+    }
+  }
+
+}
+
 class IFCManager {
 
   constructor() {
@@ -82621,6 +82682,7 @@ class IFCManager {
     this.properties = new PropertyManager(this.state);
     this.types = new TypeManager(this.state);
     this.hider = new ItemsHider(this.state);
+    this.cleaner = new MemoryCleaner(this.state);
   }
 
   async parse(buffer) {
@@ -82739,62 +82801,10 @@ class IFCManager {
   releaseAllMemory() {
     this.subsets.dispose();
     this.hider.dispose();
-    this.releaseAllModels();
+    this.cleaner.releaseAllModels();
     this.state.api = null;
     this.state.models = null;
     this.state = null;
-  }
-
-  releaseAllModels() {
-    const models = Object.values(this.state.models);
-    models.forEach(model => {
-      this.releaseMeshModelMemory(model);
-      this.releaseJSONMemory(model);
-      this.releaseGeometryByMaterials(model);
-      model.types = null;
-    });
-  }
-
-  releaseGeometryByMaterials(model) {
-    const keys = Object.keys(model.items);
-    keys.forEach(key => {
-      const geomsByMat = model.items[key];
-      geomsByMat.material.dispose();
-      geomsByMat.material = null;
-      Object.values(geomsByMat.geometries).forEach(geom => geom.dispose());
-      geomsByMat.geometries = null;
-    });
-    model.items = null;
-  }
-
-  releaseJSONMemory(model) {
-    const keys = Object.keys(model.jsonData);
-    keys.forEach((key) => delete model.jsonData[parseInt(key)]
-    );
-    model.jsonData = null;
-  }
-
-  releaseMeshModelMemory(model) {
-    this.releaseMeshMemory(model.mesh);
-    model.mesh = null;
-  }
-
-  releaseMeshMemory(mesh) {
-    if (mesh.geometry) {
-      mesh.geometry.dispose();
-    }
-    if (mesh.material) {
-      Array.isArray(mesh.material) ?
-        mesh.material.forEach(mat => mat.dispose()) :
-        mesh.material.dispose();
-    }
-    if (mesh.children.length > 0) {
-      mesh.children.forEach(child => {
-        if (child.type === "Mesh")
-          this.releaseMeshMemory(child);
-        mesh.remove(child);
-      });
-    }
   }
 
 }
@@ -86542,7 +86552,7 @@ class IfcManager {
         this.ifcLoader.ifcManager.applyWebIfcConfig({
             COORDINATE_TO_ORIGIN: true
         });
-        // this.setupThreeMeshBVH();
+        this.setupThreeMeshBVH();
         this.setupFileOpener();
 
         window.onkeydown = () => {

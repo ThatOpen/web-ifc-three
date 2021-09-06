@@ -9,7 +9,7 @@ export class IfcManager {
         this.ifcLoader.ifcManager.applyWebIfcConfig({
             COORDINATE_TO_ORIGIN: true
         })
-        // this.setupThreeMeshBVH();
+        this.setupThreeMeshBVH();
         this.setupFileOpener();
 
         window.onkeydown = () => {
