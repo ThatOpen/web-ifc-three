@@ -1,5 +1,7 @@
 import { BufferAttribute, BufferGeometry, Material, Mesh, Object3D } from 'three';
-import { BufferGeometryUtils } from 'three/examples/jsm/utils/BufferGeometryUtils';
+// TODO: Remove ts ignore comments when @types/three gets updated
+// @ts-ignore
+import { mergeBufferGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils';
 import {
     IFCRELAGGREGATES, IFCRELASSOCIATESMATERIAL,
     IFCRELCONTAINEDINSPATIALSTRUCTURE,
@@ -14,7 +16,8 @@ export type IdAttributeByMaterial = { [id: number]: number };
 export type IdAttributesByMaterials = { [materialID: string]: IdAttributeByMaterial };
 
 export const merge = (geoms: BufferGeometry[], createGroups = false) => {
-    return BufferGeometryUtils.mergeBufferGeometries(geoms, createGroups);
+    // @ts-ignore
+    return mergeBufferGeometries(geoms, createGroups);
 };
 
 export const newFloatAttr = (data: any[], size: number) => {
