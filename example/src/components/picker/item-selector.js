@@ -11,24 +11,24 @@ export class ItemSelector {
         this.currentModel = null;
     }
 
-    select(event, logTree = false, logProps = false) {
+    select(event, logTree = false, logProps = false, removePrevious = true) {
         const geometries = this.raycaster.cast(event);
         if (geometries.length <= 0) return;
         const item = geometries[0];
         if (this.previousSelectedFace === item.faceIndex) return;
         this.previousSelectedFace = item.faceIndex;
         this.getModelAndItemID(item);
-        this.highlightModel();
+        this.highlightModel(removePrevious);
         if(logTree) this.logTree();
         if(logProps) this.logProperties();
     }
 
-    highlightModel(){
+    highlightModel(removePrevious){
         this.currentModel.ifcManager.createSubset({
             modelID: this.currentModel.modelID,
             scene: this.currentModel,
             ids: [this.currentItemID],
-            removePrevious: true,
+            removePrevious: removePrevious,
             material: this.material
         });
     }

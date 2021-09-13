@@ -42119,24 +42119,24 @@ class ItemSelector {
         this.currentModel = null;
     }
 
-    select(event, logTree = false, logProps = false) {
+    select(event, logTree = false, logProps = false, removePrevious = true) {
         const geometries = this.raycaster.cast(event);
         if (geometries.length <= 0) return;
         const item = geometries[0];
         if (this.previousSelectedFace === item.faceIndex) return;
         this.previousSelectedFace = item.faceIndex;
         this.getModelAndItemID(item);
-        this.highlightModel();
+        this.highlightModel(removePrevious);
         if(logTree) this.logTree();
         if(logProps) this.logProperties();
     }
 
-    highlightModel(){
+    highlightModel(removePrevious){
         this.currentModel.ifcManager.createSubset({
             modelID: this.currentModel.modelID,
             scene: this.currentModel,
             ids: [this.currentItemID],
-            removePrevious: true,
+            removePrevious: removePrevious,
             material: this.material
         });
     }
@@ -80751,15 +80751,15 @@ class SubsetManager {
 
   addToPreviousSelection(config) {
     const previous = this.selected[this.matID(config)];
-    const filtered = this.filter(config);
+    const filtered = this.filter(config, new Set(config.ids));
     const geometries = Object.values(filtered).map((i) => Object.values(i.geometries)).flat();
     const previousGeom = previous.mesh.geometry;
     previous.mesh.geometry = merge([previousGeom, ...geometries]);
     config.ids.forEach((id) => previous.ids.add(id));
   }
 
-  filter(config) {
-    const ids = this.selected[this.matID(config)].ids;
+  filter(config, itemsID) {
+    const ids = itemsID || this.selected[this.matID(config)].ids;
     const items = this.state.models[config.modelID].items;
     const filtered = {};
     for (let matID in items) {
@@ -86146,11 +86146,6 @@ class IfcManager {
         });
         this.setupThreeMeshBVH();
         this.setupFileOpener();
-
-        window.onkeydown = () => {
-            console.log(this);
-            this.cleanUp();
-        };
     }
 
     setupThreeMeshBVH() {
@@ -86177,29 +86172,29 @@ class IfcManager {
         this.ifcLoader.ifcManager.disposeMemory();
     }
 
-    cleanUp() {
-
-        // Web IFC API
-        this.releaseMemory();
-
-        // IFCLoader
-        this.ifcLoader.ifcManager.releaseAllMemory();
-        this.ifcLoader = null;
-
-        // Scene
-        this.ifcModels.forEach(model => {
-            this.scene.remove(model);
-            model.geometry.dispose();
-            if(model.material.length){
-                model.material.forEach(mat => mat.dispose());
-            }
-            else {
-                model.material.dispose();
-            }
-        });
-
-        this.ifcModels.length = 0;
-    }
+    // cleanUp() {
+    //
+    //     // Web IFC API
+    //     this.releaseMemory();
+    //
+    //     // IFCLoader
+    //     this.ifcLoader.ifcManager.releaseAllMemory();
+    //     this.ifcLoader = null;
+    //
+    //     // Scene
+    //     this.ifcModels.forEach(model => {
+    //         this.scene.remove(model);
+    //         model.geometry.dispose();
+    //         if(model.material.length){
+    //             model.material.forEach(mat => mat.dispose());
+    //         }
+    //         else {
+    //             model.material.dispose();
+    //         }
+    //     });
+    //
+    //     this.ifcModels.length = 0;
+    // }
 
     loadJSONData(modelID, data) {
         this.ifcLoader.ifcManager.useJSONData();

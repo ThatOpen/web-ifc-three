@@ -140,7 +140,7 @@ export class SubsetManager {
 
     private addToPreviousSelection(config: HighlightConfigOfModel) {
         const previous = this.selected[this.matID(config)];
-        const filtered = this.filter(config);
+        const filtered = this.filter(config, new Set(config.ids));
         // @ts-ignore
         // prettier-ignore
         const geometries = Object.values(filtered).map((i) => Object.values(i.geometries)).flat();
@@ -149,8 +149,8 @@ export class SubsetManager {
         config.ids.forEach((id) => previous.ids.add(id));
     }
 
-    private filter(config: HighlightConfigOfModel) {
-        const ids = this.selected[this.matID(config)].ids;
+    private filter(config: HighlightConfigOfModel, itemsID?: Set<number>) {
+        const ids = itemsID || this.selected[this.matID(config)].ids;
         const items = this.state.models[config.modelID].items;
         const filtered: GeometriesByMaterials = {};
         for (let matID in items) {

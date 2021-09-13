@@ -11,11 +11,6 @@ export class IfcManager {
         })
         this.setupThreeMeshBVH();
         this.setupFileOpener();
-
-        window.onkeydown = () => {
-            console.log(this);
-            this.cleanUp();
-        }
     }
 
     setupThreeMeshBVH() {
@@ -42,29 +37,29 @@ export class IfcManager {
         this.ifcLoader.ifcManager.disposeMemory();
     }
 
-    cleanUp() {
-
-        // Web IFC API
-        this.releaseMemory();
-
-        // IFCLoader
-        this.ifcLoader.ifcManager.releaseAllMemory();
-        this.ifcLoader = null;
-
-        // Scene
-        this.ifcModels.forEach(model => {
-            this.scene.remove(model);
-            model.geometry.dispose();
-            if(model.material.length){
-                model.material.forEach(mat => mat.dispose());
-            }
-            else {
-                model.material.dispose();
-            }
-        });
-
-        this.ifcModels.length = 0;
-    }
+    // cleanUp() {
+    //
+    //     // Web IFC API
+    //     this.releaseMemory();
+    //
+    //     // IFCLoader
+    //     this.ifcLoader.ifcManager.releaseAllMemory();
+    //     this.ifcLoader = null;
+    //
+    //     // Scene
+    //     this.ifcModels.forEach(model => {
+    //         this.scene.remove(model);
+    //         model.geometry.dispose();
+    //         if(model.material.length){
+    //             model.material.forEach(mat => mat.dispose());
+    //         }
+    //         else {
+    //             model.material.dispose();
+    //         }
+    //     });
+    //
+    //     this.ifcModels.length = 0;
+    // }
 
     loadJSONData(modelID, data) {
         this.ifcLoader.ifcManager.useJSONData();
