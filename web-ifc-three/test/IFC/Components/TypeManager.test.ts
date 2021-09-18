@@ -1,4 +1,4 @@
-import {TypeManager} from "../../../src/IFC/Components/TypeManager";
+import {TypeManager} from "../../../src/IFC/components/TypeManager";
 import {IfcAPI} from "web-ifc";
 import {IfcState} from "../../../src/IFC/BaseDefinitions";
 import {mockAndSpyGetLineIDsWithType} from "../../GetLineIDsWithType.mock";

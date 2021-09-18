@@ -1,4 +1,4 @@
-import {PropertyManager} from "../../../src/IFC/Components/PropertyManager";
+import {PropertyManager} from "../../../src/IFC/components/PropertyManager";
 import {BufferAttribute, BufferGeometry} from "three";
 import * as WebIFC from "web-ifc";
 import {Handle, IfcGloballyUniqueId, IfcPropertySet, IfcRelDefinesByProperties, IfcWall} from "web-ifc";

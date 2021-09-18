@@ -1,6 +1,6 @@
-import {IFCManager} from "../../../src/IFC/Components/IFCManager";
+import {IFCManager} from "../../../src/IFC/components/IFCManager";
 import {BufferGeometry, Material, Mesh, Scene} from "three";
-import {IFCModel} from "../../../src/IFC/Components/IFCModel";
+import {IFCModel} from "../../../src/IFC/components/IFCModel";
 import {HighlightConfig} from "../../../src/IFC/BaseDefinitions";
 
 describe("IFCModel", () => {
