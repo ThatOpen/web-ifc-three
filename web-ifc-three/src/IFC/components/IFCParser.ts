@@ -7,10 +7,8 @@ import {
     merge,
     newFloatAttr,
     newIntAttr,
-    IdAttributesByMaterials
 } from '../BaseDefinitions';
 import {
-    Mesh,
     Color,
     MeshLambertMaterial,
     DoubleSide,
@@ -37,18 +35,18 @@ export class IFCParser {
 
     async parse(buffer: any) {
         if (this.state.api.wasmModule === undefined) await this.state.api.Init();
-        this.newIfcModel(buffer);
+        await this.newIfcModel(buffer);
         this.loadedModels++;
         return this.loadAllGeometry();
     }
 
-    getAndClearErrors(modelId: number){
+    getAndClearErrors(_modelId: number){
         // return this.state.api.GetAndClearErrors(modelId);
     }
 
-    private newIfcModel(buffer: any) {
+    private async newIfcModel(buffer: any) {
         const data = new Uint8Array(buffer);
-        this.currentWebIfcID = this.state.api.OpenModel(data, this.state.webIfcSettings);
+        this.currentWebIfcID = await this.state.api.OpenModel(data, this.state.webIfcSettings);
         this.currentModelID = this.state.useJSON ? this.loadedModels : this.currentWebIfcID;
         this.state.models[this.currentModelID] = {
             modelID: this.currentModelID,
@@ -59,8 +57,8 @@ export class IFCParser {
         };
     }
 
-    private loadAllGeometry() {
-        this.saveAllPlacedGeometriesByMaterial();
+    private async loadAllGeometry() {
+        await this.saveAllPlacedGeometriesByMaterial();
         return this.generateAllGeometriesByMaterial();
     }
 
@@ -78,60 +76,62 @@ export class IFCParser {
         const mergedByMaterial: BufferGeometry[] = [];
         const materials: Material[] = [];
         for (let materialID in items) {
-            materials.push(items[materialID].material);
-            const geometries = Object.values(items[materialID].geometries);
-            mergedByMaterial.push(merge(geometries));
+            if(items.hasOwnProperty(materialID)) {
+                materials.push(items[materialID].material);
+                const geometries = Object.values(items[materialID].geometries);
+                mergedByMaterial.push(merge(geometries));
+            }
         }
         const geometry = merge(mergedByMaterial, true);
         return { geometry, materials };
     }
 
-    private saveAllPlacedGeometriesByMaterial() {
-        const flatMeshes = this.state.api.LoadAllGeometry(this.currentWebIfcID);
+    private async saveAllPlacedGeometriesByMaterial() {
+        const flatMeshes = await this.state.api.LoadAllGeometry(this.currentWebIfcID);
         for (let i = 0; i < flatMeshes.size(); i++) {
             const flatMesh = flatMeshes.get(i);
             const placedGeom = flatMesh.geometries;
             for (let j = 0; j < placedGeom.size(); j++) {
-                this.savePlacedGeometry(placedGeom.get(j), flatMesh.expressID);
+                await this.savePlacedGeometry(placedGeom.get(j), flatMesh.expressID);
             }
         }
     }
 
-    private savePlacedGeometry(placedGeometry: PlacedGeometry, id: number) {
-        const geometry = this.getBufferGeometry(placedGeometry);
+    private async savePlacedGeometry(placedGeometry: PlacedGeometry, id: number) {
+        const geometry = await this.getBufferGeometry(placedGeometry);
         geometry.computeVertexNormals();
-        const matrix = this.getMeshMatrix(placedGeometry.flatTransformation);
+        const matrix = IFCParser.getMeshMatrix(placedGeometry.flatTransformation);
         geometry.applyMatrix4(matrix);
         this.saveGeometryByMaterial(geometry, placedGeometry, id);
     }
 
-    private getBufferGeometry(placed: PlacedGeometry) {
-        const geometry = this.state.api.GetGeometry(this.currentWebIfcID, placed.geometryExpressID);
-        const vertexData = this.getVertices(geometry);
-        const indices = this.getIndices(geometry);
-        const { vertices, normals } = this.extractVertexData(vertexData);
-        return this.ifcGeomToBufferGeom(vertices, normals, indices);
+    private async getBufferGeometry(placed: PlacedGeometry) {
+        const geometry = await this.state.api.GetGeometry(this.currentWebIfcID, placed.geometryExpressID);
+        const vertexData = await this.getVertices(geometry);
+        const indices = await this.getIndices(geometry);
+        const { vertices, normals } = IFCParser.extractVertexData(vertexData);
+        return IFCParser.ifcGeomToBufferGeom(vertices, normals, indices);
     }
 
-    private getVertices(geometry: IfcGeometry) {
+    private async getVertices(geometry: IfcGeometry) {
         const vData = geometry.GetVertexData();
         const vDataSize = geometry.GetVertexDataSize();
         return this.state.api.GetVertexArray(vData, vDataSize);
     }
 
-    private getIndices(geometry: IfcGeometry) {
+    private async getIndices(geometry: IfcGeometry) {
         const iData = geometry.GetIndexData();
         const iDataSize = geometry.GetIndexDataSize();
         return this.state.api.GetIndexArray(iData, iDataSize);
     }
 
-    private getMeshMatrix(matrix: number[]) {
+    private static getMeshMatrix(matrix: number[]) {
         const mat = new Matrix4();
         mat.fromArray(matrix);
         return mat;
     }
 
-    private ifcGeomToBufferGeom(vertices: any[], normals: any[], indexData: any) {
+    private static ifcGeomToBufferGeom(vertices: any[], normals: any[], indexData: any) {
         const geometry = new BufferGeometry();
         geometry.setAttribute('position', newFloatAttr(vertices, 3));
         geometry.setAttribute('normal', newFloatAttr(normals, 3));
@@ -139,7 +139,7 @@ export class IFCParser {
         return geometry;
     }
 
-    private extractVertexData(vertexData: any) {
+    private static extractVertexData(vertexData: any) {
         const vertices = [];
         const normals = [];
         let isNormalData = false;
@@ -153,7 +153,7 @@ export class IFCParser {
     private saveGeometryByMaterial(geom: BufferGeometry, placedGeom: PlacedGeometry, id: number) {
         const color = placedGeom.color;
         const colorID = `${color.x}${color.y}${color.z}${color.w}`;
-        this.storeGeometryAttribute(id, geom);
+        IFCParser.storeGeometryAttribute(id, geom);
         this.createMaterial(colorID, color);
         const item = this.state.models[this.currentModelID].items[colorID];
         const currentGeom = item.geometries[id];
@@ -161,7 +161,7 @@ export class IFCParser {
         item.geometries[id] = merge([currentGeom, geom]);
     }
 
-    private storeGeometryAttribute(id: number, geometry: BufferGeometry) {
+    private static storeGeometryAttribute(id: number, geometry: BufferGeometry) {
         const size = geometry.attributes.position.count;
         const idAttribute = new Array(size).fill(id);
         geometry.setAttribute(IdAttrName, newIntAttr(idAttribute, 1));

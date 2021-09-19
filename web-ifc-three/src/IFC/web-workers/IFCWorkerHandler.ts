@@ -1,12 +1,26 @@
 import { LoaderSettings, IfcGeometry, Vector, LoaderError, RawLineData, FlatMesh } from 'web-ifc';
-import { IfcEventData, WebIfcAPI, WorkerActions } from './base-definitions-workers';
+import {
+    IfcEventData,
+    SerializedFlatMesh,
+    SerializedIfcGeometry,
+    SerializedVector,
+    WorkerActions
+} from './BaseDefinitions';
+import { WebIfcAPI } from '../BaseDefinitions';
+import { Serializer } from './serializer/Serializer';
 
-export class IfcWorkerHandler implements WebIfcAPI {
+export class IFCWorkerHandler implements WebIfcAPI {
+    private readonly serializer = new Serializer();
     private readonly workerPath: string;
     private ifcWorker: Worker;
     private requestID = 0;
+
     private rejectHandlers: any = {};
     private resolveHandlers: any = {};
+    private serializeHandlers: any = {};
+    private callbacks: { [id: number]: { action: any, serializer: any } } = {};
+
+    wasmModule: any;
 
     constructor(path: string) {
         this.workerPath = path;
@@ -14,11 +28,12 @@ export class IfcWorkerHandler implements WebIfcAPI {
         this.ifcWorker.onmessage = (data: any) => this.handleResponse(data);
     }
 
-    async Init() {
+    async Init(): Promise<void> {
+        this.wasmModule = true;
         return this.request(WorkerActions.Init);
     }
 
-    async Close() {
+    async Close(): Promise<void> {
         await this.request(WorkerActions.Close);
         this.ifcWorker.terminate();
     }
@@ -36,6 +51,7 @@ export class IfcWorkerHandler implements WebIfcAPI {
     }
 
     async GetGeometry(modelID: number, geometryExpressID: number): Promise<IfcGeometry> {
+        this.serializeHandlers[this.requestID] = (geom: SerializedIfcGeometry) => this.serializer.reconstructIfcGeometry(geom);
         return this.request(WorkerActions.GetGeometry, { modelID, geometryExpressID });
     }
 
@@ -44,6 +60,7 @@ export class IfcWorkerHandler implements WebIfcAPI {
     }
 
     async GetAndClearErrors(modelID: number): Promise<Vector<LoaderError>> {
+        this.serializeHandlers[this.requestID] = (vector: SerializedVector) => this.serializer.reconstructVector(vector);
         return this.request(WorkerActions.GetAndClearErrors, { modelID });
     }
 
@@ -64,10 +81,12 @@ export class IfcWorkerHandler implements WebIfcAPI {
     }
 
     async GetLineIDsWithType(modelID: number, type: number): Promise<Vector<number>> {
+        this.serializeHandlers[this.requestID] = (vector: SerializedVector) => this.serializer.reconstructVector(vector);
         return this.request(WorkerActions.GetLineIDsWithType, { modelID, type });
     }
 
-    async GetAllLines(modelID: Number): Promise<Vector<number>> {
+    async GetAllLines(modelID: number): Promise<Vector<number>> {
+        this.serializeHandlers[this.requestID] = (vector: SerializedVector) => this.serializer.reconstructVector(vector);
         return this.request(WorkerActions.GetAllLines, { modelID });
     }
 
@@ -87,7 +106,7 @@ export class IfcWorkerHandler implements WebIfcAPI {
         return this.request(WorkerActions.GetIndexArray, { ptr, size });
     }
 
-    async getSubArray(heap: any, startPtr: any, sizeBytes: any) {
+    async getSubArray(heap: any, startPtr: any, sizeBytes: any): Promise<any> {
         return this.request(WorkerActions.getSubArray, { heap, startPtr, sizeBytes });
     }
 
@@ -96,11 +115,13 @@ export class IfcWorkerHandler implements WebIfcAPI {
     }
 
     async StreamAllMeshes(modelID: number, meshCallback: (mesh: FlatMesh) => void): Promise<void> {
-        throw new Error('Method not implemented.');
+        this.callbacks[this.requestID] = { action: meshCallback, serializer: this.serializer.reconstructFlatMesh };
+        return this.request(WorkerActions.StreamAllMeshes, { modelID });
     }
 
     async StreamAllMeshesWithTypes(modelID: number, types: number[], meshCallback: (mesh: FlatMesh) => void): Promise<void> {
-        throw new Error('Method not implemented.');
+        this.callbacks[this.requestID] = { action: meshCallback, serializer: this.serializer.reconstructFlatMesh };
+        return this.request(WorkerActions.StreamAllMeshesWithTypes, { modelID, types });
     }
 
     async IsModelOpen(modelID: number): Promise<boolean> {
@@ -108,10 +129,12 @@ export class IfcWorkerHandler implements WebIfcAPI {
     }
 
     async LoadAllGeometry(modelID: number): Promise<Vector<FlatMesh>> {
+        this.serializeHandlers[this.requestID] = (vector: SerializedVector) => this.serializer.reconstructFlatMeshVector(vector);
         return this.request(WorkerActions.LoadAllGeometry, { modelID });
     }
 
     async GetFlatMesh(modelID: number, expressID: number): Promise<FlatMesh> {
+        this.serializeHandlers[this.requestID] = (flatMesh: SerializedFlatMesh) => this.serializer.reconstructFlatMesh(flatMesh);
         return this.request(WorkerActions.GetFlatMesh, { modelID, expressID });
     }
 
@@ -136,14 +159,34 @@ export class IfcWorkerHandler implements WebIfcAPI {
         const id = data.id;
 
         try {
+            this.resolveSerializations(data);
+            this.resolveCallbacks(data);
             this.resolveHandlers[id](data.result);
-            console.log('Success!');
+
         } catch (error) {
             this.rejectHandlers[id](data.result);
-            console.log('Error!');
         }
         delete this.resolveHandlers[id];
         delete this.rejectHandlers[id];
     }
 
+    private resolveSerializations(data: IfcEventData) {
+        const id = data.id;
+        if (this.serializeHandlers[id]) {
+            data.result = this.serializeHandlers[id](data.result);
+            delete this.serializeHandlers[id];
+        }
+    }
+
+    private resolveCallbacks(data: IfcEventData) {
+        const id = data.id;
+        if (this.callbacks[id]) {
+            let callbackParameter = data.result;
+            if (this.callbacks[id].serializer) {
+                callbackParameter = this.callbacks[id].serializer(data.result);
+            }
+            this.callbacks[id].action(callbackParameter);
+            delete this.callbacks[id];
+        }
+    }
 }

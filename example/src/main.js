@@ -1,7 +1,6 @@
 import {Picker} from './components/picker/picker';
 import { ThreeScene } from './components/scene/scene';
 import { IfcManager } from './components/ifc/ifc-manager';
-import { IfcWorkerHandler } from '../../web-ifc-three/dist/WorkerHandler';
 
 const ifcModels = [];
 const baseScene = new ThreeScene();

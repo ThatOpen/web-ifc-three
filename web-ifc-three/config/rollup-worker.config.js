@@ -2,7 +2,7 @@ import resolve from '@rollup/plugin-node-resolve';
 import typescript from 'rollup-plugin-typescript2';
 
 export default {
-  input: 'src/IFC/web-workers/ifc-worker.ts',
+  input: 'src/IFC/web-workers/IFCWorker.ts',
   output: [
     {
       file: 'dist/IFCWorker.js',
