@@ -24,79 +24,79 @@ export class IfcWorkerHandler implements WebIfcAPI {
     }
 
     async OpenModel(data: string | Uint8Array, settings?: LoaderSettings): Promise<number> {
-        return this.request(WorkerActions.Init, { data, settings });
+        return this.request(WorkerActions.OpenModel, { data, settings });
     }
 
     async CreateModel(settings?: LoaderSettings): Promise<number> {
-        return this.request(WorkerActions.Init, { settings });
+        return this.request(WorkerActions.CreateModel, { settings });
     }
 
     async ExportFileAsIFC(modelID: number): Promise<Uint8Array> {
-        return this.request(WorkerActions.Init, { modelID });
+        return this.request(WorkerActions.ExportFileAsIFC, { modelID });
     }
 
     async GetGeometry(modelID: number, geometryExpressID: number): Promise<IfcGeometry> {
-        return this.request(WorkerActions.Init, { modelID, geometryExpressID });
+        return this.request(WorkerActions.GetGeometry, { modelID, geometryExpressID });
     }
 
     async GetLine(modelID: number, expressID: number, flatten?: boolean): Promise<any> {
-        return this.request(WorkerActions.Init, { modelID, expressID, flatten });
+        return this.request(WorkerActions.GetLine, { modelID, expressID, flatten });
     }
 
     async GetAndClearErrors(modelID: number): Promise<Vector<LoaderError>> {
-        return this.request(WorkerActions.Init, { modelID });
+        return this.request(WorkerActions.GetAndClearErrors, { modelID });
     }
 
     async WriteLine(modelID: number, lineObject: any): Promise<void> {
-        return this.request(WorkerActions.Init, { modelID, lineObject });
+        return this.request(WorkerActions.WriteLine, { modelID, lineObject });
     }
 
     async FlattenLine(modelID: number, line: any): Promise<void> {
-        return this.request(WorkerActions.Init, { modelID, line });
+        return this.request(WorkerActions.FlattenLine, { modelID, line });
     }
 
     async GetRawLineData(modelID: number, expressID: number): Promise<RawLineData> {
-        return this.request(WorkerActions.Init, { modelID, expressID });
+        return this.request(WorkerActions.GetRawLineData, { modelID, expressID });
     }
 
     async WriteRawLineData(modelID: number, data: RawLineData): Promise<any> {
-        return this.request(WorkerActions.Init, { modelID, data });
+        return this.request(WorkerActions.WriteRawLineData, { modelID, data });
     }
 
     async GetLineIDsWithType(modelID: number, type: number): Promise<Vector<number>> {
-        return this.request(WorkerActions.Init, { modelID, type });
+        return this.request(WorkerActions.GetLineIDsWithType, { modelID, type });
     }
 
     async GetAllLines(modelID: Number): Promise<Vector<number>> {
-        return this.request(WorkerActions.Init, { modelID });
+        return this.request(WorkerActions.GetAllLines, { modelID });
     }
 
     async SetGeometryTransformation(modelID: number, transformationMatrix: number[]): Promise<void> {
-        return this.request(WorkerActions.Init, { modelID, transformationMatrix });
+        return this.request(WorkerActions.SetGeometryTransformation, { modelID, transformationMatrix });
     }
 
     async GetCoordinationMatrix(modelID: number): Promise<number[]> {
-        return this.request(WorkerActions.Init, { modelID });
+        return this.request(WorkerActions.GetCoordinationMatrix, { modelID });
     }
 
     async GetVertexArray(ptr: number, size: number): Promise<Float32Array> {
-        return this.request(WorkerActions.Init, { ptr, size });
+        return this.request(WorkerActions.GetVertexArray, { ptr, size });
     }
 
     async GetIndexArray(ptr: number, size: number): Promise<Uint32Array> {
-        return this.request(WorkerActions.Init, { ptr, size });
+        return this.request(WorkerActions.GetIndexArray, { ptr, size });
     }
 
     async getSubArray(heap: any, startPtr: any, sizeBytes: any) {
-        return this.request(WorkerActions.Init, { heap, startPtr, sizeBytes });
+        return this.request(WorkerActions.getSubArray, { heap, startPtr, sizeBytes });
     }
 
     async CloseModel(modelID: number): Promise<void> {
-        return this.request(WorkerActions.Init, { modelID });
+        return this.request(WorkerActions.CloseModel, { modelID });
     }
 
     async StreamAllMeshes(modelID: number, meshCallback: (mesh: FlatMesh) => void): Promise<void> {
-        return this.request(WorkerActions.Init, { modelID, meshCallback });
+        throw new Error('Method not implemented.');
     }
 
     async StreamAllMeshesWithTypes(modelID: number, types: number[], meshCallback: (mesh: FlatMesh) => void): Promise<void> {
@@ -104,19 +104,19 @@ export class IfcWorkerHandler implements WebIfcAPI {
     }
 
     async IsModelOpen(modelID: number): Promise<boolean> {
-        return this.request(WorkerActions.Init, { modelID });
+        return this.request(WorkerActions.IsModelOpen, { modelID });
     }
 
     async LoadAllGeometry(modelID: number): Promise<Vector<FlatMesh>> {
-        return this.request(WorkerActions.Init, { modelID });
+        return this.request(WorkerActions.LoadAllGeometry, { modelID });
     }
 
     async GetFlatMesh(modelID: number, expressID: number): Promise<FlatMesh> {
-        return this.request(WorkerActions.Init, { modelID, expressID });
+        return this.request(WorkerActions.GetFlatMesh, { modelID, expressID });
     }
 
     async SetWasmPath(path: string): Promise<void> {
-        return this.request(WorkerActions.Init, { path });
+        return this.request(WorkerActions.SetWasmPath, { path });
     }
 
 
