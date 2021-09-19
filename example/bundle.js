@@ -86209,7 +86209,66 @@ class IfcManager {
     }
 }
 
+var WorkerActions;
+(function (WorkerActions) {
+    WorkerActions["init"] = "init";
+    WorkerActions["close"] = "close";
+})(WorkerActions || (WorkerActions = {}));
+
+class IfcWorkerHandler {
+    constructor(path) {
+        this.requestID = 0;
+        this.rejectHandlers = {};
+        this.resolveHandlers = {};
+        this.workerPath = path;
+        this.ifcWorker = new Worker(this.workerPath);
+        this.ifcWorker.onmessage = (data) => this.handleResponse(data);
+    }
+    async Init() {
+        if (!this.workerPath) {
+            throw new Error('Worker path has not been defined.');
+        }
+        return this.request(WorkerActions.Init);
+    }
+    async Close() {
+        await this.request(WorkerActions.Close);
+        this.ifcWorker.terminate();
+    }
+    request(action, args) {
+        const data = { action, args, id: this.requestID, result: undefined };
+        return new Promise((resolve, reject) => {
+            this.resolveHandlers[this.requestID] = resolve;
+            this.rejectHandlers[this.requestID] = reject;
+            this.requestID++;
+            this.ifcWorker.postMessage(data);
+        });
+    }
+    handleResponse(event) {
+        const data = event.data;
+        const id = data.id;
+        try {
+            this.resolveHandlers[id](data.result);
+            console.log("Success!");
+        }
+        catch (error) {
+            this.rejectHandlers[id](data.result);
+            console.log("Error!");
+        }
+        delete this.resolveHandlers[id];
+        delete this.rejectHandlers[id];
+    }
+}
+
 const ifcModels = [];
 const baseScene = new ThreeScene();
 new Picker(baseScene, ifcModels);
 new IfcManager(baseScene.scene, ifcModels);
+
+async function test() {
+    const worker = new IfcWorkerHandler('../web-ifc-three/dist/IFCWorker.js');
+    const result = await worker.Init();
+    console.log(result);
+    console.log("finish");
+}
+
+test();
