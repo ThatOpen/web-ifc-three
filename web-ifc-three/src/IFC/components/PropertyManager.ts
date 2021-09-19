@@ -1,7 +1,7 @@
 import { IdAttrName, JSONObject } from '../BaseDefinitions';
 import { Node, IfcState, PropsNames, pName } from '../BaseDefinitions';
 import { IfcElements } from './IFCElementsMap';
-import { IFCPROJECT } from 'web-ifc';
+import { IFCPROJECT, Vector } from 'web-ifc';
 import { BufferGeometry } from 'three';
 import { IfcTypesMap } from './IfcTypesMap';
 
@@ -21,37 +21,37 @@ export class PropertyManager {
         return geometry.attributes[IdAttrName].getX(geoIndex[3 * faceIndex]);
     }
 
-    getItemProperties(modelID: number, id: number, recursive = false) {
+    async getItemProperties(modelID: number, id: number, recursive = false) {
         return this.state.useJSON ?
             { ...this.state.models[modelID].jsonData[id] } :
             this.state.api.GetLine(modelID, id, recursive);
     }
 
-    getAllItemsOfType(modelID: number, type: number, verbose: boolean) {
+    async getAllItemsOfType(modelID: number, type: number, verbose: boolean) {
         return this.state.useJSON ?
             this.getAllItemsOfTypeJSON(modelID, type, verbose) :
             this.getAllItemsOfTypeWebIfcAPI(modelID, type, verbose);
     }
 
-    getPropertySets(modelID: number, elementID: number, recursive = false) {
+    async getPropertySets(modelID: number, elementID: number, recursive = false) {
         return this.state.useJSON ?
             this.getPropertyJSON(modelID, elementID, recursive, PropsNames.psets) :
             this.getPropertyWebIfcAPI(modelID, elementID, recursive, PropsNames.psets);
     }
 
-    getTypeProperties(modelID: number, elementID: number, recursive = false) {
+    async getTypeProperties(modelID: number, elementID: number, recursive = false) {
         return this.state.useJSON ?
             this.getPropertyJSON(modelID, elementID, recursive, PropsNames.type) :
             this.getPropertyWebIfcAPI(modelID, elementID, recursive, PropsNames.type);
     }
 
-    getMaterialsProperties(modelID: number, elementID: number, recursive = false) {
+    async getMaterialsProperties(modelID: number, elementID: number, recursive = false) {
         return this.state.useJSON ?
             this.getPropertyJSON(modelID, elementID, recursive, PropsNames.materials) :
             this.getPropertyWebIfcAPI(modelID, elementID, recursive, PropsNames.materials);
     }
 
-    getSpatialStructure(modelID: number, includeProperties?: boolean) {
+    async getSpatialStructure(modelID: number, includeProperties?: boolean) {
         if(!this.state.useJSON && includeProperties){
             console.warn("Including properties in getSpatialStructure with the JSON workflow disabled can lead to poor performance.")
         }
@@ -61,18 +61,19 @@ export class PropertyManager {
             this.getSpatialStructureWebIfcAPI(modelID, includeProperties);
     }
 
-    private getSpatialStructureJSON(modelID: number, includeProperties?: boolean) {
-        const chunks = this.getSpatialTreeChunks(modelID);
+    private async getSpatialStructureJSON(modelID: number, includeProperties?: boolean) {
+        const chunks = await this.getSpatialTreeChunks(modelID);
         const projectID = this.getAllItemsOfTypeJSON(modelID, IFCPROJECT, false)[0];
-        const project = this.newIfcProject(projectID);
+        const project = PropertyManager.newIfcProject(projectID);
         this.getSpatialNode(modelID, project, chunks, includeProperties);
         return { ...project };
     }
 
-    private getSpatialStructureWebIfcAPI(modelID: number, includeProperties?: boolean) {
-        const chunks = this.getSpatialTreeChunks(modelID);
-        const projectID = this.state.api.GetLineIDsWithType(modelID, IFCPROJECT).get(0);
-        const project = this.newIfcProject(projectID);
+    private async getSpatialStructureWebIfcAPI(modelID: number, includeProperties?: boolean) {
+        const chunks = await this.getSpatialTreeChunks(modelID);
+        const allLines = await this.state.api.GetLineIDsWithType(modelID, IFCPROJECT);
+        const projectID = allLines.get(0);
+        const project = PropertyManager.newIfcProject(projectID);
         this.getSpatialNode(modelID, project, chunks, includeProperties);
         return project;
     }
@@ -142,36 +143,28 @@ export class PropertyManager {
         });
     }
 
-    private getPropertyWebIfcAPI(modelID: number, elementID: number, recursive = false, propName: pName) {
-        const propSetIds = this.getAllRelatedItemsOfTypeWebIfcAPI(modelID, elementID, propName);
+    private async getPropertyWebIfcAPI(modelID: number, elementID: number, recursive = false, propName: pName) {
+        const propSetIds = await this.getAllRelatedItemsOfTypeWebIfcAPI(modelID, elementID, propName);
         return propSetIds.map((id) => this.state.api.GetLine(modelID, id, recursive));
     }
 
-    private getAllItemsOfTypeWebIfcAPI(modelID: number, type: number, verbose: boolean) {
+    private async getAllItemsOfTypeWebIfcAPI(modelID: number, type: number, verbose: boolean) {
         const items: number[] = [];
-        const lines = this.state.api.GetLineIDsWithType(modelID, type);
+        const lines = await this.state.api.GetLineIDsWithType(modelID, type);
         for (let i = 0; i < lines.size(); i++) items.push(lines.get(i));
         if (verbose) return items.map((id) => this.state.api.GetLine(modelID, id));
         return items;
     }
 
-    private newIfcProject(id: number) {
-        return {
-            expressID: id,
-            type: 'IFCPROJECT',
-            children: []
-        };
-    }
-
-    private getSpatialTreeChunks(modelID: number) {
+    private async getSpatialTreeChunks(modelID: number) {
         const treeChunks: any = {};
         const json = this.state.useJSON;
         if (json) {
             this.getChunksJSON(modelID, treeChunks, PropsNames.aggregates);
             this.getChunksJSON(modelID, treeChunks, PropsNames.spatial);
         } else {
-            this.getChunksWebIfcAPI(modelID, treeChunks, PropsNames.aggregates);
-            this.getChunksWebIfcAPI(modelID, treeChunks, PropsNames.spatial);
+            await this.getChunksWebIfcAPI(modelID, treeChunks, PropsNames.aggregates);
+            await this.getChunksWebIfcAPI(modelID, treeChunks, PropsNames.spatial);
         }
         return treeChunks;
     }
@@ -183,8 +176,8 @@ export class PropertyManager {
         });
     }
 
-    private getChunksWebIfcAPI(modelID: number, chunks: any, propNames: pName) {
-        const relation = this.state.api.GetLineIDsWithType(modelID, propNames.name);
+    private async getChunksWebIfcAPI(modelID: number, chunks: any, propNames: pName) {
+        const relation = await this.state.api.GetLineIDsWithType(modelID, propNames.name);
         for (let i = 0; i < relation.size(); i++) {
             const rel = this.state.api.GetLine(modelID, relation.get(i), false);
             this.saveChunk(chunks, propNames, rel);
@@ -240,18 +233,18 @@ export class PropertyManager {
         const lines = this.getAllItemsOfTypeJSON(modelID, propNames.name, true);
         const IDs: number[] = [];
         lines.forEach(line => {
-            const isRelated = this.isRelated(id, line, propNames);
+            const isRelated = PropertyManager.isRelated(id, line, propNames);
             if (isRelated) this.getRelated(line, propNames, IDs);
         });
         return IDs;
     }
 
-    private getAllRelatedItemsOfTypeWebIfcAPI(modelID: number, id: number, propNames: pName) {
-        const lines = this.state.api.GetLineIDsWithType(modelID, propNames.name);
+    private async getAllRelatedItemsOfTypeWebIfcAPI(modelID: number, id: number, propNames: pName) {
+        const lines = await this.state.api.GetLineIDsWithType(modelID, propNames.name);
         const IDs: number[] = [];
         for (let i = 0; i < lines.size(); i++) {
             const rel = this.state.api.GetLine(modelID, lines.get(i));
-            const isRelated = this.isRelated(id, rel, propNames);
+            const isRelated = PropertyManager.isRelated(id, rel, propNames);
             if (isRelated) this.getRelated(rel, propNames, IDs);
         }
         return IDs;
@@ -263,12 +256,20 @@ export class PropertyManager {
         else element.forEach((ele) => IDs.push(ele.value));
     }
 
-    private isRelated(id: number, rel: any, propNames: pName) {
+    private static isRelated(id: number, rel: any, propNames: pName) {
         const relatedItems = rel[propNames.related];
         if (Array.isArray(relatedItems)) {
             const values = relatedItems.map((item) => item.value);
             return values.includes(id);
         }
         return relatedItems.value === id;
+    }
+
+    private static newIfcProject(id: number) {
+        return {
+            expressID: id,
+            type: 'IFCPROJECT',
+            children: []
+        };
     }
 }

@@ -1,4 +1,4 @@
-import { AmbientLight, Color, DirectionalLight, PerspectiveCamera, Scene, WebGLRenderer } from 'three';
+import { AmbientLight, Color, DirectionalLight, PerspectiveCamera, Scene, WebGLRenderer, GridHelper } from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls';
 import Stats from 'stats.js/src/Stats';
 
@@ -10,6 +10,7 @@ export class ThreeScene {
         this.renderer = new WebGLRenderer({ antialias: true, canvas: this.threeCanvas });
         this.controls = new OrbitControls(this.camera, this.renderer.domElement);
         this.stats = new Stats();
+        this.grid = new GridHelper();
         this.setupScene();
     }
 
@@ -19,6 +20,8 @@ export class ThreeScene {
         this.setupWindowResize();
         this.setupMonitoring();
         this.setupAnimation();
+        this.setupCamera();
+        this.scene.add(this.grid);
     }
 
     setupAnimation = () => {
@@ -59,5 +62,10 @@ export class ThreeScene {
         this.stats.showPanel(0);
         this.stats.dom.style.cssText = 'position:absolute;top:1rem;left:1rem;z-index:1;';
         document.body.appendChild(this.stats.dom);
+    }
+
+    setupCamera() {
+        this.camera.position.set(10, 10, 10);
+        this.controls.target.set(0, 0, 0);
     }
 }

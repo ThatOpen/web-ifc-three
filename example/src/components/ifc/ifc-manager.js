@@ -6,8 +6,10 @@ export class IfcManager {
         this.scene = scene;
         this.ifcModels = ifcModels;
         this.ifcLoader = new IFCLoader();
+        this.ifcLoader.ifcManager.useWebWorkers("../../../web-ifc-three/dist/IFCWorker.js")
         this.ifcLoader.ifcManager.applyWebIfcConfig({
-            COORDINATE_TO_ORIGIN: true
+            COORDINATE_TO_ORIGIN: true,
+            USE_FAST_BOOLS: false
         })
         this.setupThreeMeshBVH();
         this.setupFileOpener();
@@ -37,29 +39,7 @@ export class IfcManager {
         this.ifcLoader.ifcManager.disposeMemory();
     }
 
-    // cleanUp() {
-    //
-    //     // Web IFC API
-    //     this.releaseMemory();
-    //
-    //     // IFCLoader
-    //     this.ifcLoader.ifcManager.releaseAllMemory();
-    //     this.ifcLoader = null;
-    //
-    //     // Scene
-    //     this.ifcModels.forEach(model => {
-    //         this.scene.remove(model);
-    //         model.geometry.dispose();
-    //         if(model.material.length){
-    //             model.material.forEach(mat => mat.dispose());
-    //         }
-    //         else {
-    //             model.material.dispose();
-    //         }
-    //     });
-    //
-    //     this.ifcModels.length = 0;
-    // }
+    // TODO: CleanUp() method to realease webgl memory of IFCLoader
 
     loadJSONData(modelID, data) {
         this.ifcLoader.ifcManager.useJSONData();

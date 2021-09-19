@@ -38,8 +38,8 @@ export class ItemSelector {
         console.log(tree);
     }
 
-    logProperties() {
-        const props = this.currentModel.getItemProperties(this.currentItemID);
+    async logProperties() {
+        const props = await this.currentModel.getItemProperties(this.currentItemID);
         // props.propertySets = this.currentModel.getPropertySets(this.currentItemID);
         console.log(props);
     }

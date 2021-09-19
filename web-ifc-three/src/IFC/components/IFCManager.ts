@@ -4,13 +4,14 @@ import {SubsetManager} from './SubsetManager';
 import {PropertyManager} from './PropertyManager';
 import {IfcElements} from './IFCElementsMap';
 import {TypeManager} from './TypeManager';
-import {HighlightConfigOfModel, IfcModel, IfcState, JSONObject} from '../BaseDefinitions';
-import {BufferGeometry, Material, Mesh, Object3D, Scene} from 'three';
+import {HighlightConfigOfModel, IfcState, JSONObject} from '../BaseDefinitions';
+import {BufferGeometry, Material, Object3D, Scene} from 'three';
 import {IFCModel} from './IFCModel';
 import {BvhManager} from './BvhManager';
 import {ItemsHider} from './ItemsHider';
 import {LoaderSettings} from 'web-ifc';
 import { MemoryCleaner } from './MemoryCleaner';
+import { IFCWorkerHandler } from '../web-workers/IFCWorkerHandler';
 
 /**
  * Contains all the logic to work with the loaded IFC files (select, edit, etc).
@@ -71,6 +72,16 @@ export class IFCManager {
     useJSONData(useJSON = true) {
         this.state.useJSON = useJSON;
         this.disposeMemory();
+    }
+
+    /**
+     * Uses web workers, making the loader non-blocking.
+     * @workerPath Relative path to the web worker file.
+     */
+    useWebWorkers(workerPath: string) {
+        // @ts-ignore
+        this.state.api = null;
+        this.state.api = new IFCWorkerHandler(workerPath);
     }
 
     /**

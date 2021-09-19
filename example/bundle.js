@@ -42146,8 +42146,8 @@ class ItemSelector {
         console.log(tree);
     }
 
-    logProperties() {
-        const props = this.currentModel.getItemProperties(this.currentItemID);
+    async logProperties() {
+        const props = await this.currentModel.getItemProperties(this.currentItemID);
         // props.propertySets = this.currentModel.getPropertySets(this.currentItemID);
         console.log(props);
     }
@@ -43613,6 +43613,7 @@ class ThreeScene {
         this.renderer = new WebGLRenderer({ antialias: true, canvas: this.threeCanvas });
         this.controls = new OrbitControls(this.camera, this.renderer.domElement);
         this.stats = new Stats();
+        this.grid = new GridHelper();
         this.setupScene();
     }
 
@@ -43622,6 +43623,8 @@ class ThreeScene {
         this.setupWindowResize();
         this.setupMonitoring();
         this.setupAnimation();
+        this.setupCamera();
+        this.scene.add(this.grid);
     }
 
     setupAnimation = () => {
@@ -43662,6 +43665,11 @@ class ThreeScene {
         this.stats.showPanel(0);
         this.stats.dom.style.cssText = 'position:absolute;top:1rem;left:1rem;z-index:1;';
         document.body.appendChild(this.stats.dom);
+    }
+
+    setupCamera() {
+        this.camera.position.set(10, 10, 10);
+        this.controls.target.set(0, 0, 0);
     }
 }
 
@@ -80463,16 +80471,16 @@ class IFCParser {
   async parse(buffer) {
     if (this.state.api.wasmModule === undefined)
       await this.state.api.Init();
-    this.newIfcModel(buffer);
+    await this.newIfcModel(buffer);
     this.loadedModels++;
     return this.loadAllGeometry();
   }
 
-  getAndClearErrors(modelId) {}
+  getAndClearErrors(_modelId) {}
 
-  newIfcModel(buffer) {
+  async newIfcModel(buffer) {
     const data = new Uint8Array(buffer);
-    this.currentWebIfcID = this.state.api.OpenModel(data, this.state.webIfcSettings);
+    this.currentWebIfcID = await this.state.api.OpenModel(data, this.state.webIfcSettings);
     this.currentModelID = this.state.useJSON ? this.loadedModels : this.currentWebIfcID;
     this.state.models[this.currentModelID] = {
       modelID: this.currentModelID,
@@ -80483,8 +80491,8 @@ class IFCParser {
     };
   }
 
-  loadAllGeometry() {
-    this.saveAllPlacedGeometriesByMaterial();
+  async loadAllGeometry() {
+    await this.saveAllPlacedGeometriesByMaterial();
     return this.generateAllGeometriesByMaterial();
   }
 
@@ -80502,9 +80510,11 @@ class IFCParser {
     const mergedByMaterial = [];
     const materials = [];
     for (let materialID in items) {
-      materials.push(items[materialID].material);
-      const geometries = Object.values(items[materialID].geometries);
-      mergedByMaterial.push(merge(geometries));
+      if (items.hasOwnProperty(materialID)) {
+        materials.push(items[materialID].material);
+        const geometries = Object.values(items[materialID].geometries);
+        mergedByMaterial.push(merge(geometries));
+      }
     }
     const geometry = merge(mergedByMaterial, true);
     return {
@@ -80513,52 +80523,52 @@ class IFCParser {
     };
   }
 
-  saveAllPlacedGeometriesByMaterial() {
-    const flatMeshes = this.state.api.LoadAllGeometry(this.currentWebIfcID);
+  async saveAllPlacedGeometriesByMaterial() {
+    const flatMeshes = await this.state.api.LoadAllGeometry(this.currentWebIfcID);
     for (let i = 0; i < flatMeshes.size(); i++) {
       const flatMesh = flatMeshes.get(i);
       const placedGeom = flatMesh.geometries;
       for (let j = 0; j < placedGeom.size(); j++) {
-        this.savePlacedGeometry(placedGeom.get(j), flatMesh.expressID);
+        await this.savePlacedGeometry(placedGeom.get(j), flatMesh.expressID);
       }
     }
   }
 
-  savePlacedGeometry(placedGeometry, id) {
-    const geometry = this.getBufferGeometry(placedGeometry);
+  async savePlacedGeometry(placedGeometry, id) {
+    const geometry = await this.getBufferGeometry(placedGeometry);
     geometry.computeVertexNormals();
-    const matrix = this.getMeshMatrix(placedGeometry.flatTransformation);
+    const matrix = IFCParser.getMeshMatrix(placedGeometry.flatTransformation);
     geometry.applyMatrix4(matrix);
     this.saveGeometryByMaterial(geometry, placedGeometry, id);
   }
 
-  getBufferGeometry(placed) {
-    const geometry = this.state.api.GetGeometry(this.currentWebIfcID, placed.geometryExpressID);
-    const vertexData = this.getVertices(geometry);
-    const indices = this.getIndices(geometry);
-    const {vertices, normals} = this.extractVertexData(vertexData);
-    return this.ifcGeomToBufferGeom(vertices, normals, indices);
+  async getBufferGeometry(placed) {
+    const geometry = await this.state.api.GetGeometry(this.currentWebIfcID, placed.geometryExpressID);
+    const vertexData = await this.getVertices(geometry);
+    const indices = await this.getIndices(geometry);
+    const {vertices, normals} = IFCParser.extractVertexData(vertexData);
+    return IFCParser.ifcGeomToBufferGeom(vertices, normals, indices);
   }
 
-  getVertices(geometry) {
+  async getVertices(geometry) {
     const vData = geometry.GetVertexData();
     const vDataSize = geometry.GetVertexDataSize();
     return this.state.api.GetVertexArray(vData, vDataSize);
   }
 
-  getIndices(geometry) {
+  async getIndices(geometry) {
     const iData = geometry.GetIndexData();
     const iDataSize = geometry.GetIndexDataSize();
     return this.state.api.GetIndexArray(iData, iDataSize);
   }
 
-  getMeshMatrix(matrix) {
+  static getMeshMatrix(matrix) {
     const mat = new Matrix4();
     mat.fromArray(matrix);
     return mat;
   }
 
-  ifcGeomToBufferGeom(vertices, normals, indexData) {
+  static ifcGeomToBufferGeom(vertices, normals, indexData) {
     const geometry = new BufferGeometry();
     geometry.setAttribute('position', newFloatAttr(vertices, 3));
     geometry.setAttribute('normal', newFloatAttr(normals, 3));
@@ -80566,7 +80576,7 @@ class IFCParser {
     return geometry;
   }
 
-  extractVertexData(vertexData) {
+  static extractVertexData(vertexData) {
     const vertices = [];
     const normals = [];
     let isNormalData = false;
@@ -80584,7 +80594,7 @@ class IFCParser {
   saveGeometryByMaterial(geom, placedGeom, id) {
     const color = placedGeom.color;
     const colorID = `${color.x}${color.y}${color.z}${color.w}`;
-    this.storeGeometryAttribute(id, geom);
+    IFCParser.storeGeometryAttribute(id, geom);
     this.createMaterial(colorID, color);
     const item = this.state.models[this.currentModelID].items[colorID];
     const currentGeom = item.geometries[id];
@@ -80593,7 +80603,7 @@ class IFCParser {
     item.geometries[id] = merge([currentGeom, geom]);
   }
 
-  storeGeometryAttribute(id, geometry) {
+  static storeGeometryAttribute(id, geometry) {
     const size = geometry.attributes.position.count;
     const idAttribute = new Array(size).fill(id);
     geometry.setAttribute(IdAttrName, newIntAttr(idAttribute, 1));
@@ -81783,7 +81793,7 @@ class PropertyManager {
     return geometry.attributes[IdAttrName].getX(geoIndex[3 * faceIndex]);
   }
 
-  getItemProperties(modelID, id, recursive = false) {
+  async getItemProperties(modelID, id, recursive = false) {
     return this.state.useJSON ?
       {
         ...this.state.models[modelID].jsonData[id]
@@ -81791,31 +81801,31 @@ class PropertyManager {
       this.state.api.GetLine(modelID, id, recursive);
   }
 
-  getAllItemsOfType(modelID, type, verbose) {
+  async getAllItemsOfType(modelID, type, verbose) {
     return this.state.useJSON ?
       this.getAllItemsOfTypeJSON(modelID, type, verbose) :
       this.getAllItemsOfTypeWebIfcAPI(modelID, type, verbose);
   }
 
-  getPropertySets(modelID, elementID, recursive = false) {
+  async getPropertySets(modelID, elementID, recursive = false) {
     return this.state.useJSON ?
       this.getPropertyJSON(modelID, elementID, recursive, PropsNames.psets) :
       this.getPropertyWebIfcAPI(modelID, elementID, recursive, PropsNames.psets);
   }
 
-  getTypeProperties(modelID, elementID, recursive = false) {
+  async getTypeProperties(modelID, elementID, recursive = false) {
     return this.state.useJSON ?
       this.getPropertyJSON(modelID, elementID, recursive, PropsNames.type) :
       this.getPropertyWebIfcAPI(modelID, elementID, recursive, PropsNames.type);
   }
 
-  getMaterialsProperties(modelID, elementID, recursive = false) {
+  async getMaterialsProperties(modelID, elementID, recursive = false) {
     return this.state.useJSON ?
       this.getPropertyJSON(modelID, elementID, recursive, PropsNames.materials) :
       this.getPropertyWebIfcAPI(modelID, elementID, recursive, PropsNames.materials);
   }
 
-  getSpatialStructure(modelID, includeProperties) {
+  async getSpatialStructure(modelID, includeProperties) {
     if (!this.state.useJSON && includeProperties) {
       console.warn("Including properties in getSpatialStructure with the JSON workflow disabled can lead to poor performance.");
     }
@@ -81824,20 +81834,21 @@ class PropertyManager {
       this.getSpatialStructureWebIfcAPI(modelID, includeProperties);
   }
 
-  getSpatialStructureJSON(modelID, includeProperties) {
-    const chunks = this.getSpatialTreeChunks(modelID);
+  async getSpatialStructureJSON(modelID, includeProperties) {
+    const chunks = await this.getSpatialTreeChunks(modelID);
     const projectID = this.getAllItemsOfTypeJSON(modelID, IFCPROJECT, false)[0];
-    const project = this.newIfcProject(projectID);
+    const project = PropertyManager.newIfcProject(projectID);
     this.getSpatialNode(modelID, project, chunks, includeProperties);
     return {
       ...project
     };
   }
 
-  getSpatialStructureWebIfcAPI(modelID, includeProperties) {
-    const chunks = this.getSpatialTreeChunks(modelID);
-    const projectID = this.state.api.GetLineIDsWithType(modelID, IFCPROJECT).get(0);
-    const project = this.newIfcProject(projectID);
+  async getSpatialStructureWebIfcAPI(modelID, includeProperties) {
+    const chunks = await this.getSpatialTreeChunks(modelID);
+    const allLines = await this.state.api.GetLineIDsWithType(modelID, IFCPROJECT);
+    const projectID = allLines.get(0);
+    const project = PropertyManager.newIfcProject(projectID);
     this.getSpatialNode(modelID, project, chunks, includeProperties);
     return project;
   }
@@ -81912,14 +81923,14 @@ class PropertyManager {
     });
   }
 
-  getPropertyWebIfcAPI(modelID, elementID, recursive = false, propName) {
-    const propSetIds = this.getAllRelatedItemsOfTypeWebIfcAPI(modelID, elementID, propName);
+  async getPropertyWebIfcAPI(modelID, elementID, recursive = false, propName) {
+    const propSetIds = await this.getAllRelatedItemsOfTypeWebIfcAPI(modelID, elementID, propName);
     return propSetIds.map((id) => this.state.api.GetLine(modelID, id, recursive));
   }
 
-  getAllItemsOfTypeWebIfcAPI(modelID, type, verbose) {
+  async getAllItemsOfTypeWebIfcAPI(modelID, type, verbose) {
     const items = [];
-    const lines = this.state.api.GetLineIDsWithType(modelID, type);
+    const lines = await this.state.api.GetLineIDsWithType(modelID, type);
     for (let i = 0; i < lines.size(); i++)
       items.push(lines.get(i));
     if (verbose)
@@ -81927,23 +81938,15 @@ class PropertyManager {
     return items;
   }
 
-  newIfcProject(id) {
-    return {
-      expressID: id,
-      type: 'IFCPROJECT',
-      children: []
-    };
-  }
-
-  getSpatialTreeChunks(modelID) {
+  async getSpatialTreeChunks(modelID) {
     const treeChunks = {};
     const json = this.state.useJSON;
     if (json) {
       this.getChunksJSON(modelID, treeChunks, PropsNames.aggregates);
       this.getChunksJSON(modelID, treeChunks, PropsNames.spatial);
     } else {
-      this.getChunksWebIfcAPI(modelID, treeChunks, PropsNames.aggregates);
-      this.getChunksWebIfcAPI(modelID, treeChunks, PropsNames.spatial);
+      await this.getChunksWebIfcAPI(modelID, treeChunks, PropsNames.aggregates);
+      await this.getChunksWebIfcAPI(modelID, treeChunks, PropsNames.spatial);
     }
     return treeChunks;
   }
@@ -81955,8 +81958,8 @@ class PropertyManager {
     });
   }
 
-  getChunksWebIfcAPI(modelID, chunks, propNames) {
-    const relation = this.state.api.GetLineIDsWithType(modelID, propNames.name);
+  async getChunksWebIfcAPI(modelID, chunks, propNames) {
+    const relation = await this.state.api.GetLineIDsWithType(modelID, propNames.name);
     for (let i = 0; i < relation.size(); i++) {
       const rel = this.state.api.GetLine(modelID, relation.get(i), false);
       this.saveChunk(chunks, propNames, rel);
@@ -82016,19 +82019,19 @@ class PropertyManager {
     const lines = this.getAllItemsOfTypeJSON(modelID, propNames.name, true);
     const IDs = [];
     lines.forEach(line => {
-      const isRelated = this.isRelated(id, line, propNames);
+      const isRelated = PropertyManager.isRelated(id, line, propNames);
       if (isRelated)
         this.getRelated(line, propNames, IDs);
     });
     return IDs;
   }
 
-  getAllRelatedItemsOfTypeWebIfcAPI(modelID, id, propNames) {
-    const lines = this.state.api.GetLineIDsWithType(modelID, propNames.name);
+  async getAllRelatedItemsOfTypeWebIfcAPI(modelID, id, propNames) {
+    const lines = await this.state.api.GetLineIDsWithType(modelID, propNames.name);
     const IDs = [];
     for (let i = 0; i < lines.size(); i++) {
       const rel = this.state.api.GetLine(modelID, lines.get(i));
-      const isRelated = this.isRelated(id, rel, propNames);
+      const isRelated = PropertyManager.isRelated(id, rel, propNames);
       if (isRelated)
         this.getRelated(rel, propNames, IDs);
     }
@@ -82043,13 +82046,21 @@ class PropertyManager {
       element.forEach((ele) => IDs.push(ele.value));
   }
 
-  isRelated(id, rel, propNames) {
+  static isRelated(id, rel, propNames) {
     const relatedItems = rel[propNames.related];
     if (Array.isArray(relatedItems)) {
       const values = relatedItems.map((item) => item.value);
       return values.includes(id);
     }
     return relatedItems.value === id;
+  }
+
+  static newIfcProject(id) {
+    return {
+      expressID: id,
+      type: 'IFCPROJECT',
+      children: []
+    };
   }
 
 }
@@ -82063,20 +82074,23 @@ class TypeManager {
   getAllTypes() {
     for (let modelID in this.state.models) {
       const types = this.state.models[modelID].types;
-      if (Object.keys(types).length == 0)
+      if (Object.keys(types).length == 0) {
         this.getAllTypesOfModel(parseInt(modelID));
+      }
     }
   }
 
-  getAllTypesOfModel(modelID) {
+  async getAllTypesOfModel(modelID) {
     this.state.models[modelID].types;
     const elements = Object.keys(IfcElements).map((e) => parseInt(e));
     const types = this.state.models[modelID].types;
-    elements.forEach((type) => {
-      const lines = this.state.api.GetLineIDsWithType(modelID, type);
-      for (let i = 0; i < lines.size(); i++)
-        types[lines.get(i)] = type;
-    });
+    for (let i = 0; i < elements.length; i++) {
+      const element = elements[i];
+      const lines = await this.state.api.GetLineIDsWithType(modelID, element);
+      const size = lines.size();
+      for (let i = 0; i < size; i++)
+        types[lines.get(i)] = element;
+    }
   }
 
 }
@@ -82260,6 +82274,422 @@ class MemoryCleaner {
 
 }
 
+var WorkerActions;
+(function(WorkerActions) {
+  WorkerActions["Close"] = "Close";
+  WorkerActions["Init"] = "Init";
+  WorkerActions["OpenModel"] = "OpenModel";
+  WorkerActions["CreateModel"] = "CreateModel";
+  WorkerActions["ExportFileAsIFC"] = "ExportFileAsIFC";
+  WorkerActions["GetGeometry"] = "GetGeometry";
+  WorkerActions["GetLine"] = "GetLine";
+  WorkerActions["GetAndClearErrors"] = "GetAndClearErrors";
+  WorkerActions["WriteLine"] = "WriteLine";
+  WorkerActions["FlattenLine"] = "FlattenLine";
+  WorkerActions["GetRawLineData"] = "GetRawLineData";
+  WorkerActions["WriteRawLineData"] = "WriteRawLineData";
+  WorkerActions["GetLineIDsWithType"] = "GetLineIDsWithType";
+  WorkerActions["GetAllLines"] = "GetAllLines";
+  WorkerActions["SetGeometryTransformation"] = "SetGeometryTransformation";
+  WorkerActions["GetCoordinationMatrix"] = "GetCoordinationMatrix";
+  WorkerActions["GetVertexArray"] = "GetVertexArray";
+  WorkerActions["GetIndexArray"] = "GetIndexArray";
+  WorkerActions["getSubArray"] = "getSubArray";
+  WorkerActions["CloseModel"] = "CloseModel";
+  WorkerActions["StreamAllMeshes"] = "StreamAllMeshes";
+  WorkerActions["StreamAllMeshesWithTypes"] = "StreamAllMeshesWithTypes";
+  WorkerActions["IsModelOpen"] = "IsModelOpen";
+  WorkerActions["LoadAllGeometry"] = "LoadAllGeometry";
+  WorkerActions["GetFlatMesh"] = "GetFlatMesh";
+  WorkerActions["SetWasmPath"] = "SetWasmPath";
+})(WorkerActions || (WorkerActions = {}));
+
+class Vector {
+
+  constructor(vector) {
+    this._data = {};
+    this._size = vector.size;
+    const keys = Object.keys(vector).filter((key) => key.indexOf('size') === -1).map(key => parseInt(key));
+    keys.forEach((key) => this._data[key] = vector[key]);
+  }
+
+  size() {
+    return this._size;
+  }
+
+  get(index) {
+    return this._data[index];
+  }
+
+}
+
+class IfcGeometry {
+
+  constructor(vector) {
+    this._GetVertexData = vector.GetVertexData;
+    this._GetVertexDataSize = vector.GetVertexDataSize;
+    this._GetIndexData = vector.GetIndexData;
+    this._GetIndexDataSize = vector.GetIndexDataSize;
+  }
+
+  GetVertexData() {
+    return this._GetVertexData;
+  }
+
+  GetVertexDataSize() {
+    return this._GetVertexDataSize;
+  }
+
+  GetIndexData() {
+    return this._GetIndexData;
+  }
+
+  GetIndexDataSize() {
+    return this._GetIndexDataSize;
+  }
+
+}
+
+class FlatMesh {
+
+  constructor(serializer, flatMesh) {
+    this.expressID = flatMesh.expressID;
+    this.geometries = serializer.reconstructVector(flatMesh.geometries);
+  }
+
+}
+
+class FlatMeshVector {
+
+  constructor(serializer, vector) {
+    this._data = {};
+    this._size = vector.size;
+    const keys = Object.keys(vector).filter((key) => key.indexOf('size') === -1).map(key => parseInt(key));
+    keys.forEach(key => this._data[key] = serializer.reconstructFlatMesh(vector[key]));
+  }
+
+  size() {
+    return this._size;
+  }
+
+  get(index) {
+    return this._data[index];
+  }
+
+}
+
+class Serializer {
+
+  serializeVector(vector) {
+    const size = vector.size();
+    const serialized = {
+      size
+    };
+    for (let i = 0; i < size; i++) {
+      serialized[i] = vector.get(i);
+    }
+    return serialized;
+  }
+
+  reconstructVector(vector) {
+    return new Vector(vector);
+  }
+
+  serializeIfcGeometry(geometry) {
+    const GetVertexData = geometry.GetVertexData();
+    const GetVertexDataSize = geometry.GetVertexDataSize();
+    const GetIndexData = geometry.GetIndexData();
+    const GetIndexDataSize = geometry.GetIndexDataSize();
+    return {
+      GetVertexData,
+      GetVertexDataSize,
+      GetIndexData,
+      GetIndexDataSize
+    };
+  }
+
+  reconstructIfcGeometry(geometry) {
+    return new IfcGeometry(geometry);
+  }
+
+  serializeFlatMesh(flatMesh) {
+    return {
+      expressID: flatMesh.expressID,
+      geometries: this.serializeVector(flatMesh.geometries)
+    };
+  }
+
+  reconstructFlatMesh(flatMesh) {
+    return new FlatMesh(this, flatMesh);
+  }
+
+  serializeFlatMeshVector(vector) {
+    const size = vector.size();
+    const serialized = {
+      size
+    };
+    for (let i = 0; i < size; i++) {
+      const flatMesh = vector.get(i);
+      serialized[i] = this.serializeFlatMesh(flatMesh);
+    }
+    return serialized;
+  }
+
+  reconstructFlatMeshVector(vector) {
+    return new FlatMeshVector(this, vector);
+  }
+
+}
+
+class IFCWorkerHandler {
+
+  constructor(path) {
+    this.serializer = new Serializer();
+    this.requestID = 0;
+    this.rejectHandlers = {};
+    this.resolveHandlers = {};
+    this.serializeHandlers = {};
+    this.callbacks = {};
+    this.workerPath = path;
+    this.ifcWorker = new Worker(this.workerPath);
+    this.ifcWorker.onmessage = (data) => this.handleResponse(data);
+  }
+
+  async Init() {
+    this.wasmModule = true;
+    return this.request(WorkerActions.Init);
+  }
+
+  async Close() {
+    await this.request(WorkerActions.Close);
+    this.ifcWorker.terminate();
+  }
+
+  async OpenModel(data, settings) {
+    return this.request(WorkerActions.OpenModel, {
+      data,
+      settings
+    });
+  }
+
+  async CreateModel(settings) {
+    return this.request(WorkerActions.CreateModel, {
+      settings
+    });
+  }
+
+  async ExportFileAsIFC(modelID) {
+    return this.request(WorkerActions.ExportFileAsIFC, {
+      modelID
+    });
+  }
+
+  async GetGeometry(modelID, geometryExpressID) {
+    this.serializeHandlers[this.requestID] = (geom) => this.serializer.reconstructIfcGeometry(geom);
+    return this.request(WorkerActions.GetGeometry, {
+      modelID,
+      geometryExpressID
+    });
+  }
+
+  async GetLine(modelID, expressID, flatten) {
+    return this.request(WorkerActions.GetLine, {
+      modelID,
+      expressID,
+      flatten
+    });
+  }
+
+  async GetAndClearErrors(modelID) {
+    this.serializeHandlers[this.requestID] = (vector) => this.serializer.reconstructVector(vector);
+    return this.request(WorkerActions.GetAndClearErrors, {
+      modelID
+    });
+  }
+
+  async WriteLine(modelID, lineObject) {
+    return this.request(WorkerActions.WriteLine, {
+      modelID,
+      lineObject
+    });
+  }
+
+  async FlattenLine(modelID, line) {
+    return this.request(WorkerActions.FlattenLine, {
+      modelID,
+      line
+    });
+  }
+
+  async GetRawLineData(modelID, expressID) {
+    return this.request(WorkerActions.GetRawLineData, {
+      modelID,
+      expressID
+    });
+  }
+
+  async WriteRawLineData(modelID, data) {
+    return this.request(WorkerActions.WriteRawLineData, {
+      modelID,
+      data
+    });
+  }
+
+  async GetLineIDsWithType(modelID, type) {
+    this.serializeHandlers[this.requestID] = (vector) => this.serializer.reconstructVector(vector);
+    return this.request(WorkerActions.GetLineIDsWithType, {
+      modelID,
+      type
+    });
+  }
+
+  async GetAllLines(modelID) {
+    this.serializeHandlers[this.requestID] = (vector) => this.serializer.reconstructVector(vector);
+    return this.request(WorkerActions.GetAllLines, {
+      modelID
+    });
+  }
+
+  async SetGeometryTransformation(modelID, transformationMatrix) {
+    return this.request(WorkerActions.SetGeometryTransformation, {
+      modelID,
+      transformationMatrix
+    });
+  }
+
+  async GetCoordinationMatrix(modelID) {
+    return this.request(WorkerActions.GetCoordinationMatrix, {
+      modelID
+    });
+  }
+
+  async GetVertexArray(ptr, size) {
+    return this.request(WorkerActions.GetVertexArray, {
+      ptr,
+      size
+    });
+  }
+
+  async GetIndexArray(ptr, size) {
+    return this.request(WorkerActions.GetIndexArray, {
+      ptr,
+      size
+    });
+  }
+
+  async getSubArray(heap, startPtr, sizeBytes) {
+    return this.request(WorkerActions.getSubArray, {
+      heap,
+      startPtr,
+      sizeBytes
+    });
+  }
+
+  async CloseModel(modelID) {
+    return this.request(WorkerActions.CloseModel, {
+      modelID
+    });
+  }
+
+  async StreamAllMeshes(modelID, meshCallback) {
+    this.callbacks[this.requestID] = {
+      action: meshCallback,
+      serializer: this.serializer.reconstructFlatMesh
+    };
+    return this.request(WorkerActions.StreamAllMeshes, {
+      modelID
+    });
+  }
+
+  async StreamAllMeshesWithTypes(modelID, types, meshCallback) {
+    this.callbacks[this.requestID] = {
+      action: meshCallback,
+      serializer: this.serializer.reconstructFlatMesh
+    };
+    return this.request(WorkerActions.StreamAllMeshesWithTypes, {
+      modelID,
+      types
+    });
+  }
+
+  async IsModelOpen(modelID) {
+    return this.request(WorkerActions.IsModelOpen, {
+      modelID
+    });
+  }
+
+  async LoadAllGeometry(modelID) {
+    this.serializeHandlers[this.requestID] = (vector) => this.serializer.reconstructFlatMeshVector(vector);
+    return this.request(WorkerActions.LoadAllGeometry, {
+      modelID
+    });
+  }
+
+  async GetFlatMesh(modelID, expressID) {
+    this.serializeHandlers[this.requestID] = (flatMesh) => this.serializer.reconstructFlatMesh(flatMesh);
+    return this.request(WorkerActions.GetFlatMesh, {
+      modelID,
+      expressID
+    });
+  }
+
+  async SetWasmPath(path) {
+    return this.request(WorkerActions.SetWasmPath, {
+      path
+    });
+  }
+
+  request(action, args) {
+    const data = {
+      action,
+      args,
+      id: this.requestID,
+      result: undefined
+    };
+    return new Promise((resolve, reject) => {
+      this.resolveHandlers[this.requestID] = resolve;
+      this.rejectHandlers[this.requestID] = reject;
+      this.requestID++;
+      this.ifcWorker.postMessage(data);
+    });
+  }
+
+  handleResponse(event) {
+    const data = event.data;
+    const id = data.id;
+    try {
+      this.resolveSerializations(data);
+      this.resolveCallbacks(data);
+      this.resolveHandlers[id](data.result);
+    } catch (error) {
+      this.rejectHandlers[id](data.result);
+    }
+    delete this.resolveHandlers[id];
+    delete this.rejectHandlers[id];
+  }
+
+  resolveSerializations(data) {
+    const id = data.id;
+    if (this.serializeHandlers[id]) {
+      data.result = this.serializeHandlers[id](data.result);
+      delete this.serializeHandlers[id];
+    }
+  }
+
+  resolveCallbacks(data) {
+    const id = data.id;
+    if (this.callbacks[id]) {
+      let callbackParameter = data.result;
+      if (this.callbacks[id].serializer) {
+        callbackParameter = this.callbacks[id].serializer(data.result);
+      }
+      this.callbacks[id].action(callbackParameter);
+      delete this.callbacks[id];
+    }
+  }
+
+}
+
 class IFCManager {
 
   constructor() {
@@ -82300,6 +82730,11 @@ class IFCManager {
   useJSONData(useJSON = true) {
     this.state.useJSON = useJSON;
     this.disposeMemory();
+  }
+
+  useWebWorkers(workerPath) {
+    this.state.api = null;
+    this.state.api = new IFCWorkerHandler(workerPath);
   }
 
   addModelJSONData(modelID, data) {
@@ -86141,8 +86576,10 @@ class IfcManager {
         this.scene = scene;
         this.ifcModels = ifcModels;
         this.ifcLoader = new IFCLoader();
+        this.ifcLoader.ifcManager.useWebWorkers("../../../web-ifc-three/dist/IFCWorker.js");
         this.ifcLoader.ifcManager.applyWebIfcConfig({
-            COORDINATE_TO_ORIGIN: true
+            COORDINATE_TO_ORIGIN: true,
+            USE_FAST_BOOLS: false
         });
         this.setupThreeMeshBVH();
         this.setupFileOpener();
@@ -86172,29 +86609,7 @@ class IfcManager {
         this.ifcLoader.ifcManager.disposeMemory();
     }
 
-    // cleanUp() {
-    //
-    //     // Web IFC API
-    //     this.releaseMemory();
-    //
-    //     // IFCLoader
-    //     this.ifcLoader.ifcManager.releaseAllMemory();
-    //     this.ifcLoader = null;
-    //
-    //     // Scene
-    //     this.ifcModels.forEach(model => {
-    //         this.scene.remove(model);
-    //         model.geometry.dispose();
-    //         if(model.material.length){
-    //             model.material.forEach(mat => mat.dispose());
-    //         }
-    //         else {
-    //             model.material.dispose();
-    //         }
-    //     });
-    //
-    //     this.ifcModels.length = 0;
-    // }
+    // TODO: CleanUp() method to realease webgl memory of IFCLoader
 
     loadJSONData(modelID, data) {
         this.ifcLoader.ifcManager.useJSONData();
