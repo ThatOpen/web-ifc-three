@@ -6,7 +6,6 @@ export class ItemSelector {
         this.previousSelectedFace = null;
         this.previousSelection = null;
         this.material = highlightMaterial;
-        this.currentModelID = -1;
         this.currentItemID = -1;
         this.currentModel = null;
     }
@@ -39,8 +38,12 @@ export class ItemSelector {
     }
 
     async logProperties() {
-        const props = await this.currentModel.getItemProperties(this.currentItemID);
-        // props.propertySets = this.currentModel.getPropertySets(this.currentItemID);
+        const modelID = this.currentModel.modelID;
+        const id = this.currentItemID;
+        const props = await this.currentModel.ifcManager.getItemProperties(modelID, id);
+        props.psets = await this.currentModel.ifcManager.getPropertySets(modelID, id);
+        props.mats = await this.currentModel.ifcManager.getMaterialsProperties(modelID, id);
+        props.type = await this.currentModel.ifcManager.getTypeProperties(modelID, id);
         console.log(props);
     }
 

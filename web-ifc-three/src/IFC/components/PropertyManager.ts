@@ -52,8 +52,8 @@ export class PropertyManager {
     }
 
     async getSpatialStructure(modelID: number, includeProperties?: boolean) {
-        if(!this.state.useJSON && includeProperties){
-            console.warn("Including properties in getSpatialStructure with the JSON workflow disabled can lead to poor performance.")
+        if (!this.state.useJSON && includeProperties) {
+            console.warn('Including properties in getSpatialStructure with the JSON workflow disabled can lead to poor performance.');
         }
 
         return this.state.useJSON ?
@@ -145,15 +145,23 @@ export class PropertyManager {
 
     private async getPropertyWebIfcAPI(modelID: number, elementID: number, recursive = false, propName: pName) {
         const propSetIds = await this.getAllRelatedItemsOfTypeWebIfcAPI(modelID, elementID, propName);
-        return propSetIds.map((id) => this.state.api.GetLine(modelID, id, recursive));
+        const result: any[] = [];
+        for(let i = 0; i < propSetIds.length; i++) {
+            result.push(await this.state.api.GetLine(modelID, propSetIds[i], recursive));
+        }
+        return result;
     }
 
     private async getAllItemsOfTypeWebIfcAPI(modelID: number, type: number, verbose: boolean) {
-        const items: number[] = [];
+        let items: number[] = [];
         const lines = await this.state.api.GetLineIDsWithType(modelID, type);
         for (let i = 0; i < lines.size(); i++) items.push(lines.get(i));
-        if (verbose) return items.map((id) => this.state.api.GetLine(modelID, id));
-        return items;
+        if (!verbose) return items;
+        const result: any[] = [];
+        for (let i = 0; i < items.length; i++) {
+            result.push(await this.state.api.GetLine(modelID, items[i]));
+        }
+        return result;
     }
 
     private async getSpatialTreeChunks(modelID: number) {
@@ -179,7 +187,7 @@ export class PropertyManager {
     private async getChunksWebIfcAPI(modelID: number, chunks: any, propNames: pName) {
         const relation = await this.state.api.GetLineIDsWithType(modelID, propNames.name);
         for (let i = 0; i < relation.size(); i++) {
-            const rel = this.state.api.GetLine(modelID, relation.get(i), false);
+            const rel = await this.state.api.GetLine(modelID, relation.get(i), false);
             this.saveChunk(chunks, propNames, rel);
         }
     }
@@ -205,9 +213,9 @@ export class PropertyManager {
         const prop = propNames.key as keyof Node;
         (node[prop] as Node[]) = children.map((child: number) => {
             let node = this.newNode(modelID, child);
-            if(includeProperties){
+            if (includeProperties) {
                 const properties = this.getItemProperties(modelID, node.expressID);
-                node = { ...node, ...properties }
+                node = { ...node, ...properties };
             }
             this.getSpatialNode(modelID, node, treeChunks, includeProperties);
             return node;
@@ -224,7 +232,7 @@ export class PropertyManager {
     }
 
     private getNodeType(modelID: number, id: number) {
-        if(this.state.useJSON) return this.state.models[modelID].jsonData[id].type;
+        if (this.state.useJSON) return this.state.models[modelID].jsonData[id].type;
         const typeID = this.state.models[modelID].types[id];
         return IfcElements[typeID];
     }
@@ -243,7 +251,7 @@ export class PropertyManager {
         const lines = await this.state.api.GetLineIDsWithType(modelID, propNames.name);
         const IDs: number[] = [];
         for (let i = 0; i < lines.size(); i++) {
-            const rel = this.state.api.GetLine(modelID, lines.get(i));
+            const rel = await this.state.api.GetLine(modelID, lines.get(i));
             const isRelated = PropertyManager.isRelated(id, rel, propNames);
             if (isRelated) this.getRelated(rel, propNames, IDs);
         }

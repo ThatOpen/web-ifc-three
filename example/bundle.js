@@ -42114,7 +42114,6 @@ class ItemSelector {
         this.previousSelectedFace = null;
         this.previousSelection = null;
         this.material = highlightMaterial;
-        this.currentModelID = -1;
         this.currentItemID = -1;
         this.currentModel = null;
     }
@@ -42147,8 +42146,12 @@ class ItemSelector {
     }
 
     async logProperties() {
-        const props = await this.currentModel.getItemProperties(this.currentItemID);
-        // props.propertySets = this.currentModel.getPropertySets(this.currentItemID);
+        const modelID = this.currentModel.modelID;
+        const id = this.currentItemID;
+        const props = await this.currentModel.ifcManager.getItemProperties(modelID, id);
+        props.psets = await this.currentModel.ifcManager.getPropertySets(modelID, id);
+        props.mats = await this.currentModel.ifcManager.getMaterialsProperties(modelID, id);
+        props.type = await this.currentModel.ifcManager.getTypeProperties(modelID, id);
         console.log(props);
     }
 
@@ -80341,7 +80344,7 @@ const PropsNames = {
 };
 
 let modelIdCounter = 0;
-const nullIfcManagerErrorMessage = "IfcManager is null!";
+const nullIfcManagerErrorMessage = 'IfcManager is null!';
 
 class IFCModel extends Mesh {
 
@@ -81827,7 +81830,7 @@ class PropertyManager {
 
   async getSpatialStructure(modelID, includeProperties) {
     if (!this.state.useJSON && includeProperties) {
-      console.warn("Including properties in getSpatialStructure with the JSON workflow disabled can lead to poor performance.");
+      console.warn('Including properties in getSpatialStructure with the JSON workflow disabled can lead to poor performance.');
     }
     return this.state.useJSON ?
       this.getSpatialStructureJSON(modelID, includeProperties) :
@@ -81925,17 +81928,25 @@ class PropertyManager {
 
   async getPropertyWebIfcAPI(modelID, elementID, recursive = false, propName) {
     const propSetIds = await this.getAllRelatedItemsOfTypeWebIfcAPI(modelID, elementID, propName);
-    return propSetIds.map((id) => this.state.api.GetLine(modelID, id, recursive));
+    const result = [];
+    for (let i = 0; i < propSetIds.length; i++) {
+      result.push(await this.state.api.GetLine(modelID, propSetIds[i], recursive));
+    }
+    return result;
   }
 
   async getAllItemsOfTypeWebIfcAPI(modelID, type, verbose) {
-    const items = [];
+    let items = [];
     const lines = await this.state.api.GetLineIDsWithType(modelID, type);
     for (let i = 0; i < lines.size(); i++)
       items.push(lines.get(i));
-    if (verbose)
-      return items.map((id) => this.state.api.GetLine(modelID, id));
-    return items;
+    if (!verbose)
+      return items;
+    const result = [];
+    for (let i = 0; i < items.length; i++) {
+      result.push(await this.state.api.GetLine(modelID, items[i]));
+    }
+    return result;
   }
 
   async getSpatialTreeChunks(modelID) {
@@ -81961,7 +81972,7 @@ class PropertyManager {
   async getChunksWebIfcAPI(modelID, chunks, propNames) {
     const relation = await this.state.api.GetLineIDsWithType(modelID, propNames.name);
     for (let i = 0; i < relation.size(); i++) {
-      const rel = this.state.api.GetLine(modelID, relation.get(i), false);
+      const rel = await this.state.api.GetLine(modelID, relation.get(i), false);
       this.saveChunk(chunks, propNames, rel);
     }
   }
@@ -82030,7 +82041,7 @@ class PropertyManager {
     const lines = await this.state.api.GetLineIDsWithType(modelID, propNames.name);
     const IDs = [];
     for (let i = 0; i < lines.size(); i++) {
-      const rel = this.state.api.GetLine(modelID, lines.get(i));
+      const rel = await this.state.api.GetLine(modelID, lines.get(i));
       const isRelated = PropertyManager.isRelated(id, rel, propNames);
       if (isRelated)
         this.getRelated(rel, propNames, IDs);
