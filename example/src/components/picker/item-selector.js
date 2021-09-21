@@ -10,16 +10,16 @@ export class ItemSelector {
         this.currentModel = null;
     }
 
-    select(event, logTree = false, logProps = false, removePrevious = true) {
+    async select(event, logTree = false, logProps = false, removePrevious = true) {
         const geometries = this.raycaster.cast(event);
         if (geometries.length <= 0) return;
         const item = geometries[0];
         if (this.previousSelectedFace === item.faceIndex) return;
         this.previousSelectedFace = item.faceIndex;
-        this.getModelAndItemID(item);
+        await this.getModelAndItemID(item);
         this.highlightModel(removePrevious);
         if(logTree) this.logTree();
-        if(logProps) this.logProperties();
+        if(logProps) await this.logProperties();
     }
 
     highlightModel(removePrevious){
@@ -47,13 +47,13 @@ export class ItemSelector {
         console.log(props);
     }
 
-    getModelAndItemID(item){
+    async getModelAndItemID(item){
         const modelID = item.object.modelID;
         this.currentModel = this.ifcModels.find(model => model.modelID === modelID);
         if (!this.currentModel) {
             throw new Error ("The selected item doesn't belong to a model!");
         }
-        this.currentItemID = this.currentModel.ifcManager.getExpressId(item.object.geometry, item.faceIndex);
+        this.currentItemID = await this.currentModel.ifcManager.getExpressId(item.object.geometry, item.faceIndex);
     }
 
     removePreviousSelection(){

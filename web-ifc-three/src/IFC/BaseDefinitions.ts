@@ -80,10 +80,16 @@ export interface JSONObject {
     [key: string]: any;
 }
 
+export interface Worker {
+    active: boolean;
+    path: string;
+}
+
 export interface IfcState {
     models: { [modelID: number]: IfcModel };
     api: WebIfcAPI;
     useJSON: boolean;
+    worker: Worker;
     webIfcSettings?: LoaderSettings;
 }
 
@@ -142,6 +148,9 @@ export interface WebIfcAPI {
     wasmModule: any;
 
     Init(): void | Promise<void>;
+
+    // To close the web worker
+    Close?: () => void;
 
     /**
      * Opens a model and returns a modelID number

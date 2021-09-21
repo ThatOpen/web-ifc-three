@@ -42118,16 +42118,16 @@ class ItemSelector {
         this.currentModel = null;
     }
 
-    select(event, logTree = false, logProps = false, removePrevious = true) {
+    async select(event, logTree = false, logProps = false, removePrevious = true) {
         const geometries = this.raycaster.cast(event);
         if (geometries.length <= 0) return;
         const item = geometries[0];
         if (this.previousSelectedFace === item.faceIndex) return;
         this.previousSelectedFace = item.faceIndex;
-        this.getModelAndItemID(item);
+        await this.getModelAndItemID(item);
         this.highlightModel(removePrevious);
         if(logTree) this.logTree();
-        if(logProps) this.logProperties();
+        if(logProps) await this.logProperties();
     }
 
     highlightModel(removePrevious){
@@ -42155,13 +42155,13 @@ class ItemSelector {
         console.log(props);
     }
 
-    getModelAndItemID(item){
+    async getModelAndItemID(item){
         const modelID = item.object.modelID;
         this.currentModel = this.ifcModels.find(model => model.modelID === modelID);
         if (!this.currentModel) {
             throw new Error ("The selected item doesn't belong to a model!");
         }
-        this.currentItemID = this.currentModel.ifcManager.getExpressId(item.object.geometry, item.faceIndex);
+        this.currentItemID = await this.currentModel.ifcManager.getExpressId(item.object.geometry, item.faceIndex);
     }
 
     removePreviousSelection(){
@@ -80824,6 +80824,114 @@ class SubsetManager {
 
 }
 
+class BasePropertyManager {
+
+  constructor(state) {
+    this.state = state;
+  }
+
+  async getPropertySets(modelID, elementID, recursive = false) {
+    return {
+      ...await this.getProperty(modelID, elementID, recursive, PropsNames.psets)
+    };
+  }
+
+  async getTypeProperties(modelID, elementID, recursive = false) {
+    return {
+      ...await this.getProperty(modelID, elementID, recursive, PropsNames.type)
+    };
+  }
+
+  async getMaterialsProperties(modelID, elementID, recursive = false) {
+    return {
+      ...await this.getProperty(modelID, elementID, recursive, PropsNames.materials)
+    };
+  }
+
+  getSpatialNode(modelID, node, treeChunks, includeProperties) {
+    this.getChildren(modelID, node, treeChunks, PropsNames.aggregates, includeProperties);
+    this.getChildren(modelID, node, treeChunks, PropsNames.spatial, includeProperties);
+  }
+
+  getChildren(modelID, node, treeChunks, propNames, includeProperties) {
+    const children = treeChunks[node.expressID];
+    if (children == undefined)
+      return;
+    const prop = propNames.key;
+    node[prop] = children.map((child) => {
+      let node = this.newNode(modelID, child);
+      if (includeProperties) {
+        const properties = this.getItemProperties(modelID, node.expressID);
+        node = {
+          ...node, ...properties
+        };
+      }
+      this.getSpatialNode(modelID, node, treeChunks, includeProperties);
+      return node;
+    });
+  }
+
+  newNode(modelID, id) {
+    const typeName = this.getNodeType(modelID, id);
+    return {
+      expressID: id,
+      type: typeName,
+      children: []
+    };
+  }
+
+  async getSpatialTreeChunks(modelID) {
+    const treeChunks = {};
+    await this.getChunks(modelID, treeChunks, PropsNames.aggregates);
+    await this.getChunks(modelID, treeChunks, PropsNames.spatial);
+    return treeChunks;
+  }
+
+  saveChunk(chunks, propNames, rel) {
+    const relating = rel[propNames.relating].value;
+    const related = rel[propNames.related].map((r) => r.value);
+    if (chunks[relating] == undefined) {
+      chunks[relating] = related;
+    } else {
+      chunks[relating] = chunks[relating].concat(related);
+    }
+  }
+
+  getRelated(rel, propNames, IDs) {
+    const element = rel[propNames.relating];
+    if (!Array.isArray(element))
+      IDs.push(element.value);
+    else
+      element.forEach((ele) => IDs.push(ele.value));
+  }
+
+  static isRelated(id, rel, propNames) {
+    const relatedItems = rel[propNames.related];
+    if (Array.isArray(relatedItems)) {
+      const values = relatedItems.map((item) => item.value);
+      return values.includes(id);
+    }
+    return relatedItems.value === id;
+  }
+
+  static newIfcProject(id) {
+    return {
+      expressID: id,
+      type: 'IFCPROJECT',
+      children: []
+    };
+  }
+
+  async getProperty(modelID, elementID, recursive = false, propName) {}
+
+  async getChunks(modelID, chunks, propNames) {}
+
+  async getItemProperties(modelID, expressID, recursive = false) {}
+
+  getNodeType(modelID, id) {}
+
+}
+
 const IfcElements = {
   103090709: 'IFCPROJECT',
   4097777520: 'IFCSITE',
@@ -80963,6 +81071,71 @@ const IfcElements = {
   4292641817: 'IFCUNITARYEQUIPMENT',
   3009204131: 'IFCGRID'
 };
+
+class WebIfcPropertyManager extends BasePropertyManager {
+
+  async getItemProperties(modelID, id, recursive = false) {
+    return this.state.api.GetLine(modelID, id, recursive);
+  }
+
+  async getSpatialStructure(modelID, includeProperties) {
+    const chunks = await this.getSpatialTreeChunks(modelID);
+    const allLines = await this.state.api.GetLineIDsWithType(modelID, IFCPROJECT);
+    const projectID = allLines.get(0);
+    const project = WebIfcPropertyManager.newIfcProject(projectID);
+    this.getSpatialNode(modelID, project, chunks, includeProperties);
+    return project;
+  }
+
+  async getAllItemsOfType(modelID, type, verbose) {
+    let items = [];
+    const lines = await this.state.api.GetLineIDsWithType(modelID, type);
+    for (let i = 0; i < lines.size(); i++)
+      items.push(lines.get(i));
+    if (!verbose)
+      return items;
+    const result = [];
+    for (let i = 0; i < items.length; i++) {
+      result.push(await this.state.api.GetLine(modelID, items[i]));
+    }
+    return result;
+  }
+
+  async getProperty(modelID, elementID, recursive = false, propName) {
+    const propSetIds = await this.getAllRelatedItemsOfType(modelID, elementID, propName);
+    const result = [];
+    for (let i = 0; i < propSetIds.length; i++) {
+      result.push(await this.state.api.GetLine(modelID, propSetIds[i], recursive));
+    }
+    return result;
+  }
+
+  getNodeType(modelID, id) {
+    const typeID = this.state.models[modelID].types[id];
+    return IfcElements[typeID];
+  }
+
+  async getChunks(modelID, chunks, propNames) {
+    const relation = await this.state.api.GetLineIDsWithType(modelID, propNames.name);
+    for (let i = 0; i < relation.size(); i++) {
+      const rel = await this.state.api.GetLine(modelID, relation.get(i), false);
+      this.saveChunk(chunks, propNames, rel);
+    }
+  }
+
+  async getAllRelatedItemsOfType(modelID, id, propNames) {
+    const lines = await this.state.api.GetLineIDsWithType(modelID, propNames.name);
+    const IDs = [];
+    for (let i = 0; i < lines.size(); i++) {
+      const rel = await this.state.api.GetLine(modelID, lines.get(i));
+      const isRelated = BasePropertyManager.isRelated(id, rel, propNames);
+      if (isRelated)
+        this.getRelated(rel, propNames, IDs);
+    }
+    return IDs;
+  }
+
+}
 
 const IfcTypesMap = {
   3821786052: "IFCACTIONREQUEST",
@@ -81783,89 +81956,55 @@ const IfcTypesMap = {
   1033361043: "IFCZONE",
 };
 
-class PropertyManager {
-
-  constructor(state) {
-    this.state = state;
-  }
-
-  getExpressId(geometry, faceIndex) {
-    if (!geometry.index)
-      return;
-    const geoIndex = geometry.index.array;
-    return geometry.attributes[IdAttrName].getX(geoIndex[3 * faceIndex]);
-  }
+class JSONPropertyManager extends BasePropertyManager {
 
   async getItemProperties(modelID, id, recursive = false) {
-    return this.state.useJSON ?
-      {
-        ...this.state.models[modelID].jsonData[id]
-      } :
-      this.state.api.GetLine(modelID, id, recursive);
-  }
-
-  async getAllItemsOfType(modelID, type, verbose) {
-    return this.state.useJSON ?
-      this.getAllItemsOfTypeJSON(modelID, type, verbose) :
-      this.getAllItemsOfTypeWebIfcAPI(modelID, type, verbose);
-  }
-
-  async getPropertySets(modelID, elementID, recursive = false) {
-    return this.state.useJSON ?
-      this.getPropertyJSON(modelID, elementID, recursive, PropsNames.psets) :
-      this.getPropertyWebIfcAPI(modelID, elementID, recursive, PropsNames.psets);
-  }
-
-  async getTypeProperties(modelID, elementID, recursive = false) {
-    return this.state.useJSON ?
-      this.getPropertyJSON(modelID, elementID, recursive, PropsNames.type) :
-      this.getPropertyWebIfcAPI(modelID, elementID, recursive, PropsNames.type);
-  }
-
-  async getMaterialsProperties(modelID, elementID, recursive = false) {
-    return this.state.useJSON ?
-      this.getPropertyJSON(modelID, elementID, recursive, PropsNames.materials) :
-      this.getPropertyWebIfcAPI(modelID, elementID, recursive, PropsNames.materials);
+    return {
+      ...this.state.models[modelID].jsonData[id]
+    };
   }
 
   async getSpatialStructure(modelID, includeProperties) {
-    if (!this.state.useJSON && includeProperties) {
-      console.warn('Including properties in getSpatialStructure with the JSON workflow disabled can lead to poor performance.');
-    }
-    return this.state.useJSON ?
-      this.getSpatialStructureJSON(modelID, includeProperties) :
-      this.getSpatialStructureWebIfcAPI(modelID, includeProperties);
-  }
-
-  async getSpatialStructureJSON(modelID, includeProperties) {
     const chunks = await this.getSpatialTreeChunks(modelID);
-    const projectID = this.getAllItemsOfTypeJSON(modelID, IFCPROJECT, false)[0];
-    const project = PropertyManager.newIfcProject(projectID);
+    const projectsIDs = await this.getAllItemsOfType(modelID, IFCPROJECT, false);
+    const projectID = projectsIDs[0];
+    const project = JSONPropertyManager.newIfcProject(projectID);
     this.getSpatialNode(modelID, project, chunks, includeProperties);
     return {
       ...project
     };
   }
 
-  async getSpatialStructureWebIfcAPI(modelID, includeProperties) {
-    const chunks = await this.getSpatialTreeChunks(modelID);
-    const allLines = await this.state.api.GetLineIDsWithType(modelID, IFCPROJECT);
-    const projectID = allLines.get(0);
-    const project = PropertyManager.newIfcProject(projectID);
-    this.getSpatialNode(modelID, project, chunks, includeProperties);
-    return project;
-  }
-
-  getAllItemsOfTypeJSON(modelID, type, verbose) {
+  async getAllItemsOfType(modelID, type, verbose) {
     const data = this.state.models[modelID].jsonData;
     const typeName = IfcTypesMap[type];
     if (!typeName) {
       throw new Error(`Type not found: ${type}`);
     }
-    return this.filterJSONItemsByType(data, typeName, verbose);
+    return this.filterItemsByType(data, typeName, verbose);
   }
 
-  filterJSONItemsByType(data, typeName, verbose) {
+  async getProperty(modelID, elementID, recursive = false, propName) {
+    const resultIDs = await this.getAllRelatedItemsOfType(modelID, elementID, propName);
+    const result = this.getItemsByID(modelID, resultIDs);
+    if (recursive) {
+      result.forEach(result => this.getReferencesRecursively(modelID, result));
+    }
+    return result;
+  }
+
+  getNodeType(modelID, id) {
+    return this.state.models[modelID].jsonData[id].type;
+  }
+
+  async getChunks(modelID, chunks, propNames) {
+    const relation = await this.getAllItemsOfType(modelID, propNames.name, true);
+    relation.forEach(rel => {
+      this.saveChunk(chunks, propNames, rel);
+    });
+  }
+
+  filterItemsByType(data, typeName, verbose) {
     const result = [];
     Object.keys(data).forEach(key => {
       const numKey = parseInt(key);
@@ -81878,7 +82017,18 @@ class PropertyManager {
     return result;
   }
 
-  getItemsByIDJSON(modelID, ids) {
+  async getAllRelatedItemsOfType(modelID, id, propNames) {
+    const lines = await this.getAllItemsOfType(modelID, propNames.name, true);
+    const IDs = [];
+    lines.forEach(line => {
+      const isRelated = JSONPropertyManager.isRelated(id, line, propNames);
+      if (isRelated)
+        this.getRelated(line, propNames, IDs);
+    });
+    return IDs;
+  }
+
+  getItemsByID(modelID, ids) {
     const data = this.state.models[modelID].jsonData;
     const result = [];
     ids.forEach(id => result.push({
@@ -81887,16 +82037,7 @@ class PropertyManager {
     return result;
   }
 
-  getPropertyJSON(modelID, elementID, recursive = false, propName) {
-    const resultIDs = this.getAllRelatedItemsOfTypeJSON(modelID, elementID, propName);
-    const result = this.getItemsByIDJSON(modelID, resultIDs);
-    if (recursive) {
-      result.forEach(result => this.getJSONReferencesRecursively(modelID, result));
-    }
-    return result;
-  }
-
-  getJSONReferencesRecursively(modelID, jsonObject) {
+  getReferencesRecursively(modelID, jsonObject) {
     if (jsonObject == undefined)
       return;
     const keys = Object.keys(jsonObject);
@@ -81911,167 +82052,74 @@ class PropertyManager {
       return this.getMultipleJSONItems(modelID, jsonObject, key);
     }
     if (jsonObject[key] && jsonObject[key].type === 5) {
-      jsonObject[key] = this.getItemsByIDJSON(modelID, [jsonObject[key].value])[0];
-      this.getJSONReferencesRecursively(modelID, jsonObject[key]);
+      jsonObject[key] = this.getItemsByID(modelID, [jsonObject[key].value])[0];
+      this.getReferencesRecursively(modelID, jsonObject[key]);
     }
   }
 
   getMultipleJSONItems(modelID, jsonObject, key) {
     jsonObject[key] = jsonObject[key].map((item) => {
       if (item.type === 5) {
-        item = this.getItemsByIDJSON(modelID, [item.value])[0];
-        this.getJSONReferencesRecursively(modelID, item);
+        item = this.getItemsByID(modelID, [item.value])[0];
+        this.getReferencesRecursively(modelID, item);
       }
       return item;
     });
   }
 
-  async getPropertyWebIfcAPI(modelID, elementID, recursive = false, propName) {
-    const propSetIds = await this.getAllRelatedItemsOfTypeWebIfcAPI(modelID, elementID, propName);
-    const result = [];
-    for (let i = 0; i < propSetIds.length; i++) {
-      result.push(await this.state.api.GetLine(modelID, propSetIds[i], recursive));
+}
+
+class PropertyManager {
+
+  constructor(state) {
+    this.state = state;
+    this.webIfcProps = new WebIfcPropertyManager(state);
+    this.jsonProps = new JSONPropertyManager(state);
+    this.currentProps = this.webIfcProps;
+  }
+
+  async getExpressId(geometry, faceIndex) {
+    if (!geometry.index)
+      throw new Error('Geometry does not have index information.');
+    const geoIndex = geometry.index.array;
+    return geometry.attributes[IdAttrName].getX(geoIndex[3 * faceIndex]);
+  }
+
+  async getItemProperties(modelID, elementID, recursive = false) {
+    this.updateCurrentProps();
+    return this.currentProps.getItemProperties(modelID, elementID, recursive);
+  }
+
+  async getAllItemsOfType(modelID, type, verbose) {
+    this.updateCurrentProps();
+    return this.currentProps.getAllItemsOfType(modelID, type, verbose);
+  }
+
+  async getPropertySets(modelID, elementID, recursive = false) {
+    this.updateCurrentProps();
+    return this.currentProps.getPropertySets(modelID, elementID, recursive);
+  }
+
+  async getTypeProperties(modelID, elementID, recursive = false) {
+    this.updateCurrentProps();
+    return this.currentProps.getTypeProperties(modelID, elementID, recursive);
+  }
+
+  async getMaterialsProperties(modelID, elementID, recursive = false) {
+    this.updateCurrentProps();
+    return this.currentProps.getMaterialsProperties(modelID, elementID, recursive);
+  }
+
+  async getSpatialStructure(modelID, includeProperties) {
+    this.updateCurrentProps();
+    if (!this.state.useJSON && includeProperties) {
+      console.warn('Including properties in getSpatialStructure with the JSON workflow disabled can lead to poor performance.');
     }
-    return result;
+    return this.currentProps.getSpatialStructure(modelID, includeProperties);
   }
 
-  async getAllItemsOfTypeWebIfcAPI(modelID, type, verbose) {
-    let items = [];
-    const lines = await this.state.api.GetLineIDsWithType(modelID, type);
-    for (let i = 0; i < lines.size(); i++)
-      items.push(lines.get(i));
-    if (!verbose)
-      return items;
-    const result = [];
-    for (let i = 0; i < items.length; i++) {
-      result.push(await this.state.api.GetLine(modelID, items[i]));
-    }
-    return result;
-  }
-
-  async getSpatialTreeChunks(modelID) {
-    const treeChunks = {};
-    const json = this.state.useJSON;
-    if (json) {
-      this.getChunksJSON(modelID, treeChunks, PropsNames.aggregates);
-      this.getChunksJSON(modelID, treeChunks, PropsNames.spatial);
-    } else {
-      await this.getChunksWebIfcAPI(modelID, treeChunks, PropsNames.aggregates);
-      await this.getChunksWebIfcAPI(modelID, treeChunks, PropsNames.spatial);
-    }
-    return treeChunks;
-  }
-
-  getChunksJSON(modelID, chunks, propNames) {
-    const relation = this.getAllItemsOfTypeJSON(modelID, propNames.name, true);
-    relation.forEach(rel => {
-      this.saveChunk(chunks, propNames, rel);
-    });
-  }
-
-  async getChunksWebIfcAPI(modelID, chunks, propNames) {
-    const relation = await this.state.api.GetLineIDsWithType(modelID, propNames.name);
-    for (let i = 0; i < relation.size(); i++) {
-      const rel = await this.state.api.GetLine(modelID, relation.get(i), false);
-      this.saveChunk(chunks, propNames, rel);
-    }
-  }
-
-  saveChunk(chunks, propNames, rel) {
-    const relating = rel[propNames.relating].value;
-    const related = rel[propNames.related].map((r) => r.value);
-    if (chunks[relating] == undefined) {
-      chunks[relating] = related;
-    } else {
-      chunks[relating] = chunks[relating].concat(related);
-    }
-  }
-
-  getSpatialNode(modelID, node, treeChunks, includeProperties) {
-    this.getChildren(modelID, node, treeChunks, PropsNames.aggregates, includeProperties);
-    this.getChildren(modelID, node, treeChunks, PropsNames.spatial, includeProperties);
-  }
-
-  getChildren(modelID, node, treeChunks, propNames, includeProperties) {
-    const children = treeChunks[node.expressID];
-    if (children == undefined)
-      return;
-    const prop = propNames.key;
-    node[prop] = children.map((child) => {
-      let node = this.newNode(modelID, child);
-      if (includeProperties) {
-        const properties = this.getItemProperties(modelID, node.expressID);
-        node = {
-          ...node, ...properties
-        };
-      }
-      this.getSpatialNode(modelID, node, treeChunks, includeProperties);
-      return node;
-    });
-  }
-
-  newNode(modelID, id) {
-    const typeName = this.getNodeType(modelID, id);
-    return {
-      expressID: id,
-      type: typeName,
-      children: []
-    };
-  }
-
-  getNodeType(modelID, id) {
-    if (this.state.useJSON)
-      return this.state.models[modelID].jsonData[id].type;
-    const typeID = this.state.models[modelID].types[id];
-    return IfcElements[typeID];
-  }
-
-  getAllRelatedItemsOfTypeJSON(modelID, id, propNames) {
-    const lines = this.getAllItemsOfTypeJSON(modelID, propNames.name, true);
-    const IDs = [];
-    lines.forEach(line => {
-      const isRelated = PropertyManager.isRelated(id, line, propNames);
-      if (isRelated)
-        this.getRelated(line, propNames, IDs);
-    });
-    return IDs;
-  }
-
-  async getAllRelatedItemsOfTypeWebIfcAPI(modelID, id, propNames) {
-    const lines = await this.state.api.GetLineIDsWithType(modelID, propNames.name);
-    const IDs = [];
-    for (let i = 0; i < lines.size(); i++) {
-      const rel = await this.state.api.GetLine(modelID, lines.get(i));
-      const isRelated = PropertyManager.isRelated(id, rel, propNames);
-      if (isRelated)
-        this.getRelated(rel, propNames, IDs);
-    }
-    return IDs;
-  }
-
-  getRelated(rel, propNames, IDs) {
-    const element = rel[propNames.relating];
-    if (!Array.isArray(element))
-      IDs.push(element.value);
-    else
-      element.forEach((ele) => IDs.push(ele.value));
-  }
-
-  static isRelated(id, rel, propNames) {
-    const relatedItems = rel[propNames.related];
-    if (Array.isArray(relatedItems)) {
-      const values = relatedItems.map((item) => item.value);
-      return values.includes(id);
-    }
-    return relatedItems.value === id;
-  }
-
-  static newIfcProject(id) {
-    return {
-      expressID: id,
-      type: 'IFCPROJECT',
-      children: []
-    };
+  updateCurrentProps() {
+    this.currentProps = this.state.useJSON ? this.jsonProps : this.webIfcProps;
   }
 
 }
@@ -82287,6 +82335,9 @@ class MemoryCleaner {
 
 var WorkerActions;
 (function(WorkerActions) {
+  WorkerActions["updateStateUseJson"] = "updateStateUseJson";
+  WorkerActions["updateModelStateTypes"] = "updateModelStateTypes";
+  WorkerActions["updateModelStateJsonData"] = "updateModelStateJsonData";
   WorkerActions["Close"] = "Close";
   WorkerActions["Init"] = "Init";
   WorkerActions["OpenModel"] = "OpenModel";
@@ -82313,7 +82364,20 @@ var WorkerActions;
   WorkerActions["LoadAllGeometry"] = "LoadAllGeometry";
   WorkerActions["GetFlatMesh"] = "GetFlatMesh";
   WorkerActions["SetWasmPath"] = "SetWasmPath";
+  WorkerActions["initializeProperties"] = "initializeProperties";
+  WorkerActions["getAllItemsOfType"] = "getAllItemsOfType";
+  WorkerActions["getItemProperties"] = "getItemProperties";
+  WorkerActions["getMaterialsProperties"] = "getMaterialsProperties";
+  WorkerActions["getPropertySets"] = "getPropertySets";
+  WorkerActions["getSpatialStructure"] = "getSpatialStructure";
+  WorkerActions["getTypeProperties"] = "getTypeProperties";
 })(WorkerActions || (WorkerActions = {}));
+var WorkerAPIs;
+(function(WorkerAPIs) {
+  WorkerAPIs["workerState"] = "workerState";
+  WorkerAPIs["webIfc"] = "webIfc";
+  WorkerAPIs["properties"] = "properties";
+})(WorkerAPIs || (WorkerAPIs = {}));
 
 class Vector {
 
@@ -82452,59 +82516,106 @@ class Serializer {
 
 }
 
-class IFCWorkerHandler {
+class PropertyHandler {
 
-  constructor(path) {
-    this.serializer = new Serializer();
-    this.requestID = 0;
-    this.rejectHandlers = {};
-    this.resolveHandlers = {};
-    this.serializeHandlers = {};
-    this.callbacks = {};
-    this.workerPath = path;
-    this.ifcWorker = new Worker(this.workerPath);
-    this.ifcWorker.onmessage = (data) => this.handleResponse(data);
+  constructor(handler) {
+    this.handler = handler;
+    this.API = WorkerAPIs.properties;
+  }
+
+  getAllItemsOfType(modelID, type, verbose) {
+    return this.handler.request(this.API, WorkerActions.getAllItemsOfType, {
+      modelID,
+      type,
+      verbose
+    });
+  }
+
+  getItemProperties(modelID, id, recursive) {
+    return this.handler.request(this.API, WorkerActions.getItemProperties, {
+      modelID,
+      id,
+      recursive
+    });
+  }
+
+  getMaterialsProperties(modelID, elementID, recursive) {
+    return this.handler.request(this.API, WorkerActions.getMaterialsProperties, {
+      modelID,
+      elementID,
+      recursive
+    });
+  }
+
+  getPropertySets(modelID, elementID, recursive) {
+    return this.handler.request(this.API, WorkerActions.getPropertySets, {
+      modelID,
+      elementID,
+      recursive
+    });
+  }
+
+  getTypeProperties(modelID, elementID, recursive) {
+    return this.handler.request(this.API, WorkerActions.getTypeProperties, {
+      modelID,
+      elementID,
+      recursive
+    });
+  }
+
+  getSpatialStructure(modelID, includeProperties) {
+    return this.handler.request(this.API, WorkerActions.getSpatialStructure, {
+      modelID,
+      includeProperties
+    });
+  }
+
+}
+
+class WebIfcHandler {
+
+  constructor(handler, serializer) {
+    this.handler = handler;
+    this.serializer = serializer;
+    this.API = WorkerAPIs.webIfc;
   }
 
   async Init() {
     this.wasmModule = true;
-    return this.request(WorkerActions.Init);
-  }
-
-  async Close() {
-    await this.request(WorkerActions.Close);
-    this.ifcWorker.terminate();
+    return this.handler.request(this.API, WorkerActions.Init);
   }
 
   async OpenModel(data, settings) {
-    return this.request(WorkerActions.OpenModel, {
+    return this.handler.request(this.API, WorkerActions.OpenModel, {
       data,
       settings
     });
   }
 
   async CreateModel(settings) {
-    return this.request(WorkerActions.CreateModel, {
+    return this.handler.request(this.API, WorkerActions.CreateModel, {
       settings
     });
   }
 
   async ExportFileAsIFC(modelID) {
-    return this.request(WorkerActions.ExportFileAsIFC, {
+    return this.handler.request(this.API, WorkerActions.ExportFileAsIFC, {
       modelID
     });
   }
 
   async GetGeometry(modelID, geometryExpressID) {
-    this.serializeHandlers[this.requestID] = (geom) => this.serializer.reconstructIfcGeometry(geom);
-    return this.request(WorkerActions.GetGeometry, {
+    this.handler.serializeHandlers[this.handler.requestID] = (geom) => {
+      return this.serializer.reconstructIfcGeometry(geom);
+    };
+    return this.handler.request(this.API, WorkerActions.GetGeometry, {
       modelID,
       geometryExpressID
     });
   }
 
   async GetLine(modelID, expressID, flatten) {
-    return this.request(WorkerActions.GetLine, {
+    return this.handler.request(this.API, WorkerActions.GetLine, {
       modelID,
       expressID,
       flatten
@@ -82512,84 +82623,90 @@ class IFCWorkerHandler {
   }
 
   async GetAndClearErrors(modelID) {
-    this.serializeHandlers[this.requestID] = (vector) => this.serializer.reconstructVector(vector);
-    return this.request(WorkerActions.GetAndClearErrors, {
+    this.handler.serializeHandlers[this.handler.requestID] = (vector) => {
+      return this.serializer.reconstructVector(vector);
+    };
+    return this.handler.request(this.API, WorkerActions.GetAndClearErrors, {
       modelID
     });
   }
 
   async WriteLine(modelID, lineObject) {
-    return this.request(WorkerActions.WriteLine, {
+    return this.handler.request(this.API, WorkerActions.WriteLine, {
       modelID,
       lineObject
     });
   }
 
   async FlattenLine(modelID, line) {
-    return this.request(WorkerActions.FlattenLine, {
+    return this.handler.request(this.API, WorkerActions.FlattenLine, {
       modelID,
       line
     });
   }
 
   async GetRawLineData(modelID, expressID) {
-    return this.request(WorkerActions.GetRawLineData, {
+    return this.handler.request(this.API, WorkerActions.GetRawLineData, {
       modelID,
       expressID
     });
   }
 
   async WriteRawLineData(modelID, data) {
-    return this.request(WorkerActions.WriteRawLineData, {
+    return this.handler.request(this.API, WorkerActions.WriteRawLineData, {
       modelID,
       data
     });
   }
 
   async GetLineIDsWithType(modelID, type) {
-    this.serializeHandlers[this.requestID] = (vector) => this.serializer.reconstructVector(vector);
-    return this.request(WorkerActions.GetLineIDsWithType, {
+    this.handler.serializeHandlers[this.handler.requestID] = (vector) => {
+      return this.serializer.reconstructVector(vector);
+    };
+    return this.handler.request(this.API, WorkerActions.GetLineIDsWithType, {
       modelID,
       type
     });
   }
 
   async GetAllLines(modelID) {
-    this.serializeHandlers[this.requestID] = (vector) => this.serializer.reconstructVector(vector);
-    return this.request(WorkerActions.GetAllLines, {
+    this.handler.serializeHandlers[this.handler.requestID] = (vector) => {
+      return this.serializer.reconstructVector(vector);
+    };
+    return this.handler.request(this.API, WorkerActions.GetAllLines, {
       modelID
     });
   }
 
   async SetGeometryTransformation(modelID, transformationMatrix) {
-    return this.request(WorkerActions.SetGeometryTransformation, {
+    return this.handler.request(this.API, WorkerActions.SetGeometryTransformation, {
       modelID,
       transformationMatrix
     });
   }
 
   async GetCoordinationMatrix(modelID) {
-    return this.request(WorkerActions.GetCoordinationMatrix, {
+    return this.handler.request(this.API, WorkerActions.GetCoordinationMatrix, {
       modelID
     });
   }
 
   async GetVertexArray(ptr, size) {
-    return this.request(WorkerActions.GetVertexArray, {
+    return this.handler.request(this.API, WorkerActions.GetVertexArray, {
       ptr,
       size
     });
   }
 
   async GetIndexArray(ptr, size) {
-    return this.request(WorkerActions.GetIndexArray, {
+    return this.handler.request(this.API, WorkerActions.GetIndexArray, {
       ptr,
       size
     });
   }
 
   async getSubArray(heap, startPtr, sizeBytes) {
-    return this.request(WorkerActions.getSubArray, {
+    return this.handler.request(this.API, WorkerActions.getSubArray, {
       heap,
       startPtr,
       sizeBytes
@@ -82597,61 +82714,128 @@ class IFCWorkerHandler {
   }
 
   async CloseModel(modelID) {
-    return this.request(WorkerActions.CloseModel, {
+    return this.handler.request(this.API, WorkerActions.CloseModel, {
       modelID
     });
   }
 
   async StreamAllMeshes(modelID, meshCallback) {
-    this.callbacks[this.requestID] = {
+    this.handler.callbacks[this.handler.requestID] = {
       action: meshCallback,
       serializer: this.serializer.reconstructFlatMesh
     };
-    return this.request(WorkerActions.StreamAllMeshes, {
+    return this.handler.request(this.API, WorkerActions.StreamAllMeshes, {
       modelID
     });
   }
 
   async StreamAllMeshesWithTypes(modelID, types, meshCallback) {
-    this.callbacks[this.requestID] = {
+    this.handler.callbacks[this.handler.requestID] = {
       action: meshCallback,
       serializer: this.serializer.reconstructFlatMesh
     };
-    return this.request(WorkerActions.StreamAllMeshesWithTypes, {
+    return this.handler.request(this.API, WorkerActions.StreamAllMeshesWithTypes, {
       modelID,
       types
     });
   }
 
   async IsModelOpen(modelID) {
-    return this.request(WorkerActions.IsModelOpen, {
+    return this.handler.request(this.API, WorkerActions.IsModelOpen, {
       modelID
     });
   }
 
   async LoadAllGeometry(modelID) {
-    this.serializeHandlers[this.requestID] = (vector) => this.serializer.reconstructFlatMeshVector(vector);
-    return this.request(WorkerActions.LoadAllGeometry, {
+    this.handler.serializeHandlers[this.handler.requestID] = (vector) => {
+      return this.serializer.reconstructFlatMeshVector(vector);
+    };
+    return this.handler.request(this.API, WorkerActions.LoadAllGeometry, {
       modelID
     });
   }
 
   async GetFlatMesh(modelID, expressID) {
-    this.serializeHandlers[this.requestID] = (flatMesh) => this.serializer.reconstructFlatMesh(flatMesh);
-    return this.request(WorkerActions.GetFlatMesh, {
+    this.handler.serializeHandlers[this.handler.requestID] = (flatMesh) => {
+      return this.serializer.reconstructFlatMesh(flatMesh);
+    };
+    return this.handler.request(this.API, WorkerActions.GetFlatMesh, {
       modelID,
       expressID
     });
   }
 
   async SetWasmPath(path) {
-    return this.request(WorkerActions.SetWasmPath, {
+    return this.handler.request(this.API, WorkerActions.SetWasmPath, {
       path
     });
   }
 
-  request(action, args) {
+}
+
+class WorkerStateHandler {
+
+  constructor(handler) {
+    this.handler = handler;
+    this.API = WorkerAPIs.workerState;
+    this.state = this.handler.state;
+  }
+
+  updateStateUseJson() {
+    const useJson = this.state.useJSON;
+    return this.handler.request(this.API, WorkerActions.updateStateUseJson, {
+      useJson
+    });
+  }
+
+  updateModelStateTypes(modelID) {
+    const model = this.getModel(modelID);
+    const types = model.types;
+    return this.handler.request(this.API, WorkerActions.updateModelStateTypes, {
+      modelID,
+      types
+    });
+  }
+
+  updateModelStateJsonData(modelID) {
+    const model = this.getModel(modelID);
+    const jsonData = model.jsonData;
+    return this.handler.request(this.API, WorkerActions.updateModelStateTypes, {
+      modelID,
+      jsonData
+    });
+  }
+
+  getModel(modelID) {
+    const model = this.state.models[modelID];
+    if (!model)
+      throw new Error(`The model with ID ${modelID} does not exist`);
+    return model;
+  }
+
+}
+
+class IFCWorkerHandler {
+
+  constructor(state) {
+    this.state = state;
+    this.requestID = 0;
+    this.rejectHandlers = {};
+    this.resolveHandlers = {};
+    this.serializeHandlers = {};
+    this.callbacks = {};
+    this.serializer = new Serializer();
+    this.workerPath = this.state.worker.path;
+    this.ifcWorker = new Worker(this.workerPath);
+    this.ifcWorker.onmessage = (data) => this.handleResponse(data);
+    this.properties = new PropertyHandler(this);
+    this.webIfc = new WebIfcHandler(this, this.serializer);
+    this.workerState = new WorkerStateHandler(this);
+  }
+
+  request(worker, action, args) {
     const data = {
+      worker,
       action,
       args,
       id: this.requestID,
@@ -82663,6 +82847,11 @@ class IFCWorkerHandler {
       this.requestID++;
       this.ifcWorker.postMessage(data);
     });
+  }
+
+  async Close() {
+    await this.request(WorkerAPIs.webIfc, WorkerActions.Close);
+    this.ifcWorker.terminate();
   }
 
   handleResponse(event) {
@@ -82707,7 +82896,11 @@ class IFCManager {
     this.state = {
       models: [],
       api: new IfcAPI(),
-      useJSON: false
+      useJSON: false,
+      worker: {
+        active: false,
+        path: ''
+      }
     };
     this.BVH = new BvhManager();
     this.parser = new IFCParser(this.state, this.BVH);
@@ -82721,7 +82914,7 @@ class IFCManager {
   async parse(buffer) {
     const model = await this.parser.parse(buffer);
     model.setIFCManager(this);
-    this.state.useJSON ? this.disposeMemory() : this.types.getAllTypes();
+    this.state.useJSON ? await this.disposeMemory() : this.types.getAllTypes();
     this.hider.processCoordinates(model.modelID);
     return model;
   }
@@ -82738,14 +82931,23 @@ class IFCManager {
     this.state.webIfcSettings = settings;
   }
 
-  useJSONData(useJSON = true) {
+  async useJSONData(useJSON = true) {
     this.state.useJSON = useJSON;
-    this.disposeMemory();
   }
 
-  useWebWorkers(workerPath) {
+  async useWebWorkers(active, path) {
+    if (this.state.worker.active === active)
+      return;
     this.state.api = null;
-    this.state.api = new IFCWorkerHandler(workerPath);
+    if (active) {
+      if (!path)
+        throw new Error('You must provide a path to the web worker.');
+      this.state.worker.active = active;
+      this.state.worker.path = path;
+      await this.resetWorkers();
+    } else {
+      this.state.api = new IfcAPI();
+    }
   }
 
   addModelJSONData(modelID, data) {
@@ -82755,9 +82957,13 @@ class IFCManager {
     }
   }
 
-  disposeMemory() {
+  async disposeMemory() {
     this.state.api = null;
-    this.state.api = new IfcAPI();
+    if (this.state.worker.active) {
+      await this.resetWorkers();
+    } else {
+      this.state.api = new IfcAPI();
+    }
   }
 
   setupThreeMeshBVH(computeBoundsTree, disposeBoundsTree, acceleratedRaycast) {
@@ -82843,6 +83049,15 @@ class IFCManager {
     this.state.api = null;
     this.state.models = null;
     this.state = null;
+  }
+
+  async resetWorkers() {
+    if (this.workerHandler !== undefined && this.workerHandler !== null) {
+      await this.workerHandler.Close();
+      this.workerHandler = null;
+    }
+    this.workerHandler = new IFCWorkerHandler(this.state);
+    this.state.api = this.workerHandler.webIfc;
   }
 
 }
@@ -86587,13 +86802,7 @@ class IfcManager {
         this.scene = scene;
         this.ifcModels = ifcModels;
         this.ifcLoader = new IFCLoader();
-        this.ifcLoader.ifcManager.useWebWorkers("../../../web-ifc-three/dist/IFCWorker.js");
-        this.ifcLoader.ifcManager.applyWebIfcConfig({
-            COORDINATE_TO_ORIGIN: true,
-            USE_FAST_BOOLS: false
-        });
-        this.setupThreeMeshBVH();
-        this.setupFileOpener();
+        this.setupIfcLoader();
     }
 
     setupThreeMeshBVH() {
@@ -86604,13 +86813,31 @@ class IfcManager {
         );
     }
 
+    async setupIfcLoader() {
+        await this.ifcLoader.ifcManager.useWebWorkers(true, "../../../web-ifc-three/dist/IFCWorker.js");
+        await this.ifcLoader.ifcManager.useJSONData(true);
+        this.ifcLoader.ifcManager.applyWebIfcConfig({
+            COORDINATE_TO_ORIGIN: true,
+            USE_FAST_BOOLS: false
+        });
+        this.setupThreeMeshBVH();
+        this.setupFileOpener();
+    }
+
     setupFileOpener() {
         const input = document.querySelector('input[type="file"]');
         if (!input) return;
         input.addEventListener(
             'change',
             (changed) => {
-                this.loadIFC(changed);
+                fetch("ARK_NUS_skolebygg.json").then(response => response.json()).then(json => {
+
+                    this.loadIFC(changed).then(() => {
+
+                        this.ifcLoader.ifcManager.addModelJSONData(0, json);
+
+                    });
+                });
             },
             false
         );

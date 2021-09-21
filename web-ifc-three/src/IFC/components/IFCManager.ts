@@ -1,15 +1,15 @@
 import * as WebIFC from 'web-ifc';
-import {IFCParser} from './IFCParser';
-import {SubsetManager} from './SubsetManager';
-import {PropertyManager} from './PropertyManager';
-import {IfcElements} from './IFCElementsMap';
-import {TypeManager} from './TypeManager';
-import {HighlightConfigOfModel, IfcState, JSONObject} from '../BaseDefinitions';
-import {BufferGeometry, Material, Object3D, Scene} from 'three';
-import {IFCModel} from './IFCModel';
-import {BvhManager} from './BvhManager';
-import {ItemsHider} from './ItemsHider';
-import {LoaderSettings} from 'web-ifc';
+import { IFCParser } from './IFCParser';
+import { SubsetManager } from './SubsetManager';
+import { PropertyManager } from './properties/PropertyManager';
+import { IfcElements } from './IFCElementsMap';
+import { TypeManager } from './TypeManager';
+import { HighlightConfigOfModel, IfcState, JSONObject } from '../BaseDefinitions';
+import { BufferGeometry, Material, Object3D, Scene } from 'three';
+import { IFCModel } from './IFCModel';
+import { BvhManager } from './BvhManager';
+import { ItemsHider } from './ItemsHider';
+import { LoaderSettings } from 'web-ifc';
 import { MemoryCleaner } from './MemoryCleaner';
 import { IFCWorkerHandler } from '../web-workers/IFCWorkerHandler';
 
@@ -17,7 +17,13 @@ import { IFCWorkerHandler } from '../web-workers/IFCWorkerHandler';
  * Contains all the logic to work with the loaded IFC files (select, edit, etc).
  */
 export class IFCManager {
-    private state: IfcState = {models: [], api: new WebIFC.IfcAPI(), useJSON: false};
+    private state: IfcState = {
+        models: [],
+        api: new WebIFC.IfcAPI(),
+        useJSON: false,
+        worker: { active: false, path: '' }
+    };
+
     private BVH = new BvhManager();
     private parser = new IFCParser(this.state, this.BVH);
     private subsets = new SubsetManager(this.state, this.BVH);
@@ -25,11 +31,12 @@ export class IFCManager {
     private types = new TypeManager(this.state);
     private hider = new ItemsHider(this.state);
     private cleaner = new MemoryCleaner(this.state);
+    private workerHandler?: IFCWorkerHandler;
 
     async parse(buffer: ArrayBuffer) {
         const model = await this.parser.parse(buffer) as IFCModel;
         model.setIFCManager(this);
-        this.state.useJSON ? this.disposeMemory() : this.types.getAllTypes();
+        this.state.useJSON ? await this.disposeMemory() : this.types.getAllTypes();
         this.hider.processCoordinates(model.modelID);
         return model;
     }
@@ -68,20 +75,29 @@ export class IFCManager {
      * Only use this in the following scenarios:
      * - If you don't need to access the properties of the IFC
      * - If you will provide the properties as JSON.
+     * @useJSON: Wether to use the JSON mode or not.
      */
-    useJSONData(useJSON = true) {
+    async useJSONData(useJSON = true) {
         this.state.useJSON = useJSON;
-        this.disposeMemory();
     }
 
     /**
      * Uses web workers, making the loader non-blocking.
-     * @workerPath Relative path to the web worker file.
+     * @active Wether to use web workers or not.
+     * @path Relative path to the web worker file. Necessary if active=true.
      */
-    useWebWorkers(workerPath: string) {
+    async useWebWorkers(active: boolean, path?: string) {
+        if (this.state.worker.active === active) return;
         // @ts-ignore
         this.state.api = null;
-        this.state.api = new IFCWorkerHandler(workerPath);
+        if (active) {
+            if (!path) throw new Error('You must provide a path to the web worker.');
+            this.state.worker.active = active;
+            this.state.worker.path = path;
+            await this.resetWorkers();
+        } else {
+            this.state.api = new WebIFC.IfcAPI();
+        }
     }
 
     /**
@@ -102,10 +118,14 @@ export class IFCManager {
      * - If you don't need to access the properties of the IFC
      * - If you will provide the properties as JSON.
      */
-    disposeMemory() {
+    async disposeMemory() {
         // @ts-ignore
         this.state.api = null;
-        this.state.api = new WebIFC.IfcAPI();
+        if (this.state.worker.active) {
+            await this.resetWorkers();
+        } else {
+            this.state.api = new WebIFC.IfcAPI();
+        }
     }
 
     /**
@@ -311,5 +331,15 @@ export class IFCManager {
         this.state.models = null;
         // @ts-ignore
         this.state = null;
+    }
+
+    private async resetWorkers() {
+        if(this.workerHandler !== undefined && this.workerHandler !== null) {
+            await this.workerHandler.Close();
+            // @ts-ignore
+            this.workerHandler = null;
+        }
+        this.workerHandler = new IFCWorkerHandler(this.state);
+        this.state.api = this.workerHandler.webIfc;
     }
 }

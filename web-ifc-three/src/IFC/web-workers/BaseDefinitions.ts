@@ -1,6 +1,19 @@
-import { FlatMesh, IfcGeometry, LoaderError, LoaderSettings, PlacedGeometry, RawLineData, Vector } from 'web-ifc';
+import { IfcState, WebIfcAPI } from '../BaseDefinitions';
+
+export interface IfcWorkerAPI {
+    post: (data: any) => void;
+    initializeAPI: (api: WebIfcAPI) => void;
+    state?: IfcState;
+    postCallback: (data: any, result: any, serializer?: any) => void;
+}
 
 export enum WorkerActions {
+    // Worker State Actions
+    updateStateUseJson = 'updateStateUseJson',
+    updateModelStateTypes = 'updateModelStateTypes',
+    updateModelStateJsonData = 'updateModelStateJsonData',
+
+    // WebIFC Actions
     Close = 'Close',
     Init = 'Init',
     OpenModel = 'OpenModel',
@@ -26,19 +39,60 @@ export enum WorkerActions {
     IsModelOpen = 'IsModelOpen',
     LoadAllGeometry = 'LoadAllGeometry',
     GetFlatMesh = 'GetFlatMesh',
-    SetWasmPath = 'SetWasmPath'
+    SetWasmPath = 'SetWasmPath',
+
+    // Properties
+    initializeProperties = 'initializeProperties',
+    getAllItemsOfType = 'getAllItemsOfType',
+    getItemProperties = 'getItemProperties',
+    getMaterialsProperties = 'getMaterialsProperties',
+    getPropertySets = 'getPropertySets',
+    getSpatialStructure = 'getSpatialStructure',
+    getTypeProperties = 'getTypeProperties'
+}
+
+export enum WorkerAPIs {
+    workerState = 'workerState',
+    webIfc = 'webIfc',
+    properties = 'properties'
 }
 
 export interface IfcEventData {
+    worker: WorkerAPIs;
     action: WorkerActions;
     args: any;
     id: number;
     result: any;
 }
 
+export interface RootWorker {
+    [WorkerAPIs.workerState]: WorkerStateAPI;
+    [WorkerAPIs.webIfc]: WebIfcWorkerAPI;
+    [WorkerAPIs.properties]: PropertyWorkerAPI;
+}
+
+export interface BaseWorkerAPI {
+    API: WorkerAPIs;
+}
+
 export type IfcWorkerEventHandler = (data: IfcEventData) => void;
 
-export interface WebIfcWorker {
+export interface WorkerStateAPI extends BaseWorkerAPI {
+    [WorkerActions.updateStateUseJson]: IfcWorkerEventHandler;
+    [WorkerActions.updateModelStateTypes]: IfcWorkerEventHandler;
+    [WorkerActions.updateModelStateJsonData]: IfcWorkerEventHandler;
+}
+
+export interface PropertyWorkerAPI extends BaseWorkerAPI {
+    [WorkerActions.getAllItemsOfType]: IfcWorkerEventHandler;
+    [WorkerActions.getItemProperties]: IfcWorkerEventHandler;
+    [WorkerActions.getMaterialsProperties]: IfcWorkerEventHandler;
+    [WorkerActions.getPropertySets]: IfcWorkerEventHandler;
+    [WorkerActions.getSpatialStructure]: IfcWorkerEventHandler;
+    [WorkerActions.getTypeProperties]: IfcWorkerEventHandler;
+}
+
+export interface WebIfcWorkerAPI extends BaseWorkerAPI {
     [WorkerActions.Init]: IfcWorkerEventHandler;
     [WorkerActions.Close]: IfcWorkerEventHandler;
     [WorkerActions.OpenModel]: IfcWorkerEventHandler;
@@ -65,11 +119,11 @@ export interface WebIfcWorker {
     [WorkerActions.LoadAllGeometry]: IfcWorkerEventHandler;
     [WorkerActions.GetFlatMesh]: IfcWorkerEventHandler;
     [WorkerActions.SetWasmPath]: IfcWorkerEventHandler;
-
 }
 
 export interface SerializedVector {
     [key: number]: any;
+
     size: number;
 }
 
@@ -84,3 +138,6 @@ export interface SerializedFlatMesh {
     geometries: SerializedVector;
     expressID: number;
 }
+
+export const ErrorRootStateNotAvailable = 'The root worker does not have any state';
+export const ErrorPropertiesNotAvailable = 'Error: Properties not available from web worker';

@@ -6,13 +6,7 @@ export class IfcManager {
         this.scene = scene;
         this.ifcModels = ifcModels;
         this.ifcLoader = new IFCLoader();
-        this.ifcLoader.ifcManager.useWebWorkers("../../../web-ifc-three/dist/IFCWorker.js")
-        this.ifcLoader.ifcManager.applyWebIfcConfig({
-            COORDINATE_TO_ORIGIN: true,
-            USE_FAST_BOOLS: false
-        })
-        this.setupThreeMeshBVH();
-        this.setupFileOpener();
+        this.setupIfcLoader();
     }
 
     setupThreeMeshBVH() {
@@ -23,13 +17,31 @@ export class IfcManager {
         );
     }
 
+    async setupIfcLoader() {
+        await this.ifcLoader.ifcManager.useWebWorkers(true, "../../../web-ifc-three/dist/IFCWorker.js")
+        await this.ifcLoader.ifcManager.useJSONData(true);
+        this.ifcLoader.ifcManager.applyWebIfcConfig({
+            COORDINATE_TO_ORIGIN: true,
+            USE_FAST_BOOLS: false
+        });
+        this.setupThreeMeshBVH();
+        this.setupFileOpener();
+    }
+
     setupFileOpener() {
         const input = document.querySelector('input[type="file"]');
         if (!input) return;
         input.addEventListener(
             'change',
             (changed) => {
-                this.loadIFC(changed);
+                fetch("ARK_NUS_skolebygg.json").then(response => response.json()).then(json => {
+
+                    this.loadIFC(changed).then(() => {
+
+                        this.ifcLoader.ifcManager.addModelJSONData(0, json);
+
+                    })
+                })
             },
             false
         );
