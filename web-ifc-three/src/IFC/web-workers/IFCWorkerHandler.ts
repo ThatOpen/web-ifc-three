@@ -43,7 +43,6 @@ export class IFCWorkerHandler {
 
     async Close(): Promise<void> {
         await this.request(WorkerAPIs.webIfc, WorkerActions.Close);
-        this.ifcWorker.terminate();
     }
 
     private handleResponse(event: MessageEvent) {

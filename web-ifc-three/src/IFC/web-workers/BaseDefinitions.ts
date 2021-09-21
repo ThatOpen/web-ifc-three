@@ -12,6 +12,7 @@ export enum WorkerActions {
     updateStateUseJson = 'updateStateUseJson',
     updateModelStateTypes = 'updateModelStateTypes',
     updateModelStateJsonData = 'updateModelStateJsonData',
+    loadJsonDataFromWorker = 'loadJsonDataFromWorker',
 
     // WebIFC Actions
     Close = 'Close',
@@ -82,6 +83,7 @@ export interface WorkerStateAPI extends BaseWorkerAPI {
     [WorkerActions.updateStateUseJson]: IfcWorkerEventHandler;
     [WorkerActions.updateModelStateTypes]: IfcWorkerEventHandler;
     [WorkerActions.updateModelStateJsonData]: IfcWorkerEventHandler;
+    [WorkerActions.loadJsonDataFromWorker]: IfcWorkerEventHandler;
 }
 
 export interface PropertyWorkerAPI extends BaseWorkerAPI {
@@ -142,3 +144,5 @@ export interface SerializedFlatMesh {
 
 export const ErrorRootStateNotAvailable = 'The root worker does not have any state';
 export const ErrorPropertiesNotAvailable = 'Error: Properties not available from web worker';
+export const ErrorBadJsonPath = 'Error: Model not available from web worker';
+export const ErrorBadJson = 'Error: The given Json could not be read as a JS object';

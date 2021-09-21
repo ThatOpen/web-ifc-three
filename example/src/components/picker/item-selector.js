@@ -18,11 +18,11 @@ export class ItemSelector {
         this.previousSelectedFace = item.faceIndex;
         await this.getModelAndItemID(item);
         this.highlightModel(removePrevious);
-        if(logTree) this.logTree();
-        if(logProps) await this.logProperties();
+        if (logTree) await this.logTree();
+        if (logProps) await this.logProperties();
     }
 
-    highlightModel(removePrevious){
+    highlightModel(removePrevious) {
         this.currentModel.ifcManager.createSubset({
             modelID: this.currentModel.modelID,
             scene: this.currentModel,
@@ -32,8 +32,8 @@ export class ItemSelector {
         });
     }
 
-    logTree(){
-        const tree = this.currentModel.getSpatialStructure();
+    async logTree() {
+        const tree = await this.currentModel.ifcManager.getSpatialStructure(0);
         console.log(tree);
     }
 
@@ -47,18 +47,18 @@ export class ItemSelector {
         console.log(props);
     }
 
-    async getModelAndItemID(item){
+    async getModelAndItemID(item) {
         const modelID = item.object.modelID;
         this.currentModel = this.ifcModels.find(model => model.modelID === modelID);
         if (!this.currentModel) {
-            throw new Error ("The selected item doesn't belong to a model!");
+            throw new Error('The selected item doesn\'t belong to a model!');
         }
         this.currentItemID = await this.currentModel.ifcManager.getExpressId(item.object.geometry, item.faceIndex);
     }
 
-    removePreviousSelection(){
+    removePreviousSelection() {
         const isNotPreviousSelection = this.previousSelection.modelID !== this.currentModel.modelID;
-        if (this.previousSelection && isNotPreviousSelection){
+        if (this.previousSelection && isNotPreviousSelection) {
             this.previousSelection.removeSubset(this.scene, this.material);
         }
         this.previousSelection = this.currentModel;

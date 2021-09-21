@@ -42126,11 +42126,11 @@ class ItemSelector {
         this.previousSelectedFace = item.faceIndex;
         await this.getModelAndItemID(item);
         this.highlightModel(removePrevious);
-        if(logTree) this.logTree();
-        if(logProps) await this.logProperties();
+        if (logTree) await this.logTree();
+        if (logProps) await this.logProperties();
     }
 
-    highlightModel(removePrevious){
+    highlightModel(removePrevious) {
         this.currentModel.ifcManager.createSubset({
             modelID: this.currentModel.modelID,
             scene: this.currentModel,
@@ -42140,8 +42140,8 @@ class ItemSelector {
         });
     }
 
-    logTree(){
-        const tree = this.currentModel.getSpatialStructure();
+    async logTree() {
+        const tree = await this.currentModel.ifcManager.getSpatialStructure(0);
         console.log(tree);
     }
 
@@ -42155,18 +42155,18 @@ class ItemSelector {
         console.log(props);
     }
 
-    async getModelAndItemID(item){
+    async getModelAndItemID(item) {
         const modelID = item.object.modelID;
         this.currentModel = this.ifcModels.find(model => model.modelID === modelID);
         if (!this.currentModel) {
-            throw new Error ("The selected item doesn't belong to a model!");
+            throw new Error('The selected item doesn\'t belong to a model!');
         }
         this.currentItemID = await this.currentModel.ifcManager.getExpressId(item.object.geometry, item.faceIndex);
     }
 
-    removePreviousSelection(){
+    removePreviousSelection() {
         const isNotPreviousSelection = this.previousSelection.modelID !== this.currentModel.modelID;
-        if (this.previousSelection && isNotPreviousSelection){
+        if (this.previousSelection && isNotPreviousSelection) {
             this.previousSelection.removeSubset(this.scene, this.material);
         }
         this.previousSelection = this.currentModel;
@@ -82128,27 +82128,32 @@ class TypeManager {
 
   constructor(state) {
     this.state = state;
+    this.state = state;
   }
 
-  getAllTypes() {
+  async getAllTypes(worker) {
     for (let modelID in this.state.models) {
       const types = this.state.models[modelID].types;
       if (Object.keys(types).length == 0) {
-        this.getAllTypesOfModel(parseInt(modelID));
+        await this.getAllTypesOfModel(parseInt(modelID), worker);
       }
     }
   }
 
-  async getAllTypesOfModel(modelID) {
-    this.state.models[modelID].types;
+  async getAllTypesOfModel(modelID, worker) {
+    const result = {};
     const elements = Object.keys(IfcElements).map((e) => parseInt(e));
-    const types = this.state.models[modelID].types;
     for (let i = 0; i < elements.length; i++) {
       const element = elements[i];
       const lines = await this.state.api.GetLineIDsWithType(modelID, element);
       const size = lines.size();
       for (let i = 0; i < size; i++)
-        types[lines.get(i)] = element;
+        result[lines.get(i)] = element;
+    }
+    if (this.state.worker.active && worker) {
+      await worker.workerState.updateModelStateTypes(modelID, result);
+    } else {
+      this.state.models[modelID].types = result;
     }
   }
 
@@ -82338,6 +82343,7 @@ var WorkerActions;
   WorkerActions["updateStateUseJson"] = "updateStateUseJson";
   WorkerActions["updateModelStateTypes"] = "updateModelStateTypes";
   WorkerActions["updateModelStateJsonData"] = "updateModelStateJsonData";
+  WorkerActions["loadJsonDataFromWorker"] = "loadJsonDataFromWorker";
   WorkerActions["Close"] = "Close";
   WorkerActions["Init"] = "Init";
   WorkerActions["OpenModel"] = "OpenModel";
@@ -82796,29 +82802,25 @@ class WorkerStateHandler {
     });
   }
 
-  updateModelStateTypes(modelID) {
-    const model = this.getModel(modelID);
-    const types = model.types;
+  updateModelStateTypes(modelID, types) {
     return this.handler.request(this.API, WorkerActions.updateModelStateTypes, {
       modelID,
       types
     });
   }
 
-  updateModelStateJsonData(modelID) {
-    const model = this.getModel(modelID);
-    const jsonData = model.jsonData;
-    return this.handler.request(this.API, WorkerActions.updateModelStateTypes, {
+  updateModelStateJsonData(modelID, jsonData) {
+    return this.handler.request(this.API, WorkerActions.updateModelStateJsonData, {
       modelID,
       jsonData
     });
   }
 
-  getModel(modelID) {
-    const model = this.state.models[modelID];
-    if (!model)
-      throw new Error(`The model with ID ${modelID} does not exist`);
-    return model;
+  loadJsonDataFromWorker(modelID, path) {
+    return this.handler.request(this.API, WorkerActions.loadJsonDataFromWorker, {
+      modelID,
+      path
+    });
   }
 
 }
@@ -82859,7 +82861,6 @@ class IFCWorkerHandler {
 
   async Close() {
     await this.request(WorkerAPIs.webIfc, WorkerActions.Close);
-    this.ifcWorker.terminate();
   }
 
   handleResponse(event) {
@@ -82922,7 +82923,7 @@ class IFCManager {
   async parse(buffer) {
     const model = await this.parser.parse(buffer);
     model.setIFCManager(this);
-    this.state.useJSON ? await this.disposeMemory() : this.types.getAllTypes();
+    this.state.useJSON ? await this.disposeMemory() : await this.types.getAllTypes(this.worker);
     this.hider.processCoordinates(model.modelID);
     return model;
   }
@@ -82939,10 +82940,6 @@ class IFCManager {
     this.state.webIfcSettings = settings;
   }
 
-  async useJSONData(useJSON = true) {
-    this.state.useJSON = useJSON;
-  }
-
   async useWebWorkers(active, path) {
     if (this.state.worker.active === active)
       return;
@@ -82952,25 +82949,45 @@ class IFCManager {
         throw new Error('You must provide a path to the web worker.');
       this.state.worker.active = active;
       this.state.worker.path = path;
-      this.initializeWorkers();
+      await this.initializeWorkers();
     } else {
       this.state.api = new IfcAPI();
     }
   }
 
-  addModelJSONData(modelID, data) {
+  async useJSONData(useJSON = true) {
+    var _a;
+    this.state.useJSON = useJSON;
+    if (useJSON) {
+      await ((_a = this.worker) === null || _a === void 0 ? void 0 : _a.workerState.updateStateUseJson());
+    }
+  }
+
+  async addModelJSONData(modelID, data) {
+    var _a;
     const model = this.state.models[modelID];
-    if (model) {
+    if (!model)
+      throw new Error('The specified model for the JSON data does not exist');
+    if (this.state.worker.active) {
+      await ((_a = this.worker) === null || _a === void 0 ? void 0 : _a.workerState.updateModelStateJsonData(modelID, data));
+    } else {
       model.jsonData = data;
     }
   }
 
-  async disposeMemory() {
-    this.state.api = null;
+  async loadJsonDataFromWorker(modelID, path) {
+    var _a;
     if (this.state.worker.active) {
-      await this.disposeWorkers();
-      this.initializeWorkers();
+      await ((_a = this.worker) === null || _a === void 0 ? void 0 : _a.workerState.loadJsonDataFromWorker(modelID, path));
+    }
+  }
+
+  async disposeMemory() {
+    var _a;
+    if (this.state.worker.active) {
+      await ((_a = this.worker) === null || _a === void 0 ? void 0 : _a.Close());
     } else {
+      this.state.api = null;
       this.state.api = new IfcAPI();
     }
   }
@@ -83060,17 +83077,11 @@ class IFCManager {
     this.state = null;
   }
 
-  async disposeWorkers() {
-    if (this.workerHandler !== undefined && this.workerHandler !== null) {
-      await this.workerHandler.Close();
-      this.workerHandler = null;
-    }
-  }
-
-  initializeWorkers() {
-    this.workerHandler = new IFCWorkerHandler(this.state);
-    this.state.api = this.workerHandler.webIfc;
-    this.properties = this.workerHandler.properties;
+  async initializeWorkers() {
+    this.worker = new IFCWorkerHandler(this.state);
+    this.state.api = this.worker.webIfc;
+    this.properties = this.worker.properties;
+    await this.worker.workerState.updateStateUseJson();
   }
 
 }
@@ -86827,6 +86838,7 @@ class IfcManager {
     }
 
     async setupIfcLoader() {
+        await this.ifcLoader.ifcManager.useJSONData();
         await this.ifcLoader.ifcManager.useWebWorkers(true, "../../../web-ifc-three/dist/IFCWorker.js");
         this.ifcLoader.ifcManager.applyWebIfcConfig({
             COORDINATE_TO_ORIGIN: true,
@@ -86841,16 +86853,9 @@ class IfcManager {
         if (!input) return;
         input.addEventListener(
             'change',
-            (changed) => {
-                this.loadIFC(changed);
-                // fetch("ARK_NUS_skolebygg.json").then(response => response.json()).then(json => {
-                //
-                //     this.loadIFC(changed).then(() => {
-                //
-                //         this.ifcLoader.ifcManager.addModelJSONData(0, json);
-                //
-                //     })
-                // })
+            async (changed) => {
+                await this.loadIFC(changed);
+                await this.ifcLoader.ifcManager.loadJsonDataFromWorker(0, "../../example/ARK_NUS_skolebygg.json");
             },
             false
         );

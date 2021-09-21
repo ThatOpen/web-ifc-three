@@ -32,12 +32,12 @@ export class IFCManager {
     private types = new TypeManager(this.state);
     private hider = new ItemsHider(this.state);
     private cleaner = new MemoryCleaner(this.state);
-    private workerHandler?: IFCWorkerHandler;
+    private worker?: IFCWorkerHandler;
 
     async parse(buffer: ArrayBuffer) {
         const model = await this.parser.parse(buffer) as IFCModel;
         model.setIFCManager(this);
-        this.state.useJSON ? await this.disposeMemory() : this.types.getAllTypes();
+        this.state.useJSON ? await this.disposeMemory() : await this.types.getAllTypes(this.worker);
         this.hider.processCoordinates(model.modelID);
         return model;
     }
@@ -72,17 +72,6 @@ export class IFCManager {
     }
 
     /**
-     * Enables the JSON mode (which consumes way less memory) and eliminates the WASM data.
-     * Only use this in the following scenarios:
-     * - If you don't need to access the properties of the IFC
-     * - If you will provide the properties as JSON.
-     * @useJSON: Wether to use the JSON mode or not.
-     */
-    async useJSONData(useJSON = true) {
-        this.state.useJSON = useJSON;
-    }
-
-    /**
      * Uses web workers, making the loader non-blocking.
      * @active Wether to use web workers or not.
      * @path Relative path to the web worker file. Necessary if active=true.
@@ -95,21 +84,51 @@ export class IFCManager {
             if (!path) throw new Error('You must provide a path to the web worker.');
             this.state.worker.active = active;
             this.state.worker.path = path;
-            this.initializeWorkers();
+            await this.initializeWorkers();
         } else {
             this.state.api = new WebIFC.IfcAPI();
         }
     }
 
     /**
-     * Adds the properties of a model as JSON data.
+     * Enables the JSON mode (which consumes way less memory) and eliminates the WASM data.
+     * Only use this in the following scenarios:
+     * - If you don't need to access the properties of the IFC
+     * - If you will provide the properties as JSON.
+     * @useJSON: Wether to use the JSON mode or not.
+     */
+    async useJSONData(useJSON = true) {
+        this.state.useJSON = useJSON;
+        if (useJSON) {
+            await this.worker?.workerState.updateStateUseJson();
+        }
+    }
+
+    /**
+     * Adds the properties of a model as JSON data. If you are using web workers, use
+     * `loadJsonDataFromWorker()` instead to avoid overheads.
      * @modelID ID of the IFC model.
      * @data: data as an object where the keys are the expressIDs and the values the properties.
      */
-    addModelJSONData(modelID: number, data: { [id: number]: JSONObject }) {
+    async addModelJSONData(modelID: number, data: { [id: number]: JSONObject }) {
         const model = this.state.models[modelID];
-        if (model) {
+        if (!model) throw new Error('The specified model for the JSON data does not exist');
+        if (this.state.worker.active) {
+            await this.worker?.workerState.updateModelStateJsonData(modelID, data);
+        } else {
             model.jsonData = data;
+        }
+    }
+
+    /**
+     * Loads the data of an IFC model from a JSON file directly from a web worker. If you are not using
+     * web workers, use `addModelJSONData()` instead.
+     * @modelID ID of the IFC model.
+     * @path: the path to the JSON file **relative to the web worker file**.
+     */
+    async loadJsonDataFromWorker(modelID: number, path: string) {
+        if (this.state.worker.active) {
+            await this.worker?.workerState.loadJsonDataFromWorker(modelID, path);
         }
     }
 
@@ -120,12 +139,11 @@ export class IFCManager {
      * - If you will provide the properties as JSON.
      */
     async disposeMemory() {
-        // @ts-ignore
-        this.state.api = null;
         if (this.state.worker.active) {
-            await this.disposeWorkers();
-            this.initializeWorkers();
+            await this.worker?.Close();
         } else {
+            // @ts-ignore
+            this.state.api = null;
             this.state.api = new WebIFC.IfcAPI();
         }
     }
@@ -335,17 +353,10 @@ export class IFCManager {
         this.state = null;
     }
 
-    private async disposeWorkers() {
-        if(this.workerHandler !== undefined && this.workerHandler !== null) {
-            await this.workerHandler.Close();
-            // @ts-ignore
-            this.workerHandler = null;
-        }
-    }
-
-    private initializeWorkers() {
-        this.workerHandler = new IFCWorkerHandler(this.state);
-        this.state.api = this.workerHandler.webIfc;
-        this.properties = this.workerHandler.properties;
+    private async initializeWorkers() {
+        this.worker = new IFCWorkerHandler(this.state);
+        this.state.api = this.worker.webIfc;
+        this.properties = this.worker.properties;
+        await this.worker.workerState.updateStateUseJson()
     }
 }

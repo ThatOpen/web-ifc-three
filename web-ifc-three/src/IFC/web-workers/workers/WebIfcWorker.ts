@@ -17,8 +17,10 @@ export class WebIfcWorker implements WebIfcWorkerAPI {
         this.worker.post(data);
     };
 
-    Close(data: IfcEventData) {
+    async Close(data: IfcEventData) {
         this.nullifyWebIfc();
+        this.webIFC = new IfcAPI();
+        await this.webIFC.Init();
         this.worker.post(data);
     };
 

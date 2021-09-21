@@ -15,21 +15,15 @@ export class WorkerStateHandler {
         return this.handler.request(this.API, WorkerActions.updateStateUseJson, { useJson });
     }
 
-    updateModelStateTypes (modelID: number) {
-        const model = this.getModel(modelID);
-        const types = model.types;
+    updateModelStateTypes (modelID: number, types: any) {
         return this.handler.request(this.API, WorkerActions.updateModelStateTypes, { modelID, types });
     }
 
-    updateModelStateJsonData(modelID: number) {
-        const model = this.getModel(modelID);
-        const jsonData = model.jsonData;
-        return this.handler.request(this.API, WorkerActions.updateModelStateTypes, { modelID, jsonData });
+    updateModelStateJsonData(modelID: number, jsonData: any) {
+        return this.handler.request(this.API, WorkerActions.updateModelStateJsonData, { modelID, jsonData });
     }
 
-    private getModel(modelID: number) {
-        const model = this.state.models[modelID];
-        if(!model) throw new Error(`The model with ID ${modelID} does not exist`);
-        return model;
+    loadJsonDataFromWorker(modelID: number, path: string) {
+        return this.handler.request(this.API, WorkerActions.loadJsonDataFromWorker, { modelID, path });
     }
 }

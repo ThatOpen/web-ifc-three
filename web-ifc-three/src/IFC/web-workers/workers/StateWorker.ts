@@ -1,4 +1,12 @@
-import { ErrorRootStateNotAvailable, IfcEventData, IfcWorkerAPI, WorkerAPIs, WorkerStateAPI } from '../BaseDefinitions';
+import {
+    ErrorBadJson,
+    ErrorBadJsonPath,
+    ErrorRootStateNotAvailable,
+    IfcEventData,
+    IfcWorkerAPI,
+    WorkerAPIs,
+    WorkerStateAPI
+} from '../BaseDefinitions';
 
 export class StateWorker implements WorkerStateAPI {
 
@@ -25,6 +33,16 @@ export class StateWorker implements WorkerStateAPI {
         const model = this.getModel(data);
         model.types = data.args.types;
         this.worker.post(data);
+    }
+
+    async loadJsonDataFromWorker(data: IfcEventData): Promise<void> {
+        if (!this.worker.state) throw new Error(ErrorRootStateNotAvailable);
+        const currentModel = this.getModel(data);
+        const file = await fetch(data.args.path);
+        if(!file.ok) throw new Error(ErrorBadJsonPath);
+        const json = await file.json();
+        if(typeof json !== 'object') throw new Error(ErrorBadJson);
+        currentModel.jsonData = json;
     }
 
     private getModel(data: IfcEventData) {
