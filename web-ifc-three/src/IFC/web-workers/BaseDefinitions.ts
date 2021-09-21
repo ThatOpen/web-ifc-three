@@ -42,6 +42,7 @@ export enum WorkerActions {
     SetWasmPath = 'SetWasmPath',
 
     // Properties
+    getExpressId = 'getExpressId',
     initializeProperties = 'initializeProperties',
     getAllItemsOfType = 'getAllItemsOfType',
     getItemProperties = 'getItemProperties',

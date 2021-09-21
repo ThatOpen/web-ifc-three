@@ -21,51 +21,51 @@ export class PropertyWorker implements PropertyWorkerAPI {
         }
     }
 
-    getAllItemsOfType(data: IfcEventData): void {
+    async getAllItemsOfType(data: IfcEventData): Promise<void> {
         this.initializeProperties();
         if (!this.properties) throw new Error(ErrorPropertiesNotAvailable);
         const args = data.args;
-        data.result = this.properties.getAllItemsOfType(args.modelID, args.type, args.verbose);
+        data.result = await this.properties.getAllItemsOfType(args.modelID, args.type, args.verbose);
         this.worker.post(data);
     }
 
-    getItemProperties(data: IfcEventData): void {
+    async getItemProperties(data: IfcEventData): Promise<void> {
         this.initializeProperties();
         if (!this.properties) throw new Error(ErrorPropertiesNotAvailable);
         const args = data.args;
-        data.result = this.properties.getTypeProperties(args.modelID, args.elementID, args.recurse);
+        data.result = await this.properties.getItemProperties(args.modelID, args.elementID, args.recurse);
         this.worker.post(data);
     }
 
-    getMaterialsProperties(data: IfcEventData): void {
+    async getMaterialsProperties(data: IfcEventData): Promise<void> {
         this.initializeProperties();
         if (!this.properties) throw new Error(ErrorPropertiesNotAvailable);
         const args = data.args;
-        data.result = this.properties.getMaterialsProperties(args.modelID, args.elementID, args.recursive);
+        data.result = await this.properties.getMaterialsProperties(args.modelID, args.elementID, args.recursive);
         this.worker.post(data);
     }
 
-    getPropertySets(data: IfcEventData): void {
+    async getPropertySets(data: IfcEventData): Promise<void> {
         this.initializeProperties();
         if (!this.properties) throw new Error(ErrorPropertiesNotAvailable);
         const args = data.args;
-        data.result = this.properties.getPropertySets(args.modelID, args.elementID, args.recursive);
+        data.result = await this.properties.getPropertySets(args.modelID, args.elementID, args.recursive);
         this.worker.post(data);
     }
 
-    getSpatialStructure(data: IfcEventData): void {
+    async getSpatialStructure(data: IfcEventData): Promise<void> {
         this.initializeProperties();
         if (!this.properties) throw new Error(ErrorPropertiesNotAvailable);
         const args = data.args;
-        data.result = this.properties.getSpatialStructure(args.modelID, args.includeProperties);
+        data.result = await this.properties.getSpatialStructure(args.modelID, args.includeProperties);
         this.worker.post(data);
     }
 
-    getTypeProperties(data: IfcEventData): void {
+    async getTypeProperties(data: IfcEventData): Promise<void> {
         this.initializeProperties();
         if (!this.properties) throw new Error(ErrorPropertiesNotAvailable);
         const args = data.args;
-        data.result = this.properties.getTypeProperties(args.modelID, args.elementID, args.recursive);
+        data.result = await this.properties.getTypeProperties(args.modelID, args.elementID, args.recursive);
         this.worker.post(data);
     }
 }

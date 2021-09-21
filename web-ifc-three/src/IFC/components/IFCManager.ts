@@ -12,6 +12,7 @@ import { ItemsHider } from './ItemsHider';
 import { LoaderSettings } from 'web-ifc';
 import { MemoryCleaner } from './MemoryCleaner';
 import { IFCWorkerHandler } from '../web-workers/IFCWorkerHandler';
+import { PropertyManagerAPI } from './properties/BaseDefinitions';
 
 /**
  * Contains all the logic to work with the loaded IFC files (select, edit, etc).
@@ -27,7 +28,7 @@ export class IFCManager {
     private BVH = new BvhManager();
     private parser = new IFCParser(this.state, this.BVH);
     private subsets = new SubsetManager(this.state, this.BVH);
-    private properties = new PropertyManager(this.state);
+    private properties: PropertyManagerAPI = new PropertyManager(this.state);
     private types = new TypeManager(this.state);
     private hider = new ItemsHider(this.state);
     private cleaner = new MemoryCleaner(this.state);
@@ -94,7 +95,7 @@ export class IFCManager {
             if (!path) throw new Error('You must provide a path to the web worker.');
             this.state.worker.active = active;
             this.state.worker.path = path;
-            await this.resetWorkers();
+            this.initializeWorkers();
         } else {
             this.state.api = new WebIFC.IfcAPI();
         }
@@ -122,7 +123,8 @@ export class IFCManager {
         // @ts-ignore
         this.state.api = null;
         if (this.state.worker.active) {
-            await this.resetWorkers();
+            await this.disposeWorkers();
+            this.initializeWorkers();
         } else {
             this.state.api = new WebIFC.IfcAPI();
         }
@@ -333,13 +335,17 @@ export class IFCManager {
         this.state = null;
     }
 
-    private async resetWorkers() {
+    private async disposeWorkers() {
         if(this.workerHandler !== undefined && this.workerHandler !== null) {
             await this.workerHandler.Close();
             // @ts-ignore
             this.workerHandler = null;
         }
+    }
+
+    private initializeWorkers() {
         this.workerHandler = new IFCWorkerHandler(this.state);
         this.state.api = this.workerHandler.webIfc;
+        this.properties = this.workerHandler.properties;
     }
 }

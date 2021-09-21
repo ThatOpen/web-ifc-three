@@ -82364,6 +82364,7 @@ var WorkerActions;
   WorkerActions["LoadAllGeometry"] = "LoadAllGeometry";
   WorkerActions["GetFlatMesh"] = "GetFlatMesh";
   WorkerActions["SetWasmPath"] = "SetWasmPath";
+  WorkerActions["getExpressId"] = "getExpressId";
   WorkerActions["initializeProperties"] = "initializeProperties";
   WorkerActions["getAllItemsOfType"] = "getAllItemsOfType";
   WorkerActions["getItemProperties"] = "getItemProperties";
@@ -82523,6 +82524,13 @@ class PropertyHandler {
     this.API = WorkerAPIs.properties;
   }
 
+  async getExpressId(geometry, faceIndex) {
+    if (!geometry.index)
+      throw new Error('Geometry does not have index information.');
+    const geoIndex = geometry.index.array;
+    return geometry.attributes[IdAttrName].getX(geoIndex[3 * faceIndex]);
+  }
+
   getAllItemsOfType(modelID, type, verbose) {
     return this.handler.request(this.API, WorkerActions.getAllItemsOfType, {
       modelID,
@@ -82531,10 +82539,10 @@ class PropertyHandler {
     });
   }
 
-  getItemProperties(modelID, id, recursive) {
+  getItemProperties(modelID, elementID, recursive) {
     return this.handler.request(this.API, WorkerActions.getItemProperties, {
       modelID,
-      id,
+      elementID,
       recursive
     });
   }
@@ -82944,7 +82952,7 @@ class IFCManager {
         throw new Error('You must provide a path to the web worker.');
       this.state.worker.active = active;
       this.state.worker.path = path;
-      await this.resetWorkers();
+      this.initializeWorkers();
     } else {
       this.state.api = new IfcAPI();
     }
@@ -82960,7 +82968,8 @@ class IFCManager {
   async disposeMemory() {
     this.state.api = null;
     if (this.state.worker.active) {
-      await this.resetWorkers();
+      await this.disposeWorkers();
+      this.initializeWorkers();
     } else {
       this.state.api = new IfcAPI();
     }
@@ -83051,13 +83060,17 @@ class IFCManager {
     this.state = null;
   }
 
-  async resetWorkers() {
+  async disposeWorkers() {
     if (this.workerHandler !== undefined && this.workerHandler !== null) {
       await this.workerHandler.Close();
       this.workerHandler = null;
     }
+  }
+
+  initializeWorkers() {
     this.workerHandler = new IFCWorkerHandler(this.state);
     this.state.api = this.workerHandler.webIfc;
+    this.properties = this.workerHandler.properties;
   }
 
 }
@@ -86815,7 +86828,6 @@ class IfcManager {
 
     async setupIfcLoader() {
         await this.ifcLoader.ifcManager.useWebWorkers(true, "../../../web-ifc-three/dist/IFCWorker.js");
-        await this.ifcLoader.ifcManager.useJSONData(true);
         this.ifcLoader.ifcManager.applyWebIfcConfig({
             COORDINATE_TO_ORIGIN: true,
             USE_FAST_BOOLS: false
@@ -86830,14 +86842,15 @@ class IfcManager {
         input.addEventListener(
             'change',
             (changed) => {
-                fetch("ARK_NUS_skolebygg.json").then(response => response.json()).then(json => {
-
-                    this.loadIFC(changed).then(() => {
-
-                        this.ifcLoader.ifcManager.addModelJSONData(0, json);
-
-                    });
-                });
+                this.loadIFC(changed);
+                // fetch("ARK_NUS_skolebygg.json").then(response => response.json()).then(json => {
+                //
+                //     this.loadIFC(changed).then(() => {
+                //
+                //         this.ifcLoader.ifcManager.addModelJSONData(0, json);
+                //
+                //     })
+                // })
             },
             false
         );
@@ -86850,8 +86863,8 @@ class IfcManager {
     // TODO: CleanUp() method to realease webgl memory of IFCLoader
 
     loadJSONData(modelID, data) {
-        this.ifcLoader.ifcManager.useJSONData();
-        this.ifcLoader.ifcManager.addModelJSONData(modelID, data);
+        // this.ifcLoader.ifcManager.useJSONData();
+        // this.ifcLoader.ifcManager.addModelJSONData(modelID, data);
     }
 
     async loadIFC(changed) {

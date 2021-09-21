@@ -19,7 +19,6 @@ export class IfcManager {
 
     async setupIfcLoader() {
         await this.ifcLoader.ifcManager.useWebWorkers(true, "../../../web-ifc-three/dist/IFCWorker.js")
-        await this.ifcLoader.ifcManager.useJSONData(true);
         this.ifcLoader.ifcManager.applyWebIfcConfig({
             COORDINATE_TO_ORIGIN: true,
             USE_FAST_BOOLS: false
@@ -34,14 +33,15 @@ export class IfcManager {
         input.addEventListener(
             'change',
             (changed) => {
-                fetch("ARK_NUS_skolebygg.json").then(response => response.json()).then(json => {
-
-                    this.loadIFC(changed).then(() => {
-
-                        this.ifcLoader.ifcManager.addModelJSONData(0, json);
-
-                    })
-                })
+                this.loadIFC(changed);
+                // fetch("ARK_NUS_skolebygg.json").then(response => response.json()).then(json => {
+                //
+                //     this.loadIFC(changed).then(() => {
+                //
+                //         this.ifcLoader.ifcManager.addModelJSONData(0, json);
+                //
+                //     })
+                // })
             },
             false
         );
@@ -54,8 +54,8 @@ export class IfcManager {
     // TODO: CleanUp() method to realease webgl memory of IFCLoader
 
     loadJSONData(modelID, data) {
-        this.ifcLoader.ifcManager.useJSONData();
-        this.ifcLoader.ifcManager.addModelJSONData(modelID, data);
+        // this.ifcLoader.ifcManager.useJSONData();
+        // this.ifcLoader.ifcManager.addModelJSONData(modelID, data);
     }
 
     async loadIFC(changed) {
