@@ -43,6 +43,7 @@ export class StateWorker implements WorkerStateAPI {
         const json = await file.json();
         if(typeof json !== 'object') throw new Error(ErrorBadJson);
         currentModel.jsonData = json;
+        this.worker.post(data);
     }
 
     private getModel(data: IfcEventData) {
