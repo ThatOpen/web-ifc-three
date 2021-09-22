@@ -18,7 +18,6 @@ export class IfcManager {
     }
 
     async setupIfcLoader() {
-        await this.ifcLoader.ifcManager.useJSONData();
         await this.ifcLoader.ifcManager.useWebWorkers(true, "../../../web-ifc-three/dist/IFCWorker.js")
         this.ifcLoader.ifcManager.applyWebIfcConfig({
             COORDINATE_TO_ORIGIN: true,
@@ -35,7 +34,6 @@ export class IfcManager {
             'change',
             async (changed) => {
                 await this.loadIFC(changed);
-                await this.ifcLoader.ifcManager.loadJsonDataFromWorker(0, "../../example/ARK_NUS_skolebygg.json");
             },
             false
         );
