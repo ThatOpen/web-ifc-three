@@ -33,21 +33,17 @@ export class IfcManager {
         input.addEventListener(
             'change',
             async (changed) => {
+                // await this.ifcLoader.ifcManager.useJSONData();
                 await this.loadIFC(changed);
+                // await this.ifcLoader.ifcManager.loadJsonDataFromWorker(0, '../../example/model/test.json');
             },
             false
         );
     }
 
+    // TODO: CleanUp() method to realease webgl memory of IFCLoader
     releaseMemory() {
         this.ifcLoader.ifcManager.disposeMemory();
-    }
-
-    // TODO: CleanUp() method to realease webgl memory of IFCLoader
-
-    loadJSONData(modelID, data) {
-        // this.ifcLoader.ifcManager.useJSONData();
-        // this.ifcLoader.ifcManager.addModelJSONData(modelID, data);
     }
 
     async loadIFC(changed) {

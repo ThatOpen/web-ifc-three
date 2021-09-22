@@ -7,15 +7,15 @@ export class BasePropertyManager {
     }
 
     async getPropertySets(modelID: number, elementID: number, recursive = false) {
-        return { ...await this.getProperty(modelID, elementID, recursive, PropsNames.psets) };
+        return await this.getProperty(modelID, elementID, recursive, PropsNames.psets);
     }
 
     async getTypeProperties(modelID: number, elementID: number, recursive = false) {
-        return { ...await this.getProperty(modelID, elementID, recursive, PropsNames.type) };
+        return await this.getProperty(modelID, elementID, recursive, PropsNames.type);
     }
 
     async getMaterialsProperties(modelID: number, elementID: number, recursive = false) {
-        return { ...await this.getProperty(modelID, elementID, recursive, PropsNames.materials) };
+        return await this.getProperty(modelID, elementID, recursive, PropsNames.materials);
     }
 
     protected getSpatialNode(modelID: number, node: Node, treeChunks: any, includeProperties?: boolean) {

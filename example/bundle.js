@@ -80831,21 +80831,15 @@ class BasePropertyManager {
   }
 
   async getPropertySets(modelID, elementID, recursive = false) {
-    return {
-      ...await this.getProperty(modelID, elementID, recursive, PropsNames.psets)
-    };
+    return await this.getProperty(modelID, elementID, recursive, PropsNames.psets);
   }
 
   async getTypeProperties(modelID, elementID, recursive = false) {
-    return {
-      ...await this.getProperty(modelID, elementID, recursive, PropsNames.type)
-    };
+    return await this.getProperty(modelID, elementID, recursive, PropsNames.type);
   }
 
   async getMaterialsProperties(modelID, elementID, recursive = false) {
-    return {
-      ...await this.getProperty(modelID, elementID, recursive, PropsNames.materials)
-    };
+    return await this.getProperty(modelID, elementID, recursive, PropsNames.materials);
   }
 
   getSpatialNode(modelID, node, treeChunks, includeProperties) {
@@ -86853,21 +86847,17 @@ class IfcManager {
         input.addEventListener(
             'change',
             async (changed) => {
+                // await this.ifcLoader.ifcManager.useJSONData();
                 await this.loadIFC(changed);
+                // await this.ifcLoader.ifcManager.loadJsonDataFromWorker(0, '../../example/model/test.json');
             },
             false
         );
     }
 
+    // TODO: CleanUp() method to realease webgl memory of IFCLoader
     releaseMemory() {
         this.ifcLoader.ifcManager.disposeMemory();
-    }
-
-    // TODO: CleanUp() method to realease webgl memory of IFCLoader
-
-    loadJSONData(modelID, data) {
-        // this.ifcLoader.ifcManager.useJSONData();
-        // this.ifcLoader.ifcManager.addModelJSONData(modelID, data);
     }
 
     async loadIFC(changed) {
