@@ -23,12 +23,12 @@
   },
   "homepage": "https://github.com/agviegas/web-ifc-three#readme",
   "scripts": {
-    "build": "rollup -c config/rollup.config.js && npm run build-declaration && npm run build-worker && npm run clean",
+    "build": "rollup -c config/rollup.config.js && npm run build-declaration && npm run build-worker && npm run clean && npm run copy-wasm",
     "build-declaration": "tsc -p config/tsconfig.declaration.json",
     "build-worker": "rollup -c config/rollup-worker.config.js",
     "clean": "esformatter --config config/esformatter.config.json dist/IFCLoader.js -i",
     "build-example": "rollup -c ../example/rollup.config.js && npm run copy-wasm",
-    "copy-wasm": "cpy node_modules/web-ifc/web-ifc.wasm example",
+    "copy-wasm": "cpy ../node_modules/web-ifc/web-ifc.wasm ../example && cpy ../node_modules/web-ifc/web-ifc.wasm ../web-ifc-three/dist",
     "publish-repo": "npm run build && cpy package.json dist && cd dist && npm publish",
     "watch": "rollup -c config/rollup.config.js -w",
     "test": "jest"

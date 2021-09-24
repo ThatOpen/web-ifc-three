@@ -31,7 +31,7 @@ class IFCLoader extends Loader {
                         throw new Error('IFC files must be given as a buffer!');
                     }
                     onLoad(await scope.parse(buffer));
-                } catch (e) {
+                } catch (e: any) {
                     if (onError) {
                         onError(e);
                     } else {
