@@ -10,6 +10,8 @@ import {
 } from '../BaseDefinitions';
 import {BvhManager} from './BvhManager';
 
+
+
 /**
  * Contains the logic to get, create and delete geometric subsets of an IFC model. For example,
  * this can extract all the items in a specific IfcBuildingStorey and create a new Mesh.
@@ -26,16 +28,16 @@ export class SubsetManager {
 
     dispose() {
         // @ts-ignore
-        this.BVH = null;
-        const items = Object.values(this.selected);
-        items.forEach(item => {
-            const mesh = item.mesh;
-            mesh.geometry.dispose();
-            Array.isArray(mesh.material) ?
-                mesh.material.forEach(mat => mat.dispose()) :
-                mesh.material.dispose();
-        });
-        this.selected = {};
+        // this.BVH = null;
+        // const items = Object.values(this.selected);
+        // items.forEach(item => {
+        //     const mesh = item.mesh;
+        //     mesh.geometry.dispose();
+        //     Array.isArray(mesh.material) ?
+        //         mesh.material.forEach(mat => mat.dispose()) :
+        //         mesh.material.dispose();
+        // });
+        // this.selected = {};
     }
 
     getSubset(modelID: number, material?: Material) {

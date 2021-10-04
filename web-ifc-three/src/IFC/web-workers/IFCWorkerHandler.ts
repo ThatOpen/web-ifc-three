@@ -4,6 +4,7 @@ import { PropertyHandler } from './handlers/PropertyHandler';
 import { WebIfcHandler } from './handlers/WebIfcHandler';
 import { IfcState } from '../BaseDefinitions';
 import { WorkerStateHandler } from './handlers/WorkerStateHandler';
+import { ParserHandler } from './handlers/ParserHandler';
 
 export class IFCWorkerHandler {
 
@@ -16,6 +17,7 @@ export class IFCWorkerHandler {
     readonly workerState: WorkerStateHandler;
     readonly webIfc: WebIfcHandler;
     readonly properties: PropertyHandler;
+    readonly parser: ParserHandler;
 
     private ifcWorker: Worker;
     private readonly serializer = new Serializer();
@@ -26,6 +28,7 @@ export class IFCWorkerHandler {
         this.ifcWorker = new Worker(this.workerPath);
         this.ifcWorker.onmessage = (data: any) => this.handleResponse(data);
         this.properties = new PropertyHandler(this);
+        this.parser = new ParserHandler(this, this.serializer);
         this.webIfc = new WebIfcHandler(this, this.serializer);
         this.workerState = new WorkerStateHandler(this);
     }

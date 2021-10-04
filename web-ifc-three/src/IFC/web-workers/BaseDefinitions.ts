@@ -1,4 +1,6 @@
-import { IfcState, WebIfcAPI } from '../BaseDefinitions';
+import { HighlightConfigOfModel, IfcState, WebIfcAPI } from '../BaseDefinitions';
+import { BvhManager } from '../components/BvhManager';
+import { Material, Object3D } from 'three';
 
 export interface IfcWorkerAPI {
     post: (data: any) => void;
@@ -42,6 +44,9 @@ export enum WorkerActions {
     GetFlatMesh = 'GetFlatMesh',
     SetWasmPath = 'SetWasmPath',
 
+    // Parser
+    parse = 'parse',
+
     // Properties
     getExpressId = 'getExpressId',
     initializeProperties = 'initializeProperties',
@@ -56,7 +61,8 @@ export enum WorkerActions {
 export enum WorkerAPIs {
     workerState = 'workerState',
     webIfc = 'webIfc',
-    properties = 'properties'
+    properties = 'properties',
+    parser = 'parser',
 }
 
 export interface IfcEventData {
@@ -93,6 +99,10 @@ export interface PropertyWorkerAPI extends BaseWorkerAPI {
     [WorkerActions.getPropertySets]: IfcWorkerEventHandler;
     [WorkerActions.getSpatialStructure]: IfcWorkerEventHandler;
     [WorkerActions.getTypeProperties]: IfcWorkerEventHandler;
+}
+
+export interface ParserWorkerAPI extends BaseWorkerAPI {
+    [WorkerActions.parse]: IfcWorkerEventHandler;
 }
 
 export interface WebIfcWorkerAPI extends BaseWorkerAPI {
@@ -144,5 +154,6 @@ export interface SerializedFlatMesh {
 
 export const ErrorRootStateNotAvailable = 'The root worker does not have any state';
 export const ErrorPropertiesNotAvailable = 'Error: Properties not available from web worker';
+export const ErrorParserNotAvailable = 'Error: Parser not available from web worker';
 export const ErrorBadJsonPath = 'Error: Model not available from web worker';
 export const ErrorBadJson = 'Error: The given Json could not be read as a JS object';

@@ -4,8 +4,13 @@ import { Vector } from './Vector';
 import { IfcGeometry } from './IfcGeometry';
 import { FlatMesh } from './FlatMesh';
 import { FlatMeshVector } from './FlatMeshVector';
+import { IFCModel } from '../../components/IFCModel';
+import { IfcModelReconstructor, SerializedIfcModel } from './IFCModel';
 
 export class Serializer {
+
+    private readonly modelReconstructor = new IfcModelReconstructor();
+
     serializeVector<T>(vector: WebIfcVector<T>) {
         const size = vector.size();
         const serialized: SerializedVector = { size };
@@ -59,5 +64,13 @@ export class Serializer {
 
     reconstructFlatMeshVector(vector: SerializedVector): WebIfcVector<WebIfcFlatMesh> {
         return new FlatMeshVector(this, vector);
+    }
+
+    serializeIfcModel(model: IFCModel) {
+        return new SerializedIfcModel(model);
+    }
+
+    reconstructIfcModel(model: SerializedIfcModel) {
+        return this.modelReconstructor.reconstructModel(model);
     }
 }

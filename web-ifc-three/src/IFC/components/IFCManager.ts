@@ -1,5 +1,5 @@
 import * as WebIFC from 'web-ifc';
-import { IFCParser } from './IFCParser';
+import { IFCParser, ParserAPI } from './IFCParser';
 import { SubsetManager } from './SubsetManager';
 import { PropertyManager } from './properties/PropertyManager';
 import { IfcElements } from './IFCElementsMap';
@@ -26,7 +26,7 @@ export class IFCManager {
     };
 
     private BVH = new BvhManager();
-    private parser = new IFCParser(this.state, this.BVH);
+    private parser: ParserAPI = new IFCParser(this.state, this.BVH);
     private subsets = new SubsetManager(this.state, this.BVH);
     private properties: PropertyManagerAPI = new PropertyManager(this.state);
     private types = new TypeManager(this.state);
@@ -357,6 +357,7 @@ export class IFCManager {
         this.worker = new IFCWorkerHandler(this.state);
         this.state.api = this.worker.webIfc;
         this.properties = this.worker.properties;
+        this.parser = this.worker.parser;
         await this.worker.workerState.updateStateUseJson()
     }
 }

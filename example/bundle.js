@@ -82194,7 +82194,7 @@ class ItemsHider {
 
   processCoordinates(modelID) {
     const attributes = this.getAttributes(modelID);
-    const ids = Array. from (attributes.expressID.array);
+    const ids = Array.from(attributes.expressID.array);
     this.expressIDCoordinatesMap[modelID] = {};
     for (let i = 0; i < ids.length; i++) {
       if (!this.expressIDCoordinatesMap[modelID][ids[i]]) {
@@ -82364,6 +82364,7 @@ var WorkerActions;
   WorkerActions["LoadAllGeometry"] = "LoadAllGeometry";
   WorkerActions["GetFlatMesh"] = "GetFlatMesh";
   WorkerActions["SetWasmPath"] = "SetWasmPath";
+  WorkerActions["parse"] = "parse";
   WorkerActions["getExpressId"] = "getExpressId";
   WorkerActions["initializeProperties"] = "initializeProperties";
   WorkerActions["getAllItemsOfType"] = "getAllItemsOfType";
@@ -82378,6 +82379,7 @@ var WorkerAPIs;
   WorkerAPIs["workerState"] = "workerState";
   WorkerAPIs["webIfc"] = "webIfc";
   WorkerAPIs["properties"] = "properties";
+  WorkerAPIs["parser"] = "parser";
 })(WorkerAPIs || (WorkerAPIs = {}));
 
 class Vector {
@@ -82454,7 +82456,83 @@ class FlatMeshVector {
 
 }
 
+class SerializedIfcModel {
+
+  constructor(model) {
+    var _a,
+      _b,
+      _c,
+      _d;
+    this.materials = [];
+    this.modelID = model.modelID;
+    const attributes = model.geometry.attributes;
+    this.expressID = ((_a = attributes.expressID) === null || _a === void 0 ? void 0 : _a.array) || [];
+    this.position = ((_b = attributes.position) === null || _b === void 0 ? void 0 : _b.array) || [];
+    this.normal = ((_c = attributes.normal) === null || _c === void 0 ? void 0 : _c.array) || [];
+    this.index = ((_d = model.geometry.index) === null || _d === void 0 ? void 0 : _d.array) || [];
+    this.groups = model.geometry.groups;
+    if (Array.isArray(model.material)) {
+      model.material.forEach(mat => this.storeMaterial(mat));
+    } else {
+      this.storeMaterial(model.material);
+    }
+  }
+
+  storeMaterial(material) {
+    const mat = material;
+    this.materials.push({
+      color: [mat.color.r, mat.color.g, mat.color.b],
+      transparent: mat.transparent,
+      opacity: mat.opacity
+    });
+  }
+
+}
+
+class IfcModelReconstructor {
+
+  reconstructModel(serialized) {
+    const model = new IFCModel();
+    model.modelID = serialized.modelID;
+    this.reconstructGeometry(serialized, model);
+    this.getMaterials(serialized, model);
+    return model;
+  }
+
+  reconstructGeometry(serialized, model) {
+    model.geometry = new BufferGeometry();
+    this.setAttribute(model, 'expressID', new Uint32Array(serialized.expressID), 1);
+    this.setAttribute(model, 'position', new Float32Array(serialized.position), 3);
+    this.setAttribute(model, 'normal', new Float32Array(serialized.normal), 3);
+    model.geometry.setIndex(Array. from (serialized.index));
+    model.geometry.groups = serialized.groups;
+  }
+
+  setAttribute(model, name, data, size) {
+    if (data.length > 0) {
+      model.geometry.setAttribute(name, new BufferAttribute(data, size));
+    }
+  }
+
+  getMaterials(serialized, model) {
+    model.material = [];
+    const mats = model.material;
+    serialized.materials.forEach(mat => {
+      mats.push(new MeshLambertMaterial({
+        color: new Color(...mat.color),
+        opacity: mat.opacity,
+        transparent: mat.transparent
+      }));
+    });
+  }
+
+}
+
 class Serializer {
+
+  constructor() {
+    this.modelReconstructor = new IfcModelReconstructor();
+  }
 
   serializeVector(vector) {
     const size = vector.size();
@@ -82513,6 +82591,14 @@ class Serializer {
 
   reconstructFlatMeshVector(vector) {
     return new FlatMeshVector(this, vector);
+  }
+
+  serializeIfcModel(model) {
+    return new SerializedIfcModel(model);
+  }
+
+  reconstructIfcModel(model) {
+    return this.modelReconstructor.reconstructModel(model);
   }
 
 }
@@ -82819,6 +82905,39 @@ class WorkerStateHandler {
 
 }
 
+class ParserHandler {
+
+  constructor(handler, serializer) {
+    this.handler = handler;
+    this.serializer = serializer;
+    this.API = WorkerAPIs.parser;
+  }
+
+  async parse(buffer) {
+    this.handler.serializeHandlers[this.handler.requestID] = (model) => {
+      const ifcModel = this.serializer.reconstructIfcModel(model);
+      this.storeIfcModel(ifcModel);
+      return ifcModel;
+    };
+    return this.handler.request(this.API, WorkerActions.parse, {
+      buffer
+    });
+  }
+
+  getAndClearErrors(_modelId) {}
+
+  storeIfcModel(ifcModel) {
+    this.handler.state.models[ifcModel.modelID] = {
+      modelID: ifcModel.modelID,
+      mesh: ifcModel,
+      items: {},
+      types: {},
+      jsonData: {}
+    };
+  }
+
+}
+
 class IFCWorkerHandler {
 
   constructor(state) {
@@ -82833,6 +82952,7 @@ class IFCWorkerHandler {
     this.ifcWorker = new Worker(this.workerPath);
     this.ifcWorker.onmessage = (data) => this.handleResponse(data);
     this.properties = new PropertyHandler(this);
+    this.parser = new ParserHandler(this, this.serializer);
     this.webIfc = new WebIfcHandler(this, this.serializer);
     this.workerState = new WorkerStateHandler(this);
   }
@@ -83075,6 +83195,7 @@ class IFCManager {
     this.worker = new IFCWorkerHandler(this.state);
     this.state.api = this.worker.webIfc;
     this.properties = this.worker.properties;
+    this.parser = this.worker.parser;
     await this.worker.workerState.updateStateUseJson();
   }
 

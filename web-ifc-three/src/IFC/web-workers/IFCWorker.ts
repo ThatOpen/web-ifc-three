@@ -12,19 +12,25 @@ import { WebIfcWorker } from './workers/WebIfcWorker';
 import { IfcState, WebIfcAPI } from '../BaseDefinitions';
 import { PropertyWorker } from './workers/PropertyWorker';
 import { StateWorker } from './workers/StateWorker';
+import { BvhManager } from '../components/BvhManager';
+import { ParserWorker } from './workers/ParserWorker';
 
 class IFCWorker implements RootWorker {
     private readonly serializer = new Serializer();
 
+    state?: IfcState;
     workerState: WorkerStateAPI;
     webIfc: WebIfcWorkerAPI;
     properties: PropertyWorkerAPI;
-    state?: IfcState;
+    parser: ParserWorker;
+    BVH: BvhManager;
 
     constructor() {
+        this.BVH = new BvhManager();
         this.workerState = new StateWorker(this);
         this.webIfc = new WebIfcWorker(this, this.serializer);
         this.properties = new PropertyWorker(this);
+        this.parser = new ParserWorker(this, this.serializer, this.BVH);
     }
 
     initializeAPI(api: WebIfcAPI) {
