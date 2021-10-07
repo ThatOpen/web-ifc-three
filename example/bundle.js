@@ -80640,18 +80640,7 @@ class SubsetManager {
     this.BVH = BVH;
   }
 
-  dispose() {
-    this.BVH = null;
-    const items = Object.values(this.selected);
-    items.forEach(item => {
-      const mesh = item.mesh;
-      mesh.geometry.dispose();
-      Array.isArray(mesh.material) ?
-        mesh.material.forEach(mat => mat.dispose()) :
-        mesh.material.dispose();
-    });
-    this.selected = {};
-  }
+  dispose() {}
 
   getSubset(modelID, material) {
     const currentMat = this.matIDNoConfig(modelID, material);
@@ -82456,83 +82445,138 @@ class FlatMeshVector {
 
 }
 
-class SerializedIfcModel {
+class SerializedMaterial {
 
-  constructor(model) {
-    var _a,
-      _b,
-      _c,
-      _d;
-    this.materials = [];
-    this.modelID = model.modelID;
-    const attributes = model.geometry.attributes;
-    this.expressID = ((_a = attributes.expressID) === null || _a === void 0 ? void 0 : _a.array) || [];
-    this.position = ((_b = attributes.position) === null || _b === void 0 ? void 0 : _b.array) || [];
-    this.normal = ((_c = attributes.normal) === null || _c === void 0 ? void 0 : _c.array) || [];
-    this.index = ((_d = model.geometry.index) === null || _d === void 0 ? void 0 : _d.array) || [];
-    this.groups = model.geometry.groups;
-    if (Array.isArray(model.material)) {
-      model.material.forEach(mat => this.storeMaterial(mat));
-    } else {
-      this.storeMaterial(model.material);
-    }
+  constructor(material) {
+    this.color = [material.color.r, material.color.g, material.color.b];
+    this.opacity = material.opacity;
+    this.transparent = material.transparent;
   }
 
-  storeMaterial(material) {
-    const mat = material;
-    this.materials.push({
-      color: [mat.color.r, mat.color.g, mat.color.b],
-      transparent: mat.transparent,
-      opacity: mat.opacity
+}
+
+class MaterialReconstructor {
+
+  static new(material) {
+    return new MeshLambertMaterial({
+      color: new Color(material.color[0], material.color[1], material.color[2]),
+      opacity: material.opacity,
+      transparent: material.transparent
     });
   }
 
 }
 
-class IfcModelReconstructor {
+class SerializedGeometry {
 
-  reconstructModel(serialized) {
-    const model = new IFCModel();
-    model.modelID = serialized.modelID;
-    this.reconstructGeometry(serialized, model);
-    this.getMaterials(serialized, model);
-    return model;
+  constructor(geometry) {
+    var _a,
+      _b,
+      _c,
+      _d;
+    this.position = ((_a = geometry.attributes.position) === null || _a === void 0 ? void 0 : _a.array) || [];
+    this.normal = ((_b = geometry.attributes.normal) === null || _b === void 0 ? void 0 : _b.array) || [];
+    this.expressID = ((_c = geometry.attributes.expressID) === null || _c === void 0 ? void 0 : _c.array) || [];
+    this.index = ((_d = geometry.index) === null || _d === void 0 ? void 0 : _d.array) || [];
+    this.groups = geometry.groups;
   }
 
-  reconstructGeometry(serialized, model) {
-    model.geometry = new BufferGeometry();
-    this.setAttribute(model, 'expressID', new Uint32Array(serialized.expressID), 1);
-    this.setAttribute(model, 'position', new Float32Array(serialized.position), 3);
-    this.setAttribute(model, 'normal', new Float32Array(serialized.normal), 3);
-    model.geometry.setIndex(Array. from (serialized.index));
-    model.geometry.groups = serialized.groups;
+}
+
+class GeometryReconstructor {
+
+  static new(serialized) {
+    const geom = new BufferGeometry();
+    GeometryReconstructor.set(geom, 'expressID', new Uint32Array(serialized.expressID), 1);
+    GeometryReconstructor.set(geom, 'position', new Float32Array(serialized.position), 3);
+    GeometryReconstructor.set(geom, 'normal', new Float32Array(serialized.normal), 3);
+    geom.setIndex(Array. from (serialized.index));
+    geom.groups = serialized.groups;
+    return geom;
   }
 
-  setAttribute(model, name, data, size) {
+  static set(geom, name, data, size) {
     if (data.length > 0) {
-      model.geometry.setAttribute(name, new BufferAttribute(data, size));
+      geom.setAttribute(name, new BufferAttribute(data, size));
     }
   }
 
-  getMaterials(serialized, model) {
+}
+
+class SerializedMesh {
+
+  constructor(model) {
+    this.materials = [];
+    this.modelID = model.modelID;
+    this.geometry = new SerializedGeometry(model.geometry);
+    if (Array.isArray(model.material)) {
+      model.material.forEach(mat => {
+        this.materials.push(new SerializedMaterial(mat));
+      });
+    } else {
+      this.materials.push(new SerializedMaterial(model.material));
+    }
+  }
+
+}
+
+class MeshReconstructor {
+
+  static new(serialized) {
+    const model = new IFCModel();
+    model.modelID = serialized.modelID;
+    model.geometry = GeometryReconstructor.new(serialized.geometry);
+    MeshReconstructor.getMaterials(serialized, model);
+    return model;
+  }
+
+  static getMaterials(serialized, model) {
     model.material = [];
     const mats = model.material;
     serialized.materials.forEach(mat => {
-      mats.push(new MeshLambertMaterial({
-        color: new Color(...mat.color),
-        opacity: mat.opacity,
-        transparent: mat.transparent
-      }));
+      mats.push(MaterialReconstructor.new(mat));
     });
+  }
+
+}
+
+class SerializedGeomsByMaterials {
+
+  constructor(geoms) {
+    const matIDs = Object.keys(geoms);
+    matIDs.forEach(id => {
+      this[id] = {};
+      this[id].material = new SerializedMaterial(geoms[id].material);
+      this[id].geometries = {};
+      const expressIDs = Object.keys(geoms[id].geometries).map(key => parseInt(key));
+      expressIDs.forEach(expressID => {
+        this[id].geometries[expressID] = new SerializedGeometry(geoms[id].geometries[expressID]);
+      });
+    });
+  }
+
+}
+
+class GeomsByMaterialsReconstructor {
+
+  static new(serialized) {
+    const geomsByMat = {};
+    const matIDs = Object.keys(serialized);
+    matIDs.forEach(id => {
+      geomsByMat[id] = {};
+      geomsByMat[id].material = MaterialReconstructor.new(serialized[id].material);
+      geomsByMat[id].geometries = {};
+      const expressIDs = Object.keys(serialized[id].geometries).map(id => parseInt(id));
+      expressIDs.forEach(expressID => {
+        geomsByMat[id].geometries[expressID] = GeometryReconstructor.new(serialized[id].geometries[expressID]);
+      });
+    });
+    return geomsByMat;
   }
 
 }
 
 class Serializer {
-
-  constructor() {
-    this.modelReconstructor = new IfcModelReconstructor();
-  }
 
   serializeVector(vector) {
     const size = vector.size();
@@ -82594,11 +82638,19 @@ class Serializer {
   }
 
   serializeIfcModel(model) {
-    return new SerializedIfcModel(model);
+    return new SerializedMesh(model);
   }
 
   reconstructIfcModel(model) {
-    return this.modelReconstructor.reconstructModel(model);
+    return MeshReconstructor.new(model);
+  }
+
+  serializeGeometriesByMaterials(geoms) {
+    return new SerializedGeomsByMaterials(geoms);
+  }
+
+  reconstructGeometriesByMaterials(geoms) {
+    return GeomsByMaterialsReconstructor.new(geoms);
   }
 
 }
@@ -82907,16 +82959,19 @@ class WorkerStateHandler {
 
 class ParserHandler {
 
-  constructor(handler, serializer) {
+  constructor(handler, serializer, BVH) {
     this.handler = handler;
     this.serializer = serializer;
+    this.BVH = BVH;
     this.API = WorkerAPIs.parser;
   }
 
   async parse(buffer) {
-    this.handler.serializeHandlers[this.handler.requestID] = (model) => {
-      const ifcModel = this.serializer.reconstructIfcModel(model);
+    this.handler.serializeHandlers[this.handler.requestID] = (result) => {
+      const ifcModel = this.serializer.reconstructIfcModel(result.model);
+      this.BVH.applyThreeMeshBVH(ifcModel.geometry);
       this.storeIfcModel(ifcModel);
+      this.handler.state.models[ifcModel.modelID].items = this.serializer.reconstructGeometriesByMaterials(result.items);
       return ifcModel;
     };
     return this.handler.request(this.API, WorkerActions.parse, {
@@ -82940,8 +82995,9 @@ class ParserHandler {
 
 class IFCWorkerHandler {
 
-  constructor(state) {
+  constructor(state, BVH) {
     this.state = state;
+    this.BVH = BVH;
     this.requestID = 0;
     this.rejectHandlers = {};
     this.resolveHandlers = {};
@@ -82952,7 +83008,7 @@ class IFCWorkerHandler {
     this.ifcWorker = new Worker(this.workerPath);
     this.ifcWorker.onmessage = (data) => this.handleResponse(data);
     this.properties = new PropertyHandler(this);
-    this.parser = new ParserHandler(this, this.serializer);
+    this.parser = new ParserHandler(this, this.serializer, this.BVH);
     this.webIfc = new WebIfcHandler(this, this.serializer);
     this.workerState = new WorkerStateHandler(this);
   }
@@ -83192,7 +83248,7 @@ class IFCManager {
   }
 
   async initializeWorkers() {
-    this.worker = new IFCWorkerHandler(this.state);
+    this.worker = new IFCWorkerHandler(this.state, this.BVH);
     this.state.api = this.worker.webIfc;
     this.properties = this.worker.properties;
     this.parser = this.worker.parser;

@@ -5,11 +5,11 @@ import { IfcGeometry } from './IfcGeometry';
 import { FlatMesh } from './FlatMesh';
 import { FlatMeshVector } from './FlatMeshVector';
 import { IFCModel } from '../../components/IFCModel';
-import { IfcModelReconstructor, SerializedIfcModel } from './IFCModel';
+import { MeshReconstructor, SerializedMesh } from './Mesh';
+import { GeometriesByMaterials } from '../../BaseDefinitions';
+import { GeomsByMaterialsReconstructor, SerializedGeomsByMaterials } from './GeomsByMaterials';
 
 export class Serializer {
-
-    private readonly modelReconstructor = new IfcModelReconstructor();
 
     serializeVector<T>(vector: WebIfcVector<T>) {
         const size = vector.size();
@@ -67,10 +67,18 @@ export class Serializer {
     }
 
     serializeIfcModel(model: IFCModel) {
-        return new SerializedIfcModel(model);
+        return new SerializedMesh(model);
     }
 
-    reconstructIfcModel(model: SerializedIfcModel) {
-        return this.modelReconstructor.reconstructModel(model);
+    reconstructIfcModel(model: SerializedMesh) {
+        return MeshReconstructor.new(model);
+    }
+
+    serializeGeometriesByMaterials(geoms: GeometriesByMaterials) {
+        return new SerializedGeomsByMaterials(geoms);
+    }
+
+    reconstructGeometriesByMaterials(geoms: SerializedGeomsByMaterials) {
+        return GeomsByMaterialsReconstructor.new(geoms);
     }
 }

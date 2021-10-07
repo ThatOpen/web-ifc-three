@@ -9,6 +9,13 @@ import {
 import { IFCParser } from '../../components/IFCParser';
 import { BvhManager } from '../../components/BvhManager';
 import { Serializer } from '../serializer/Serializer';
+import { SerializedMesh } from '../serializer/Mesh';
+import { SerializedGeomsByMaterials } from '../serializer/GeomsByMaterials';
+
+export interface ParserResult {
+    model: SerializedMesh;
+    items: SerializedGeomsByMaterials;
+}
 
 export class ParserWorker implements ParserWorkerAPI {
     parser?: IFCParser;
@@ -28,7 +35,13 @@ export class ParserWorker implements ParserWorkerAPI {
         this.initializeParser();
         if (!this.parser) throw new Error(ErrorParserNotAvailable);
         const ifcModel = await this.parser.parse(data.args.buffer);
-        data.result = this.serializer.serializeIfcModel(ifcModel);
+        data.result = {mesh: {}, items: {}};
+        data.result.model = this.serializer.serializeIfcModel(ifcModel);
+        if(this.worker.state && this.worker.state.models[ifcModel.modelID].items) {
+            const items = this.worker.state?.models[ifcModel.modelID].items;
+            data.result.items = this.serializer.serializeGeometriesByMaterials(items);
+            this.worker.state.models[ifcModel.modelID].items = {};
+        }
         this.worker.post(data);
     }
 }

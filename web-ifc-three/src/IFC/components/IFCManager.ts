@@ -354,7 +354,7 @@ export class IFCManager {
     }
 
     private async initializeWorkers() {
-        this.worker = new IFCWorkerHandler(this.state);
+        this.worker = new IFCWorkerHandler(this.state, this.BVH);
         this.state.api = this.worker.webIfc;
         this.properties = this.worker.properties;
         this.parser = this.worker.parser;
