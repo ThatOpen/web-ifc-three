@@ -82967,11 +82967,12 @@ class ParserHandler {
   }
 
   async parse(buffer) {
-    this.handler.serializeHandlers[this.handler.requestID] = (result) => {
-      const ifcModel = this.serializer.reconstructIfcModel(result.model);
+    this.handler.serializeHandlers[this.handler.requestID] = async (result) => {
+      const {model, items} = await this.load();
+      const ifcModel = this.serializer.reconstructIfcModel(model);
       this.BVH.applyThreeMeshBVH(ifcModel.geometry);
       this.storeIfcModel(ifcModel);
-      this.handler.state.models[ifcModel.modelID].items = this.serializer.reconstructGeometriesByMaterials(result.items);
+      this.handler.state.models[ifcModel.modelID].items = this.serializer.reconstructGeometriesByMaterials(items);
       return ifcModel;
     };
     return this.handler.request(this.API, WorkerActions.parse, {
@@ -82980,6 +82981,28 @@ class ParserHandler {
   }
 
   getAndClearErrors(_modelId) {}
+
+  async load() {
+    const open = indexedDB.open("MyDatabase", 1);
+    return new Promise((resolve, reject) => {
+      open.onsuccess = function() {
+        const db = open.result;
+        const tx = db.transaction("MyObjectStore", "readwrite");
+        const store = tx.objectStore("MyObjectStore");
+        const model = store.get(0);
+        const items = store.get(1);
+        tx.oncomplete = function() {
+          db.close();
+          delete model.result.id;
+          delete items.result.id;
+          resolve({
+            model: model.result,
+            items: items.result
+          });
+        };
+      };
+    });
+  }
 
   storeIfcModel(ifcModel) {
     this.handler.state.models[ifcModel.modelID] = {
