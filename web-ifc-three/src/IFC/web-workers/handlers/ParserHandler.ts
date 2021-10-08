@@ -15,14 +15,10 @@ export class ParserHandler implements ParserAPI {
 
     async parse(buffer: any): Promise<IFCModel> {
         this.handler.serializeHandlers[this.handler.requestID] = async (result: ParserResult) => {
-            const {model, items} = await this.load();
-
-            const ifcModel = this.serializer.reconstructIfcModel(model);
-            this.BVH.applyThreeMeshBVH(ifcModel.geometry);
-            this.storeIfcModel(ifcModel);
-            this.handler.state.models[ifcModel.modelID].items = this.serializer.reconstructGeometriesByMaterials(items);
-
-            return ifcModel;
+            // this.handler.closeWorker();
+            this.updateState(result.modelID);
+            await this.getItems(result.modelID);
+            return this.getModel();
         };
         return this.handler.request(this.API, WorkerActions.parse, { buffer });
     }
@@ -30,52 +26,49 @@ export class ParserHandler implements ParserAPI {
     getAndClearErrors(_modelId: number): void {
     }
 
-    private async load() {
-        const open = indexedDB.open("MyDatabase", 1);
-
-        return new Promise<any>((resolve, reject) => {
-            open.onsuccess = function () {
-                // Start a new transaction
-                const db = open.result;
-                const tx = db.transaction("MyObjectStore", "readwrite");
-                const store = tx.objectStore("MyObjectStore");
-                // const index = store.index("NameIndex");
-
-                // Query the data
-
-                const model = store.get(0);
-                const items = store.get(1);
-
-                // const getJohn = store.get(12345);
-                // const getBob = index.get(["Smith", "Bob"]);
-
-                // getJohn.onsuccess = function () {
-                //     console.log(getJohn.result.name.first);  // => "John"
-                // };
-                //
-                // getBob.onsuccess = function () {
-                //     console.log(getBob.result.name.first);   // => "Bob"
-                // };
-
-                // Close the db when the transaction is done
-                tx.oncomplete = function () {
-                    db.close();
-                    delete model.result.id;
-                    delete items.result.id;
-                    resolve({model: model.result, items: items.result});
-                };
-            }
-        })
-    }
-
-    private storeIfcModel(ifcModel: IFCModel) {
-        this.handler.state.models[ifcModel.modelID] = {
-            modelID: ifcModel.modelID,
-            mesh: ifcModel,
+    private updateState(modelID: number) {
+        this.handler.state.models[modelID] = {
+            modelID: modelID,
+            mesh: {} as any,
             items: {},
             types: {},
             jsonData: {}
         };
     }
 
+    private async getItems(modelID: number) {
+        const items = await this.load(1);
+        this.handler.state.models[modelID].items = this.serializer.reconstructGeometriesByMaterials(items);
+    }
+
+    private async getModel() {
+        const serializedModel = await this.load(0);
+        const model = this.serializer.reconstructIfcModel(serializedModel);
+        this.BVH.applyThreeMeshBVH(model.geometry);
+        this.handler.state.models[model.modelID].mesh = model;
+        return model;
+    }
+
+    private async load(id: number) {
+        const open = indexedDB.open(id.toString(), 1);
+
+        return new Promise<any>((resolve, reject) => {
+            open.onsuccess = function () {
+                // Start a new transaction
+                const db = open.result;
+                const tx = db.transaction(id.toString(), "readwrite");
+                const store = tx.objectStore(id.toString());
+
+                // Get the data
+                const item = store.get(id);
+
+                // Close the db when the transaction is done
+                tx.oncomplete = function () {
+                    db.close();
+                    delete item.result.id;
+                    resolve(item.result);
+                };
+            }
+        })
+    }
 }

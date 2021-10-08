@@ -82968,12 +82968,9 @@ class ParserHandler {
 
   async parse(buffer) {
     this.handler.serializeHandlers[this.handler.requestID] = async (result) => {
-      const {model, items} = await this.load();
-      const ifcModel = this.serializer.reconstructIfcModel(model);
-      this.BVH.applyThreeMeshBVH(ifcModel.geometry);
-      this.storeIfcModel(ifcModel);
-      this.handler.state.models[ifcModel.modelID].items = this.serializer.reconstructGeometriesByMaterials(items);
-      return ifcModel;
+      this.updateState(result.modelID);
+      await this.getItems(result.modelID);
+      return this.getModel();
     };
     return this.handler.request(this.API, WorkerActions.parse, {
       buffer
@@ -82982,36 +82979,44 @@ class ParserHandler {
 
   getAndClearErrors(_modelId) {}
 
-  async load() {
-    const open = indexedDB.open("MyDatabase", 1);
-    return new Promise((resolve, reject) => {
-      open.onsuccess = function() {
-        const db = open.result;
-        const tx = db.transaction("MyObjectStore", "readwrite");
-        const store = tx.objectStore("MyObjectStore");
-        const model = store.get(0);
-        const items = store.get(1);
-        tx.oncomplete = function() {
-          db.close();
-          delete model.result.id;
-          delete items.result.id;
-          resolve({
-            model: model.result,
-            items: items.result
-          });
-        };
-      };
-    });
-  }
-
-  storeIfcModel(ifcModel) {
-    this.handler.state.models[ifcModel.modelID] = {
-      modelID: ifcModel.modelID,
-      mesh: ifcModel,
+  updateState(modelID) {
+    this.handler.state.models[modelID] = {
+      modelID: modelID,
+      mesh: {},
       items: {},
       types: {},
       jsonData: {}
     };
+  }
+
+  async getItems(modelID) {
+    const items = await this.load(1);
+    this.handler.state.models[modelID].items = this.serializer.reconstructGeometriesByMaterials(items);
+  }
+
+  async getModel() {
+    const serializedModel = await this.load(0);
+    const model = this.serializer.reconstructIfcModel(serializedModel);
+    this.BVH.applyThreeMeshBVH(model.geometry);
+    this.handler.state.models[model.modelID].mesh = model;
+    return model;
+  }
+
+  async load(id) {
+    const open = indexedDB.open(id.toString(), 1);
+    return new Promise((resolve, reject) => {
+      open.onsuccess = function() {
+        const db = open.result;
+        const tx = db.transaction(id.toString(), "readwrite");
+        const store = tx.objectStore(id.toString());
+        const item = store.get(id);
+        tx.oncomplete = function() {
+          db.close();
+          delete item.result.id;
+          resolve(item.result);
+        };
+      };
+    });
   }
 
 }
@@ -83054,6 +83059,10 @@ class IFCWorkerHandler {
 
   async Close() {
     await this.request(WorkerAPIs.webIfc, WorkerActions.Close);
+  }
+
+  closeWorker() {
+    this.ifcWorker.terminate();
   }
 
   handleResponse(event) {
