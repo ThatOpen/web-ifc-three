@@ -82957,12 +82957,84 @@ class WorkerStateHandler {
 
 }
 
+var DBOperation;
+(function(DBOperation) {
+  DBOperation[DBOperation["transferIfcModel"] = 0] = "transferIfcModel";
+  DBOperation[DBOperation["transferIndividualItems"] = 1] = "transferIndividualItems";
+})(DBOperation || (DBOperation = {}));
+
+class IndexedDatabase {
+
+  save(item, id) {
+    const open = IndexedDatabase.openOrCreateDB(id);
+    this.createSchema(open, id);
+    return new Promise((resolve, reject) => {
+      open.onsuccess = () => this.saveItem(item, open, id, resolve);
+    });
+  }
+
+  async load(id) {
+    const open = IndexedDatabase.openOrCreateDB(id);
+    return new Promise((resolve, reject) => {
+      open.onsuccess = () => this.loadItem(open, id, resolve);
+    });
+  }
+
+  createSchema(open, id) {
+    open.onupgradeneeded = function() {
+      const db = open.result;
+      db.createObjectStore(id.toString(), {
+        keyPath: "id"
+      });
+    };
+  }
+
+  saveItem(item, open, id, resolve) {
+    const {db, tx, store} = IndexedDatabase.getDBItems(open, id);
+    item.id = id;
+    store.put(item);
+    tx.oncomplete = () => IndexedDatabase.closeDB(db, tx, resolve);
+  }
+
+  loadItem(open, id, resolve) {
+    const {db, tx, store} = IndexedDatabase.getDBItems(open, id);
+    const item = store.get(id);
+    const callback = () => {
+      delete item.result.id;
+      resolve(item.result);
+    };
+    tx.oncomplete = () => IndexedDatabase.closeDB(db, tx, callback);
+  }
+
+  static getDBItems(open, id) {
+    const db = open.result;
+    const tx = db.transaction(id.toString(), "readwrite");
+    const store = tx.objectStore(id.toString());
+    return {
+      db,
+      tx,
+      store
+    };
+  }
+
+  static openOrCreateDB(id) {
+    return indexedDB.open(id.toString(), 1);
+  }
+
+  static closeDB(db, tx, resolve) {
+    db.close();
+    resolve("success");
+  }
+
+}
+
 class ParserHandler {
 
-  constructor(handler, serializer, BVH) {
+  constructor(handler, serializer, BVH, IDB) {
     this.handler = handler;
     this.serializer = serializer;
     this.BVH = BVH;
+    this.IDB = IDB;
     this.API = WorkerAPIs.parser;
   }
 
@@ -82990,33 +83062,16 @@ class ParserHandler {
   }
 
   async getItems(modelID) {
-    const items = await this.load(1);
+    const items = await this.IDB.load(DBOperation.transferIndividualItems);
     this.handler.state.models[modelID].items = this.serializer.reconstructGeometriesByMaterials(items);
   }
 
   async getModel() {
-    const serializedModel = await this.load(0);
+    const serializedModel = await this.IDB.load(DBOperation.transferIfcModel);
     const model = this.serializer.reconstructIfcModel(serializedModel);
     this.BVH.applyThreeMeshBVH(model.geometry);
     this.handler.state.models[model.modelID].mesh = model;
     return model;
-  }
-
-  async load(id) {
-    const open = indexedDB.open(id.toString(), 1);
-    return new Promise((resolve, reject) => {
-      open.onsuccess = function() {
-        const db = open.result;
-        const tx = db.transaction(id.toString(), "readwrite");
-        const store = tx.objectStore(id.toString());
-        const item = store.get(id);
-        tx.oncomplete = function() {
-          db.close();
-          delete item.result.id;
-          resolve(item.result);
-        };
-      };
-    });
   }
 
 }
@@ -83032,11 +83087,12 @@ class IFCWorkerHandler {
     this.serializeHandlers = {};
     this.callbacks = {};
     this.serializer = new Serializer();
+    this.IDB = new IndexedDatabase();
     this.workerPath = this.state.worker.path;
     this.ifcWorker = new Worker(this.workerPath);
     this.ifcWorker.onmessage = (data) => this.handleResponse(data);
     this.properties = new PropertyHandler(this);
-    this.parser = new ParserHandler(this, this.serializer, this.BVH);
+    this.parser = new ParserHandler(this, this.serializer, this.BVH, this.IDB);
     this.webIfc = new WebIfcHandler(this, this.serializer);
     this.workerState = new WorkerStateHandler(this);
   }

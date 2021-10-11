@@ -5,17 +5,20 @@ import { IFCModel } from '../../components/IFCModel';
 import { Serializer } from '../serializer/Serializer';
 import { ParserResult } from '../workers/ParserWorker';
 import { BvhManager } from '../../components/BvhManager';
+import {DBOperation, IndexedDatabase} from "../../indexedDB/IndexedDatabase";
 
 export class ParserHandler implements ParserAPI {
 
     API = WorkerAPIs.parser;
 
-    constructor(private handler: IFCWorkerHandler, private serializer: Serializer, private BVH: BvhManager) {
+    constructor(private handler: IFCWorkerHandler,
+                private serializer: Serializer,
+                private BVH: BvhManager,
+                private IDB: IndexedDatabase) {
     }
 
     async parse(buffer: any): Promise<IFCModel> {
         this.handler.serializeHandlers[this.handler.requestID] = async (result: ParserResult) => {
-            // this.handler.closeWorker();
             this.updateState(result.modelID);
             await this.getItems(result.modelID);
             return this.getModel();
@@ -37,38 +40,15 @@ export class ParserHandler implements ParserAPI {
     }
 
     private async getItems(modelID: number) {
-        const items = await this.load(1);
+        const items = await this.IDB.load(DBOperation.transferIndividualItems);
         this.handler.state.models[modelID].items = this.serializer.reconstructGeometriesByMaterials(items);
     }
 
     private async getModel() {
-        const serializedModel = await this.load(0);
+        const serializedModel = await this.IDB.load(DBOperation.transferIfcModel);
         const model = this.serializer.reconstructIfcModel(serializedModel);
         this.BVH.applyThreeMeshBVH(model.geometry);
         this.handler.state.models[model.modelID].mesh = model;
         return model;
-    }
-
-    private async load(id: number) {
-        const open = indexedDB.open(id.toString(), 1);
-
-        return new Promise<any>((resolve, reject) => {
-            open.onsuccess = function () {
-                // Start a new transaction
-                const db = open.result;
-                const tx = db.transaction(id.toString(), "readwrite");
-                const store = tx.objectStore(id.toString());
-
-                // Get the data
-                const item = store.get(id);
-
-                // Close the db when the transaction is done
-                tx.oncomplete = function () {
-                    db.close();
-                    delete item.result.id;
-                    resolve(item.result);
-                };
-            }
-        })
     }
 }

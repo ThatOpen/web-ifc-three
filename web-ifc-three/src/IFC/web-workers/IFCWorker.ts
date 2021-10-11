@@ -7,13 +7,14 @@ import {
     WorkerAPIs,
     WorkerStateAPI
 } from './BaseDefinitions';
-import { Serializer } from './serializer/Serializer';
-import { WebIfcWorker } from './workers/WebIfcWorker';
-import { IfcState, WebIfcAPI } from '../BaseDefinitions';
-import { PropertyWorker } from './workers/PropertyWorker';
-import { StateWorker } from './workers/StateWorker';
-import { BvhManager } from '../components/BvhManager';
-import { ParserWorker } from './workers/ParserWorker';
+import {Serializer} from './serializer/Serializer';
+import {WebIfcWorker} from './workers/WebIfcWorker';
+import {IfcState, WebIfcAPI} from '../BaseDefinitions';
+import {PropertyWorker} from './workers/PropertyWorker';
+import {StateWorker} from './workers/StateWorker';
+import {BvhManager} from '../components/BvhManager';
+import {ParserWorker} from './workers/ParserWorker';
+import {IndexedDatabase} from "../indexedDB/IndexedDatabase";
 
 class IFCWorker implements RootWorker {
     private readonly serializer = new Serializer();
@@ -24,13 +25,15 @@ class IFCWorker implements RootWorker {
     properties: PropertyWorkerAPI;
     parser: ParserWorker;
     BVH: BvhManager;
+    IDB: IndexedDatabase
 
     constructor() {
+        this.IDB = new IndexedDatabase();
         this.BVH = new BvhManager();
         this.workerState = new StateWorker(this);
         this.webIfc = new WebIfcWorker(this, this.serializer);
         this.properties = new PropertyWorker(this);
-        this.parser = new ParserWorker(this, this.serializer, this.BVH);
+        this.parser = new ParserWorker(this, this.serializer, this.BVH, this.IDB);
     }
 
     initializeAPI(api: WebIfcAPI) {
@@ -38,7 +41,7 @@ class IFCWorker implements RootWorker {
             models: [],
             api,
             useJSON: false,
-            worker: { active: false, path: '' }
+            worker: {active: false, path: ''}
         };
     }
 
@@ -57,7 +60,7 @@ const ifcWorker = new IFCWorker();
 
 self.onmessage = async (event: MessageEvent) => {
     const data = event.data as IfcEventData;
-    const { worker, action } = data;
+    const {worker, action} = data;
     checkRequestIsValid(worker, action);
     const requestedWorker = ifcWorker[worker] as any;
     requestedWorker[action](data);
