@@ -152,6 +152,7 @@ export interface SerializedFlatMesh {
     expressID: number;
 }
 
+export const ErrorStateNotAvailable = 'The state of the worker does not exist';
 export const ErrorRootStateNotAvailable = 'The root worker does not have any state';
 export const ErrorPropertiesNotAvailable = 'Error: Properties not available from web worker';
 export const ErrorParserNotAvailable = 'Error: Parser not available from web worker';

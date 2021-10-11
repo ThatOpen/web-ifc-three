@@ -83061,10 +83061,6 @@ class IFCWorkerHandler {
     await this.request(WorkerAPIs.webIfc, WorkerActions.Close);
   }
 
-  closeWorker() {
-    this.ifcWorker.terminate();
-  }
-
   handleResponse(event) {
     const data = event.data;
     const id = data.id;
