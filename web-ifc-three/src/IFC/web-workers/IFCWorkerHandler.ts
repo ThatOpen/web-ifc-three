@@ -4,6 +4,10 @@ import { PropertyHandler } from './handlers/PropertyHandler';
 import { WebIfcHandler } from './handlers/WebIfcHandler';
 import { IfcState } from '../BaseDefinitions';
 import { WorkerStateHandler } from './handlers/WorkerStateHandler';
+import { ParserHandler } from './handlers/ParserHandler';
+import { BVH } from 'three/examples/jsm/loaders/BVHLoader';
+import { BvhManager } from '../components/BvhManager';
+import {IndexedDatabase} from "../indexedDB/IndexedDatabase";
 
 export class IFCWorkerHandler {
 
@@ -13,19 +17,23 @@ export class IFCWorkerHandler {
     serializeHandlers: any = {};
     callbacks: { [id: number]: { action: any, serializer: any } } = {};
 
+    readonly IDB: IndexedDatabase;
     readonly workerState: WorkerStateHandler;
     readonly webIfc: WebIfcHandler;
     readonly properties: PropertyHandler;
+    readonly parser: ParserHandler;
 
     private ifcWorker: Worker;
     private readonly serializer = new Serializer();
     private readonly workerPath: string;
 
-    constructor(public state: IfcState) {
+    constructor(public state: IfcState, private BVH: BvhManager) {
+        this.IDB = new IndexedDatabase();
         this.workerPath = this.state.worker.path;
         this.ifcWorker = new Worker(this.workerPath);
         this.ifcWorker.onmessage = (data: any) => this.handleResponse(data);
         this.properties = new PropertyHandler(this);
+        this.parser = new ParserHandler(this, this.serializer, this.BVH, this.IDB);
         this.webIfc = new WebIfcHandler(this, this.serializer);
         this.workerState = new WorkerStateHandler(this);
     }
@@ -48,7 +56,6 @@ export class IFCWorkerHandler {
     private handleResponse(event: MessageEvent) {
         const data = event.data as IfcEventData;
         const id = data.id;
-
         try {
             this.resolveSerializations(data);
             this.resolveCallbacks(data);

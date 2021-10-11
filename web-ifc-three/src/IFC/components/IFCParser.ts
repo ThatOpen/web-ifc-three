@@ -6,7 +6,7 @@ import {
     IdAttrName,
     merge,
     newFloatAttr,
-    newIntAttr,
+    newIntAttr
 } from '../BaseDefinitions';
 import {
     Color,
@@ -18,7 +18,13 @@ import {
     Material
 } from 'three';
 import { BvhManager } from './BvhManager';
-import {IFCModel} from "./IFCModel";
+import { IFCModel } from './IFCModel';
+
+export interface ParserAPI {
+    parse(buffer: any): Promise<IFCModel>;
+
+    getAndClearErrors(_modelId: number): void;
+}
 
 /**
  * Reads all the geometry of the IFC file and generates an optimized `THREE.Mesh`.
@@ -31,7 +37,8 @@ export class IFCParser {
     // This means that currentID is always 0, while currentModelID is the real index of stored models
     private currentModelID = -1;
 
-    constructor(private state: IfcState, private BVH: BvhManager) {}
+    constructor(private state: IfcState, private BVH: BvhManager) {
+    }
 
     async parse(buffer: any) {
         if (this.state.api.wasmModule === undefined) await this.state.api.Init();
@@ -40,7 +47,7 @@ export class IFCParser {
         return this.loadAllGeometry();
     }
 
-    getAndClearErrors(_modelId: number){
+    getAndClearErrors(_modelId: number) {
         // return this.state.api.GetAndClearErrors(modelId);
     }
 
@@ -76,7 +83,7 @@ export class IFCParser {
         const mergedByMaterial: BufferGeometry[] = [];
         const materials: Material[] = [];
         for (let materialID in items) {
-            if(items.hasOwnProperty(materialID)) {
+            if (items.hasOwnProperty(materialID)) {
                 materials.push(items[materialID].material);
                 const geometries = Object.values(items[materialID].geometries);
                 mergedByMaterial.push(merge(geometries));
