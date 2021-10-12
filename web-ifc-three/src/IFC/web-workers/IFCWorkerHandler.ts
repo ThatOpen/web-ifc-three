@@ -1,12 +1,12 @@
-import { IfcEventData, WorkerActions, WorkerAPIs } from './BaseDefinitions';
-import { Serializer } from './serializer/Serializer';
-import { PropertyHandler } from './handlers/PropertyHandler';
-import { WebIfcHandler } from './handlers/WebIfcHandler';
-import { IfcState } from '../BaseDefinitions';
-import { WorkerStateHandler } from './handlers/WorkerStateHandler';
-import { ParserHandler } from './handlers/ParserHandler';
-import { BVH } from 'three/examples/jsm/loaders/BVHLoader';
-import { BvhManager } from '../components/BvhManager';
+import {IfcEventData, WorkerActions, WorkerAPIs} from './BaseDefinitions';
+import {Serializer} from './serializer/Serializer';
+import {PropertyHandler} from './handlers/PropertyHandler';
+import {WebIfcHandler} from './handlers/WebIfcHandler';
+import {IfcState} from '../BaseDefinitions';
+import {WorkerStateHandler} from './handlers/WorkerStateHandler';
+import {ParserHandler} from './handlers/ParserHandler';
+import {BVH} from 'three/examples/jsm/loaders/BVHLoader';
+import {BvhManager} from '../components/BvhManager';
 import {IndexedDatabase} from "../indexedDB/IndexedDatabase";
 
 export class IFCWorkerHandler {
@@ -15,7 +15,8 @@ export class IFCWorkerHandler {
     rejectHandlers: any = {};
     resolveHandlers: any = {};
     serializeHandlers: any = {};
-    callbacks: { [id: number]: { action: any, serializer: any } } = {};
+    callbackHandlers: { [id: number]: { action: any, serializer: any } } = {};
+    onprogressHandlers: any = {};
 
     readonly IDB: IndexedDatabase;
     readonly workerState: WorkerStateHandler;
@@ -39,7 +40,7 @@ export class IFCWorkerHandler {
     }
 
     request(worker: WorkerAPIs, action: WorkerActions, args?: any) {
-        const data: IfcEventData = { worker, action, args, id: this.requestID, result: undefined };
+        const data: IfcEventData = {worker, action, args, id: this.requestID, result: undefined, onProgress: false};
 
         return new Promise<any>((resolve, reject) => {
             this.resolveHandlers[this.requestID] = resolve;
@@ -55,36 +56,46 @@ export class IFCWorkerHandler {
 
     private handleResponse(event: MessageEvent) {
         const data = event.data as IfcEventData;
-        const id = data.id;
+        if (data.onProgress) {
+            this.resolveOnProgress(data);
+            return;
+        }
+        this.callHandlers(data);
+        delete this.resolveHandlers[data.id];
+        delete this.rejectHandlers[data.id];
+        delete this.onprogressHandlers[data.id];
+    }
+
+    private callHandlers(data: IfcEventData) {
         try {
             this.resolveSerializations(data);
             this.resolveCallbacks(data);
-            this.resolveHandlers[id](data.result);
-
+            this.resolveHandlers[data.id](data.result);
         } catch (error) {
-            this.rejectHandlers[id](data.result);
+            this.rejectHandlers[data.id](error);
         }
-        delete this.resolveHandlers[id];
-        delete this.rejectHandlers[id];
+    }
+
+    private resolveOnProgress(data: IfcEventData) {
+        if (this.onprogressHandlers[data.id]) {
+            data.result = this.onprogressHandlers[data.id](data.result);
+        }
     }
 
     private resolveSerializations(data: IfcEventData) {
-        const id = data.id;
-        if (this.serializeHandlers[id]) {
-            data.result = this.serializeHandlers[id](data.result);
-            delete this.serializeHandlers[id];
+        if (this.serializeHandlers[data.id]) {
+            data.result = this.serializeHandlers[data.id](data.result);
+            delete this.serializeHandlers[data.id];
         }
     }
 
     private resolveCallbacks(data: IfcEventData) {
-        const id = data.id;
-        if (this.callbacks[id]) {
+        if (this.callbackHandlers[data.id]) {
             let callbackParameter = data.result;
-            if (this.callbacks[id].serializer) {
-                callbackParameter = this.callbacks[id].serializer(data.result);
+            if (this.callbackHandlers[data.id].serializer) {
+                callbackParameter = this.callbackHandlers[data.id].serializer(data.result);
             }
-            this.callbacks[id].action(callbackParameter);
-            delete this.callbacks[id];
+            this.callbackHandlers[data.id].action(callbackParameter);
         }
     }
 }

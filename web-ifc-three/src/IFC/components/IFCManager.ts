@@ -1,5 +1,5 @@
 import * as WebIFC from 'web-ifc';
-import { IFCParser, ParserAPI } from './IFCParser';
+import {IFCParser, ParserAPI, ParserProgress} from './IFCParser';
 import { SubsetManager } from './SubsetManager';
 import { PropertyManager } from './properties/PropertyManager';
 import { IfcElements } from './IFCElementsMap';
@@ -40,6 +40,10 @@ export class IFCManager {
         this.state.useJSON ? await this.disposeMemory() : await this.types.getAllTypes(this.worker);
         this.hider.processCoordinates(model.modelID);
         return model;
+    }
+
+    setOnProgress(onProgress: (event: ParserProgress) => void) {
+        this.state.onProgress = onProgress;
     }
 
     getAndClearErrors(modelID: number) {

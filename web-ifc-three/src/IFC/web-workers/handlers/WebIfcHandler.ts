@@ -111,7 +111,7 @@ export class WebIfcHandler implements WebIfcAPI {
     }
 
     async StreamAllMeshes(modelID: number, meshCallback: (mesh: FlatMesh) => void): Promise<void> {
-        this.handler.callbacks[this.handler.requestID] = {
+        this.handler.callbackHandlers[this.handler.requestID] = {
             action: meshCallback,
             serializer: this.serializer.reconstructFlatMesh
         };
@@ -119,7 +119,7 @@ export class WebIfcHandler implements WebIfcAPI {
     }
 
     async StreamAllMeshesWithTypes(modelID: number, types: number[], meshCallback: (mesh: FlatMesh) => void): Promise<void> {
-        this.handler.callbacks[this.handler.requestID] = {
+        this.handler.callbackHandlers[this.handler.requestID] = {
             action: meshCallback,
             serializer: this.serializer.reconstructFlatMesh
         };

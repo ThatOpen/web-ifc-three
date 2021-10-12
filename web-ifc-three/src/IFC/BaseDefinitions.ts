@@ -10,6 +10,7 @@ import {
     IFCRELDEFINESBYPROPERTIES,
     IFCRELDEFINESBYTYPE, LoaderError, LoaderSettings, RawLineData, Vector
 } from 'web-ifc';
+import {ParserProgress} from "./components/IFCParser";
 
 export const IdAttrName = 'expressID';
 
@@ -91,6 +92,7 @@ export interface IfcState {
     useJSON: boolean;
     worker: Worker;
     webIfcSettings?: LoaderSettings;
+    onProgress?: (event: ParserProgress) => void;
 }
 
 export interface IfcMesh extends Mesh {

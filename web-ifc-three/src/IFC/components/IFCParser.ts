@@ -1,5 +1,5 @@
 //@ts-ignore
-import { PlacedGeometry, Color as ifcColor, IfcGeometry } from 'web-ifc';
+import {PlacedGeometry, Color as ifcColor, IfcGeometry} from 'web-ifc';
 import {
     IfcState,
     IfcMesh,
@@ -17,8 +17,13 @@ import {
     BufferAttribute,
     Material
 } from 'three';
-import { BvhManager } from './BvhManager';
-import { IFCModel } from './IFCModel';
+import {BvhManager} from './BvhManager';
+import {IFCModel} from './IFCModel';
+
+export interface ParserProgress {
+    loaded: number;
+    total: number;
+}
 
 export interface ParserAPI {
     parse(buffer: any): Promise<IFCModel>;
@@ -31,6 +36,7 @@ export interface ParserAPI {
  */
 export class IFCParser {
     loadedModels = 0;
+
     // Represents the index of the model in webIfcAPI
     private currentWebIfcID = -1;
     // When using JSON data for optimization, webIfcAPI is reinitialized every time a model is loaded
@@ -49,6 +55,10 @@ export class IFCParser {
 
     getAndClearErrors(_modelId: number) {
         // return this.state.api.GetAndClearErrors(modelId);
+    }
+
+    private notifyProgress(loaded: number, total: number) {
+        if (this.state.onProgress) this.state.onProgress({loaded, total});
     }
 
     private async newIfcModel(buffer: any) {
@@ -70,7 +80,7 @@ export class IFCParser {
     }
 
     private generateAllGeometriesByMaterial() {
-        const { geometry, materials } = this.getGeometryAndMaterials();
+        const {geometry, materials} = this.getGeometryAndMaterials();
         this.BVH.applyThreeMeshBVH(geometry);
         const mesh = new IFCModel(geometry, materials);
         mesh.modelID = this.currentModelID;
@@ -90,12 +100,18 @@ export class IFCParser {
             }
         }
         const geometry = merge(mergedByMaterial, true);
-        return { geometry, materials };
+        return {geometry, materials};
     }
 
     private async saveAllPlacedGeometriesByMaterial() {
         const flatMeshes = await this.state.api.LoadAllGeometry(this.currentWebIfcID);
-        for (let i = 0; i < flatMeshes.size(); i++) {
+        const size = flatMeshes.size();
+        let counter = 0;
+        for (let i = 0; i < size; i++) {
+            if(i > counter) {
+                this.notifyProgress(i, size);
+                counter += Math.trunc(size / 10);
+            }
             const flatMesh = flatMeshes.get(i);
             const placedGeom = flatMesh.geometries;
             for (let j = 0; j < placedGeom.size(); j++) {
@@ -116,7 +132,7 @@ export class IFCParser {
         const geometry = await this.state.api.GetGeometry(this.currentWebIfcID, placed.geometryExpressID);
         const vertexData = await this.getVertices(geometry);
         const indices = await this.getIndices(geometry);
-        const { vertices, normals } = IFCParser.extractVertexData(vertexData);
+        const {vertices, normals} = IFCParser.extractVertexData(vertexData);
         return IFCParser.ifcGeomToBufferGeom(vertices, normals, indices);
     }
 
@@ -154,7 +170,7 @@ export class IFCParser {
             isNormalData ? normals.push(vertexData[i]) : vertices.push(vertexData[i]);
             if ((i + 1) % 3 == 0) isNormalData = !isNormalData;
         }
-        return { vertices, normals };
+        return {vertices, normals};
     }
 
     private saveGeometryByMaterial(geom: BufferGeometry, placedGeom: PlacedGeometry, id: number) {
@@ -178,9 +194,9 @@ export class IFCParser {
         const items = this.state.models[this.currentModelID].items;
         if (items[colorID]) return;
         const col = new Color(color.x, color.y, color.z);
-        const newMaterial = new MeshLambertMaterial({ color: col, side: DoubleSide });
+        const newMaterial = new MeshLambertMaterial({color: col, side: DoubleSide});
         newMaterial.transparent = color.w !== 1;
         if (newMaterial.transparent) newMaterial.opacity = color.w;
-        items[colorID] = { material: newMaterial, geometries: {} };
+        items[colorID] = {material: newMaterial, geometries: {}};
     }
 }

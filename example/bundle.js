@@ -80481,6 +80481,14 @@ class IFCParser {
 
   getAndClearErrors(_modelId) {}
 
+  notifyProgress(loaded, total) {
+    if (this.state.onProgress)
+      this.state.onProgress({
+        loaded,
+        total
+      });
+  }
+
   async newIfcModel(buffer) {
     const data = new Uint8Array(buffer);
     this.currentWebIfcID = await this.state.api.OpenModel(data, this.state.webIfcSettings);
@@ -80528,7 +80536,13 @@ class IFCParser {
 
   async saveAllPlacedGeometriesByMaterial() {
     const flatMeshes = await this.state.api.LoadAllGeometry(this.currentWebIfcID);
-    for (let i = 0; i < flatMeshes.size(); i++) {
+    const size = flatMeshes.size();
+    let counter = 0;
+    for (let i = 0; i < size; i++) {
+      if (i > counter) {
+        this.notifyProgress(i, size);
+        counter += Math.trunc(size / 10);
+      }
       const flatMesh = flatMeshes.get(i);
       const placedGeom = flatMesh.geometries;
       for (let j = 0; j < placedGeom.size(); j++) {
@@ -82866,7 +82880,7 @@ class WebIfcHandler {
   }
 
   async StreamAllMeshes(modelID, meshCallback) {
-    this.handler.callbacks[this.handler.requestID] = {
+    this.handler.callbackHandlers[this.handler.requestID] = {
       action: meshCallback,
       serializer: this.serializer.reconstructFlatMesh
     };
@@ -82876,7 +82890,7 @@ class WebIfcHandler {
   }
 
   async StreamAllMeshesWithTypes(modelID, types, meshCallback) {
-    this.handler.callbacks[this.handler.requestID] = {
+    this.handler.callbackHandlers[this.handler.requestID] = {
       action: meshCallback,
       serializer: this.serializer.reconstructFlatMesh
     };
@@ -83039,6 +83053,10 @@ class ParserHandler {
   }
 
   async parse(buffer) {
+    this.handler.onprogressHandlers[this.handler.requestID] = (progress) => {
+      if (this.handler.state.onProgress)
+        this.handler.state.onProgress(progress);
+    };
     this.handler.serializeHandlers[this.handler.requestID] = async (result) => {
       this.updateState(result.modelID);
       await this.getItems(result.modelID);
@@ -83085,7 +83103,8 @@ class IFCWorkerHandler {
     this.rejectHandlers = {};
     this.resolveHandlers = {};
     this.serializeHandlers = {};
-    this.callbacks = {};
+    this.callbackHandlers = {};
+    this.onprogressHandlers = {};
     this.serializer = new Serializer();
     this.IDB = new IndexedDatabase();
     this.workerPath = this.state.worker.path;
@@ -83103,7 +83122,8 @@ class IFCWorkerHandler {
       action,
       args,
       id: this.requestID,
-      result: undefined
+      result: undefined,
+      onProgress: false
     };
     return new Promise((resolve, reject) => {
       this.resolveHandlers[this.requestID] = resolve;
@@ -83119,35 +83139,46 @@ class IFCWorkerHandler {
 
   handleResponse(event) {
     const data = event.data;
-    const id = data.id;
+    if (data.onProgress) {
+      this.resolveOnProgress(data);
+      return;
+    }
+    this.callHandlers(data);
+    delete this.resolveHandlers[data.id];
+    delete this.rejectHandlers[data.id];
+    delete this.onprogressHandlers[data.id];
+  }
+
+  callHandlers(data) {
     try {
       this.resolveSerializations(data);
       this.resolveCallbacks(data);
-      this.resolveHandlers[id](data.result);
+      this.resolveHandlers[data.id](data.result);
     } catch (error) {
-      this.rejectHandlers[id](data.result);
+      this.rejectHandlers[data.id](error);
     }
-    delete this.resolveHandlers[id];
-    delete this.rejectHandlers[id];
+  }
+
+  resolveOnProgress(data) {
+    if (this.onprogressHandlers[data.id]) {
+      data.result = this.onprogressHandlers[data.id](data.result);
+    }
   }
 
   resolveSerializations(data) {
-    const id = data.id;
-    if (this.serializeHandlers[id]) {
-      data.result = this.serializeHandlers[id](data.result);
-      delete this.serializeHandlers[id];
+    if (this.serializeHandlers[data.id]) {
+      data.result = this.serializeHandlers[data.id](data.result);
+      delete this.serializeHandlers[data.id];
     }
   }
 
   resolveCallbacks(data) {
-    const id = data.id;
-    if (this.callbacks[id]) {
+    if (this.callbackHandlers[data.id]) {
       let callbackParameter = data.result;
-      if (this.callbacks[id].serializer) {
-        callbackParameter = this.callbacks[id].serializer(data.result);
+      if (this.callbackHandlers[data.id].serializer) {
+        callbackParameter = this.callbackHandlers[data.id].serializer(data.result);
       }
-      this.callbacks[id].action(callbackParameter);
-      delete this.callbacks[id];
+      this.callbackHandlers[data.id].action(callbackParameter);
     }
   }
 
@@ -83180,6 +83211,10 @@ class IFCManager {
     this.state.useJSON ? await this.disposeMemory() : await this.types.getAllTypes(this.worker);
     this.hider.processCoordinates(model.modelID);
     return model;
+  }
+
+  setOnProgress(onProgress) {
+    this.state.onProgress = onProgress;
   }
 
   getAndClearErrors(modelID) {
@@ -83351,6 +83386,7 @@ class IFCLoader extends Loader {
   load(url, onLoad, onProgress, onError) {
     const scope = this;
     const loader = new FileLoader(scope.manager);
+    this.onProgress = onProgress;
     loader.setPath(scope.path);
     loader.setResponseType('arraybuffer');
     loader.setRequestHeader(scope.requestHeader);
@@ -87123,6 +87159,7 @@ class IfcManager {
 
     async loadIFC(changed) {
         const ifcURL = URL.createObjectURL(changed.target.files[0]);
+        this.ifcLoader.ifcManager.setOnProgress((event) => console.log(event));
         const ifcModel = await this.ifcLoader.loadAsync(ifcURL);
         this.ifcModels.push(ifcModel);
         this.scene.add(ifcModel);

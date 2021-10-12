@@ -4,6 +4,7 @@ import { IFCModel } from './IFC/components/IFCModel';
 
 class IFCLoader extends Loader {
     ifcManager: IFCManager;
+    private onProgress?: (event: ProgressEvent) => void;
 
     constructor(manager?: LoadingManager) {
         super(manager);
@@ -19,6 +20,7 @@ class IFCLoader extends Loader {
         const scope = this;
 
         const loader = new FileLoader(scope.manager);
+        this.onProgress = onProgress;
         loader.setPath(scope.path);
         loader.setResponseType('arraybuffer');
         loader.setRequestHeader(scope.requestHeader);

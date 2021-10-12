@@ -1,10 +1,10 @@
-import { ParserAPI } from '../../components/IFCParser';
-import { WorkerActions, WorkerAPIs } from '../BaseDefinitions';
-import { IFCWorkerHandler } from '../IFCWorkerHandler';
-import { IFCModel } from '../../components/IFCModel';
-import { Serializer } from '../serializer/Serializer';
-import { ParserResult } from '../workers/ParserWorker';
-import { BvhManager } from '../../components/BvhManager';
+import {ParserAPI, ParserProgress} from '../../components/IFCParser';
+import {WorkerActions, WorkerAPIs} from '../BaseDefinitions';
+import {IFCWorkerHandler} from '../IFCWorkerHandler';
+import {IFCModel} from '../../components/IFCModel';
+import {Serializer} from '../serializer/Serializer';
+import {ParserResult} from '../workers/ParserWorker';
+import {BvhManager} from '../../components/BvhManager';
 import {DBOperation, IndexedDatabase} from "../../indexedDB/IndexedDatabase";
 
 export class ParserHandler implements ParserAPI {
@@ -18,12 +18,15 @@ export class ParserHandler implements ParserAPI {
     }
 
     async parse(buffer: any): Promise<IFCModel> {
+        this.handler.onprogressHandlers[this.handler.requestID] = (progress: ParserProgress) => {
+            if (this.handler.state.onProgress) this.handler.state.onProgress(progress);
+        };
         this.handler.serializeHandlers[this.handler.requestID] = async (result: ParserResult) => {
             this.updateState(result.modelID);
             await this.getItems(result.modelID);
             return this.getModel();
         };
-        return this.handler.request(this.API, WorkerActions.parse, { buffer });
+        return this.handler.request(this.API, WorkerActions.parse, {buffer});
     }
 
     getAndClearErrors(_modelId: number): void {

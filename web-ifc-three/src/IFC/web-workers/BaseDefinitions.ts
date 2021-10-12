@@ -71,6 +71,7 @@ export interface IfcEventData {
     args: any;
     id: number;
     result: any;
+    onProgress: boolean;
 }
 
 export interface RootWorker {

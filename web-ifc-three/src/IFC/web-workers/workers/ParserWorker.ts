@@ -7,7 +7,7 @@ import {
     ParserWorkerAPI,
     WorkerAPIs
 } from '../BaseDefinitions';
-import {IFCParser} from '../../components/IFCParser';
+import {IFCParser, ParserProgress} from '../../components/IFCParser';
 import {BvhManager} from '../../components/BvhManager';
 import {Serializer} from '../serializer/Serializer';
 import {IdGeometries} from "../../BaseDefinitions";
@@ -37,10 +37,16 @@ export class ParserWorker implements ParserWorkerAPI {
 
     async parse(data: IfcEventData): Promise<void> {
         this.initializeParser();
+        if(this.parser === undefined) throw new Error(ErrorParserNotAvailable);
+        if(this.worker.state) this.worker.state.onProgress = (event: ParserProgress) => this.onProgress(event, data);
         const {serializedIfcModel, serializedItems} = await this.getResponse(data);
         await this.IDB.save(serializedIfcModel, DBOperation.transferIfcModel);
         await this.IDB.save(serializedItems, DBOperation.transferIndividualItems);
         this.worker.post(data);
+    }
+
+    private onProgress(event: ParserProgress, data: IfcEventData) {
+        this.worker.post({...data, onProgress: true, result: event});
     }
 
     private async getResponse(data: IfcEventData) {
