@@ -42,10 +42,17 @@ export class IFCManager {
         return model;
     }
 
+    /**
+     * Sets a callback function that is called every 10% of IFC loaded.
+     * @onProgress callback function
+     */
     setOnProgress(onProgress: (event: ParserProgress) => void) {
         this.state.onProgress = onProgress;
     }
 
+    /**
+     * For internal use of IFC.js dev team and testers
+     */
     getAndClearErrors(modelID: number) {
         return this.parser.getAndClearErrors(modelID);
     }
