@@ -80535,6 +80535,7 @@ class IFCParser {
   }
 
   async saveAllPlacedGeometriesByMaterial() {
+    await this.getAllIfcSpaces();
     const flatMeshes = await this.state.api.LoadAllGeometry(this.currentWebIfcID);
     const size = flatMeshes.size();
     let counter = 0;
@@ -80549,6 +80550,16 @@ class IFCParser {
         await this.savePlacedGeometry(placedGeom.get(j), flatMesh.expressID);
       }
     }
+  }
+
+  async getAllIfcSpaces() {
+    await this.state.api.StreamAllMeshesWithTypes(this.currentWebIfcID, [IFCSPACE], async (mesh) => {
+      const geometries = mesh.geometries;
+      const size = geometries.size();
+      for (let j = 0; j < size; j++) {
+        await this.savePlacedGeometry(geometries.get(j), mesh.expressID);
+      }
+    });
   }
 
   async savePlacedGeometry(placedGeometry, id) {

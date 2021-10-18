@@ -1,3 +1,5 @@
+import { IFCSPACE } from 'web-ifc'
+import { MeshBasicMaterial } from 'three';
 import { IFCLoader } from 'web-ifc-three/dist/IFCLoader';
 import { acceleratedRaycast, computeBoundsTree, disposeBoundsTree } from 'three-mesh-bvh';
 
@@ -48,6 +50,7 @@ export class IfcManager {
 
     async loadIFC(changed) {
         const ifcURL = URL.createObjectURL(changed.target.files[0]);
+        this.ifcLoader.ifcManager.setOnProgress((event) => console.log(event));
         const ifcModel = await this.ifcLoader.loadAsync(ifcURL);
         this.ifcModels.push(ifcModel);
         this.scene.add(ifcModel);
