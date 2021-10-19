@@ -14,7 +14,7 @@ export class WebIfcPropertyManager extends BasePropertyManager  implements Prope
         const allLines = await this.state.api.GetLineIDsWithType(modelID, IFCPROJECT);
         const projectID = allLines.get(0);
         const project = WebIfcPropertyManager.newIfcProject(projectID);
-        this.getSpatialNode(modelID, project, chunks, includeProperties);
+        await this.getSpatialNode(modelID, project, chunks, includeProperties);
         return project;
     }
 

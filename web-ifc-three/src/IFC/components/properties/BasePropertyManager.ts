@@ -1,5 +1,4 @@
 import { IfcState, pName, PropsNames, Node } from '../../BaseDefinitions';
-import { IfcElements } from '../IFCElementsMap';
 
 export class BasePropertyManager {
 
@@ -18,24 +17,27 @@ export class BasePropertyManager {
         return await this.getProperty(modelID, elementID, recursive, PropsNames.materials);
     }
 
-    protected getSpatialNode(modelID: number, node: Node, treeChunks: any, includeProperties?: boolean) {
-        this.getChildren(modelID, node, treeChunks, PropsNames.aggregates, includeProperties);
-        this.getChildren(modelID, node, treeChunks, PropsNames.spatial, includeProperties);
+    protected async getSpatialNode(modelID: number, node: Node, treeChunks: any, includeProperties?: boolean) {
+        await this.getChildren(modelID, node, treeChunks, PropsNames.aggregates, includeProperties);
+        await this.getChildren(modelID, node, treeChunks, PropsNames.spatial, includeProperties);
     }
 
-    protected getChildren(modelID: number, node: Node, treeChunks: any, propNames: pName, includeProperties?: boolean) {
+    protected async getChildren(modelID: number, node: Node, treeChunks: any, propNames: pName, includeProperties?: boolean) {
         const children = treeChunks[node.expressID];
         if (children == undefined) return;
         const prop = propNames.key as keyof Node;
-        (node[prop] as Node[]) = children.map((child: number) => {
+        const nodes: any[] = [];
+        for(let i = 0; i < children.length; i++){
+            const child = children[i];
             let node = this.newNode(modelID, child);
             if (includeProperties) {
-                const properties = this.getItemProperties(modelID, node.expressID) as any;
+                const properties = await this.getItemProperties(modelID, node.expressID) as any;
                 node = { ...node, ...properties };
             }
-            this.getSpatialNode(modelID, node, treeChunks, includeProperties);
-            return node;
-        });
+            await this.getSpatialNode(modelID, node, treeChunks, includeProperties);
+            nodes.push(node);
+        }
+        (node[prop] as Node[]) = nodes;
     }
 
     protected newNode(modelID: number, id: number) {

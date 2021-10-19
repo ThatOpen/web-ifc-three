@@ -1,5 +1,4 @@
 import { BufferGeometry } from 'three';
-import { IFCModel } from '../IFCModel';
 
 export interface PropertyAPI {
     getItemProperties(modelID: number, elementID: number, recursive: boolean): Promise<any>;

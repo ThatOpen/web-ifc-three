@@ -58,7 +58,7 @@ export class PropertyManager implements PropertyManagerAPI {
         if (!this.state.useJSON && includeProperties) {
             console.warn('Including properties in getSpatialStructure with the JSON workflow disabled can lead to poor performance.');
         }
-        return this.currentProps.getSpatialStructure(modelID, includeProperties);
+        return await this.currentProps.getSpatialStructure(modelID, includeProperties);
     }
 
     private updateCurrentProps() {

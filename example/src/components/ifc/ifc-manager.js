@@ -1,5 +1,3 @@
-import { IFCSPACE } from 'web-ifc'
-import { MeshBasicMaterial } from 'three';
 import { IFCLoader } from 'web-ifc-three/dist/IFCLoader';
 import { acceleratedRaycast, computeBoundsTree, disposeBoundsTree } from 'three-mesh-bvh';
 
@@ -20,7 +18,7 @@ export class IfcManager {
     }
 
     async setupIfcLoader() {
-        await this.ifcLoader.ifcManager.useWebWorkers(true, "../../../web-ifc-three/dist/IFCWorker.js")
+        await this.ifcLoader.ifcManager.useWebWorkers(true, "IFCWorker.js")
         this.ifcLoader.ifcManager.applyWebIfcConfig({
             COORDINATE_TO_ORIGIN: true,
             USE_FAST_BOOLS: false

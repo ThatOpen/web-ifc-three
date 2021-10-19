@@ -15,7 +15,7 @@ export class JSONPropertyManager extends BasePropertyManager implements Property
         const projectsIDs = await this.getAllItemsOfType(modelID, IFCPROJECT, false);
         const projectID = projectsIDs[0];
         const project = JSONPropertyManager.newIfcProject(projectID);
-        this.getSpatialNode(modelID, project, chunks, includeProperties);
+        await this.getSpatialNode(modelID, project, chunks, includeProperties);
         return { ...project };
     }
 
