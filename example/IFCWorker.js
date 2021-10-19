@@ -78931,7 +78931,7 @@ class BasePropertyManager {
         if (children == undefined)
             return;
         const prop = propNames.key;
-        let nodes = [];
+        const nodes = [];
         for (let i = 0; i < children.length; i++) {
             const child = children[i];
             let node = this.newNode(modelID, child);
