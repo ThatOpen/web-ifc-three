@@ -36,6 +36,7 @@ export interface HighlightConfig {
     ids: number[];
     removePrevious: boolean;
     material?: Material;
+    customId?: string;
 }
 
 export interface HighlightConfigOfModel extends HighlightConfig {

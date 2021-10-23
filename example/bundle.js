@@ -80667,15 +80667,13 @@ class SubsetManager {
 
   dispose() {}
 
-  getSubset(modelID, material) {
-    const currentMat = this.matIDNoConfig(modelID, material);
-    if (!this.selected[currentMat])
-      return null;
-    return this.selected[currentMat].mesh;
+  getSubset(modelID, material, customId) {
+    const currentMat = this.matIDNoConfig(modelID, material, customId);
+    return this.selected[currentMat].mesh || null;
   }
 
-  removeSubset(modelID, parent, material) {
-    const currentMat = this.matIDNoConfig(modelID, material);
+  removeSubset(modelID, parent, material, customId) {
+    const currentMat = this.matIDNoConfig(modelID, material, customId);
     if (!this.selected[currentMat])
       return;
     if (parent)
@@ -80822,7 +80820,9 @@ class SubsetManager {
   }
 
   isDefaultMat(config) {
-    return this.matIDNoConfig(config.modelID) === this.matID(config);
+    const id = this.matIDNoConfig(config.modelID, undefined, config.customId);
+    const id2 = this.matID(config);
+    return id === id2;
   }
 
   matID(config) {
@@ -80830,14 +80830,16 @@ class SubsetManager {
     if (!config.material)
       name = DEFAULT;
     else
-      name = config.material.uuid || DEFAULT;
+      name = config.material.uuid;
+    name += ' - ' + (config.customId || "");
     return name.concat(' - ').concat(config.modelID.toString());
   }
 
-  matIDNoConfig(modelID, material) {
+  matIDNoConfig(modelID, material, customId = "") {
     let name = DEFAULT;
     if (material)
       name = material.uuid;
+    name += ' - ' + customId;
     return name.concat(' - ').concat(modelID.toString());
   }
 
@@ -87166,16 +87168,25 @@ class IfcManager {
                 // await this.ifcLoader.ifcManager.useJSONData();
                 await this.loadIFC(changed);
                 // await this.ifcLoader.ifcManager.loadJsonDataFromWorker(0, '../../example/model/test.json');
-                const storeys = await this.ifcLoader.ifcManager.getAllItemsOfType(0, IFCBUILDINGSTOREY, false);
-                const slabs = await this.ifcLoader.ifcManager.getAllItemsOfType(0, IFCSLAB, false);
+
+                const slabs = await this.ifcLoader.ifcManager.getAllItemsOfType(0, IFCSLAB);
+                const walls = await this.ifcLoader.ifcManager.getAllItemsOfType(0, IFCWALLSTANDARDCASE);
+
                 this.ifcLoader.ifcManager.createSubset({
                     modelID: 0,
-                    ids: [...storeys, ...slabs],
-                    scene: this.scene,
+                    ids: slabs,
+                    customId: "slabs",
                     removePrevious: true,
-                    material: new MeshLambertMaterial({transparent: true, depthTest: false, opacity: 0.2, color: 0xff00ff})
+                    scene: this.scene
                 });
 
+                this.ifcLoader.ifcManager.createSubset({
+                    modelID: 0,
+                    ids: walls,
+                    customId: "walls",
+                    removePrevious: true,
+                    scene: this.scene
+                });
             },
             false
         );
@@ -87191,7 +87202,7 @@ class IfcManager {
         this.ifcLoader.ifcManager.setOnProgress((event) => console.log(event));
         const ifcModel = await this.ifcLoader.loadAsync(ifcURL);
         this.ifcModels.push(ifcModel);
-        this.scene.add(ifcModel);
+        // this.scene.add(ifcModel);
     }
 }
 

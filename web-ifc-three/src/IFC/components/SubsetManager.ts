@@ -39,16 +39,24 @@ export class SubsetManager {
         // this.selected = {};
     }
 
-    getSubset(modelID: number, material?: Material) {
-        const currentMat = this.matIDNoConfig(modelID, material);
-        if (!this.selected[currentMat]) return null;
-        return this.selected[currentMat].mesh;
+    getSubset(modelID: number, material?: Material, customId?: string) {
+        const currentMat = this.matIDNoConfig(modelID, material, customId);
+        return this.selected[currentMat].mesh || null;
     }
 
-    removeSubset(modelID: number, parent?: Object3D, material?: Material) {
-        const currentMat = this.matIDNoConfig(modelID, material);
+    removeSubset(modelID: number, parent?: Object3D, material?: Material, customId?: string) {
+        const currentMat = this.matIDNoConfig(modelID, material, customId);
         if (!this.selected[currentMat]) return;
         if (parent) parent.remove(this.selected[currentMat].mesh);
+
+        // const mesh = this.selected[currentMat].mesh;
+        // mesh.geometry.dispose();
+        // mesh.geometry = {} as any;
+        //
+        // if(!Array.isArray(mesh.material)) mesh.material.dispose();
+        // else mesh.material.forEach(mat => mat.dispose());
+        // mesh.material = {} as any;
+
         delete this.selected[currentMat];
     }
 
@@ -181,19 +189,23 @@ export class SubsetManager {
     }
 
     private isDefaultMat(config: HighlightConfigOfModel) {
-        return this.matIDNoConfig(config.modelID) === this.matID(config);
+        const id = this.matIDNoConfig(config.modelID, undefined, config.customId);
+        const id2 = this.matID(config);
+        return id === id2;
     }
 
     private matID(config: HighlightConfigOfModel) {
         let name;
         if (!config.material) name = DEFAULT;
-        else name = config.material.uuid || DEFAULT;
+        else name = config.material.uuid;
+        name += ' - ' + (config.customId || "");
         return name.concat(' - ').concat(config.modelID.toString());
     }
 
-    private matIDNoConfig(modelID: number, material?: Material) {
+    private matIDNoConfig(modelID: number, material?: Material, customId = "") {
         let name = DEFAULT;
         if (material) name = material.uuid;
+        name += ' - ' + customId;
         return name.concat(' - ').concat(modelID.toString());
     }
 }
