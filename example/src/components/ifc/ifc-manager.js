@@ -1,5 +1,7 @@
 import { IFCLoader } from 'web-ifc-three/dist/IFCLoader';
+import { MeshLambertMaterial } from 'three';
 import { acceleratedRaycast, computeBoundsTree, disposeBoundsTree } from 'three-mesh-bvh';
+import { IFCBUILDINGSTOREY, IFCSLAB } from 'web-ifc';
 
 export class IfcManager {
     constructor(scene, ifcModels) {
@@ -18,7 +20,7 @@ export class IfcManager {
     }
 
     async setupIfcLoader() {
-        await this.ifcLoader.ifcManager.useWebWorkers(true, "IFCWorker.js")
+        await this.ifcLoader.ifcManager.useWebWorkers(true, 'IFCWorker.js');
         this.ifcLoader.ifcManager.applyWebIfcConfig({
             COORDINATE_TO_ORIGIN: true,
             USE_FAST_BOOLS: false

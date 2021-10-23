@@ -1,15 +1,14 @@
-import {BufferGeometry, Material, Mesh, Object3D} from 'three';
+import { BufferGeometry, Material, Mesh, Object3D } from 'three';
 import {
-    IfcState,
-    GeometriesByMaterials,
-    IdGeometries,
-    merge,
-    SelectedItems,
     DEFAULT,
-    HighlightConfigOfModel
+    GeometriesByMaterials,
+    HighlightConfigOfModel,
+    IdGeometries,
+    IfcState,
+    merge,
+    SelectedItems
 } from '../BaseDefinitions';
-import {BvhManager} from './BvhManager';
-
+import { BvhManager } from './BvhManager';
 
 
 /**
@@ -54,7 +53,7 @@ export class SubsetManager {
     }
 
     createSubset(config: HighlightConfigOfModel) {
-        if (!this.isConfigValid(config)) return;
+        this.checkConfigValid(config);
         if (this.isPreviousSelection(config)) return;
         if (this.isEasySelection(config)) return this.addToPreviousSelection(config);
         this.updatePreviousSelection(config.scene, config);
@@ -63,7 +62,8 @@ export class SubsetManager {
 
     private createSelectionInScene(config: HighlightConfigOfModel) {
         const filtered = this.filter(config);
-        const {geomsByMaterial, materials} = this.getGeomAndMat(filtered);
+        const { geomsByMaterial, materials } = this.getGeomAndMat(filtered);
+        if (geomsByMaterial.length <= 0) return null;
         const isDefMaterial = this.isDefaultMat(config);
         const geometry = this.getMergedGeometry(geomsByMaterial, isDefMaterial);
         const mats = isDefMaterial ? materials : config.material;
@@ -83,17 +83,18 @@ export class SubsetManager {
             : new BufferGeometry();
     }
 
-    private isConfigValid(config: HighlightConfigOfModel) {
-        return (
-            this.isValid(config.scene) &&
-            this.isValid(config.modelID) &&
-            this.isValid(config.ids) &&
-            this.isValid(config.removePrevious)
-        );
+    private checkConfigValid(config: HighlightConfigOfModel) {
+        this.checkValidConfigParam(config.scene);
+        this.checkValidConfigParam(config.modelID);
+        this.checkValidConfigParam(config.ids);
+        this.checkValidConfigParam(config.removePrevious);
+        if (config.ids.length <= 0) {
+            throw new Error('Error: config parameter ids cannot be empty');
+        }
     }
 
-    private isValid(item: any) {
-        return item != undefined && item != null;
+    private checkValidConfigParam(item: any) {
+        if (item === undefined || item === null) throw new Error(`Error with subset config parameter: ${item}`);
     }
 
     private getGeomAndMat(filtered: GeometriesByMaterials) {
@@ -106,7 +107,7 @@ export class SubsetManager {
             if (geoms.length > 1) geomsByMaterial.push(merge(geoms));
             else geomsByMaterial.push(...geoms);
         }
-        return {geomsByMaterial, materials};
+        return { geomsByMaterial, materials };
     }
 
     private updatePreviousSelection(parent: Object3D, config: HighlightConfigOfModel) {
@@ -170,7 +171,7 @@ export class SubsetManager {
             .filter((key) => ids.includes(parseInt(key, 10)))
             .reduce((obj, key) => {
                 //@ts-ignore
-                return {...obj, [key]: geometries[key]};
+                return { ...obj, [key]: geometries[key] };
             }, {});
     }
 

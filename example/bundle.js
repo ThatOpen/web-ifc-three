@@ -80684,8 +80684,7 @@ class SubsetManager {
   }
 
   createSubset(config) {
-    if (!this.isConfigValid(config))
-      return;
+    this.checkConfigValid(config);
     if (this.isPreviousSelection(config))
       return;
     if (this.isEasySelection(config))
@@ -80697,6 +80696,8 @@ class SubsetManager {
   createSelectionInScene(config) {
     const filtered = this.filter(config);
     const {geomsByMaterial, materials} = this.getGeomAndMat(filtered);
+    if (geomsByMaterial.length <= 0)
+      return null;
     const isDefMaterial = this.isDefaultMat(config);
     const geometry = this.getMergedGeometry(geomsByMaterial, isDefMaterial);
     const mats = isDefMaterial ? materials : config.material;
@@ -80714,15 +80715,19 @@ class SubsetManager {
       : new BufferGeometry();
   }
 
-  isConfigValid(config) {
-    return (this.isValid(config.scene) &&
-      this.isValid(config.modelID) &&
-      this.isValid(config.ids) &&
-      this.isValid(config.removePrevious));
+  checkConfigValid(config) {
+    this.checkValidConfigParam(config.scene);
+    this.checkValidConfigParam(config.modelID);
+    this.checkValidConfigParam(config.ids);
+    this.checkValidConfigParam(config.removePrevious);
+    if (config.ids.length <= 0) {
+      throw new Error('Error: config parameter ids cannot be empty');
+    }
   }
 
-  isValid(item) {
-    return item != undefined && item != null;
+  checkValidConfigParam(item) {
+    if (item === undefined || item === null)
+      throw new Error(`Error with subset config parameter: ${item}`);
   }
 
   getGeomAndMat(filtered) {
@@ -87143,7 +87148,7 @@ class IfcManager {
     }
 
     async setupIfcLoader() {
-        await this.ifcLoader.ifcManager.useWebWorkers(true, "IFCWorker.js");
+        await this.ifcLoader.ifcManager.useWebWorkers(true, 'IFCWorker.js');
         this.ifcLoader.ifcManager.applyWebIfcConfig({
             COORDINATE_TO_ORIGIN: true,
             USE_FAST_BOOLS: false
@@ -87161,6 +87166,16 @@ class IfcManager {
                 // await this.ifcLoader.ifcManager.useJSONData();
                 await this.loadIFC(changed);
                 // await this.ifcLoader.ifcManager.loadJsonDataFromWorker(0, '../../example/model/test.json');
+                const storeys = await this.ifcLoader.ifcManager.getAllItemsOfType(0, IFCBUILDINGSTOREY, false);
+                const slabs = await this.ifcLoader.ifcManager.getAllItemsOfType(0, IFCSLAB, false);
+                this.ifcLoader.ifcManager.createSubset({
+                    modelID: 0,
+                    ids: [...storeys, ...slabs],
+                    scene: this.scene,
+                    removePrevious: true,
+                    material: new MeshLambertMaterial({transparent: true, depthTest: false, opacity: 0.2, color: 0xff00ff})
+                });
+
             },
             false
         );
