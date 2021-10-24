@@ -46,6 +46,7 @@ export enum WorkerActions {
 
     // Parser
     parse = 'parse',
+    setupOptionalCategories = 'setupOptionalCategories',
 
     // Properties
     getExpressId = 'getExpressId',
@@ -104,6 +105,7 @@ export interface PropertyWorkerAPI extends BaseWorkerAPI {
 
 export interface ParserWorkerAPI extends BaseWorkerAPI {
     [WorkerActions.parse]: IfcWorkerEventHandler;
+    [WorkerActions.setupOptionalCategories]: IfcWorkerEventHandler;
 }
 
 export interface WebIfcWorkerAPI extends BaseWorkerAPI {

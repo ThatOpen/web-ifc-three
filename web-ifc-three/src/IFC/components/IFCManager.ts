@@ -26,7 +26,7 @@ export class IFCManager {
     };
 
     private BVH = new BvhManager();
-    private parser: ParserAPI = new IFCParser(this.state, this.BVH);
+    parser: ParserAPI = new IFCParser(this.state, this.BVH);
     private subsets = new SubsetManager(this.state, this.BVH);
     private properties: PropertyManagerAPI = new PropertyManager(this.state);
     private types = new TypeManager(this.state);
@@ -278,9 +278,10 @@ export class IFCManager {
      * If no material is given, this returns the subset with the original materials.
      * @modelID ID of the IFC model.
      * @material Material assigned to the subset (if any).
+     * @customId Optional identifier of the subset.
      */
-    getSubset(modelID: number, material?: Material) {
-        return this.subsets.getSubset(modelID, material);
+    getSubset(modelID: number, material?: Material, customId?: string) {
+        return this.subsets.getSubset(modelID, material, customId);
     }
 
     /**
@@ -289,8 +290,8 @@ export class IFCManager {
      * @parent The parent where the subset is (can be any `THREE.Object3D`).
      * @material Material assigned to the subset, if any.
      */
-    removeSubset(modelID: number, parent?: Object3D, material?: Material) {
-        this.subsets.removeSubset(modelID, parent, material);
+    removeSubset(modelID: number, parent?: Object3D, material?: Material, customId?: string) {
+        this.subsets.removeSubset(modelID, parent, material, customId);
     }
 
     /**

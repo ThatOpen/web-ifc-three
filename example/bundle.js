@@ -80467,8 +80467,16 @@ class IFCParser {
     this.state = state;
     this.BVH = BVH;
     this.loadedModels = 0;
+    this.optionalCategories = {
+      [IFCSPACE]: true,
+      [IFCOPENINGELEMENT]: false
+    };
     this.currentWebIfcID = -1;
     this.currentModelID = -1;
+  }
+
+  async setupOptionalCategories(config) {
+    this.optionalCategories = config;
   }
 
   async parse(buffer) {
@@ -80535,7 +80543,7 @@ class IFCParser {
   }
 
   async saveAllPlacedGeometriesByMaterial() {
-    await this.getAllIfcSpaces();
+    await this.addOptionalCategories();
     const flatMeshes = await this.state.api.LoadAllGeometry(this.currentWebIfcID);
     const size = flatMeshes.size();
     let counter = 0;
@@ -80552,8 +80560,16 @@ class IFCParser {
     }
   }
 
-  async getAllIfcSpaces() {
-    await this.state.api.StreamAllMeshesWithTypes(this.currentWebIfcID, [IFCSPACE], async (mesh) => {
+  async addOptionalCategories() {
+    const optionalTypes = [];
+    for (let key in this.optionalCategories) {
+      if (this.optionalCategories.hasOwnProperty(key)) {
+        const category = parseInt(key);
+        if (this.optionalCategories[category])
+          optionalTypes.push(category);
+      }
+    }
+    await this.state.api.StreamAllMeshesWithTypes(this.currentWebIfcID, optionalTypes, async (mesh) => {
       const geometries = mesh.geometries;
       const size = geometries.size();
       for (let j = 0; j < size; j++) {
@@ -80563,11 +80579,16 @@ class IFCParser {
   }
 
   async savePlacedGeometry(placedGeometry, id) {
+    const geometry = await this.getGeometry(placedGeometry);
+    this.saveGeometryByMaterial(geometry, placedGeometry, id);
+  }
+
+  async getGeometry(placedGeometry) {
     const geometry = await this.getBufferGeometry(placedGeometry);
     geometry.computeVertexNormals();
     const matrix = IFCParser.getMeshMatrix(placedGeometry.flatTransformation);
     geometry.applyMatrix4(matrix);
-    this.saveGeometryByMaterial(geometry, placedGeometry, id);
+    return geometry;
   }
 
   async getBufferGeometry(placed) {
@@ -80732,7 +80753,8 @@ class SubsetManager {
     const geomsByMaterial = [];
     const materials = [];
     for (let matID in filtered) {
-      const geoms = Object.values(filtered[matID].geometries);
+      let geoms = Object.values(filtered[matID].geometries);
+      geoms = geoms.filter(geom => Object.values(geom.attributes).length > 0);
       if (!geoms.length)
         continue;
       materials.push(filtered[matID].material);
@@ -82389,6 +82411,7 @@ var WorkerActions;
   WorkerActions["GetFlatMesh"] = "GetFlatMesh";
   WorkerActions["SetWasmPath"] = "SetWasmPath";
   WorkerActions["parse"] = "parse";
+  WorkerActions["setupOptionalCategories"] = "setupOptionalCategories";
   WorkerActions["getExpressId"] = "getExpressId";
   WorkerActions["initializeProperties"] = "initializeProperties";
   WorkerActions["getAllItemsOfType"] = "getAllItemsOfType";
@@ -83073,6 +83096,12 @@ class ParserHandler {
     this.API = WorkerAPIs.parser;
   }
 
+  async setupOptionalCategories(config) {
+    return this.handler.request(this.API, WorkerActions.setupOptionalCategories, {
+      config
+    });
+  }
+
   async parse(buffer) {
     this.handler.onprogressHandlers[this.handler.requestID] = (progress) => {
       if (this.handler.state.onProgress)
@@ -83346,12 +83375,12 @@ class IFCManager {
     return this.properties.getSpatialStructure(modelID, includeProperties);
   }
 
-  getSubset(modelID, material) {
-    return this.subsets.getSubset(modelID, material);
+  getSubset(modelID, material, customId) {
+    return this.subsets.getSubset(modelID, material, customId);
   }
 
-  removeSubset(modelID, parent, material) {
-    this.subsets.removeSubset(modelID, parent, material);
+  removeSubset(modelID, parent, material, customId) {
+    this.subsets.removeSubset(modelID, parent, material, customId);
   }
 
   createSubset(config) {
@@ -87167,26 +87196,6 @@ class IfcManager {
             async (changed) => {
                 // await this.ifcLoader.ifcManager.useJSONData();
                 await this.loadIFC(changed);
-                // await this.ifcLoader.ifcManager.loadJsonDataFromWorker(0, '../../example/model/test.json');
-
-                const slabs = await this.ifcLoader.ifcManager.getAllItemsOfType(0, IFCSLAB);
-                const walls = await this.ifcLoader.ifcManager.getAllItemsOfType(0, IFCWALLSTANDARDCASE);
-
-                this.ifcLoader.ifcManager.createSubset({
-                    modelID: 0,
-                    ids: slabs,
-                    customId: "slabs",
-                    removePrevious: true,
-                    scene: this.scene
-                });
-
-                this.ifcLoader.ifcManager.createSubset({
-                    modelID: 0,
-                    ids: walls,
-                    customId: "walls",
-                    removePrevious: true,
-                    scene: this.scene
-                });
             },
             false
         );
@@ -87202,7 +87211,7 @@ class IfcManager {
         this.ifcLoader.ifcManager.setOnProgress((event) => console.log(event));
         const ifcModel = await this.ifcLoader.loadAsync(ifcURL);
         this.ifcModels.push(ifcModel);
-        // this.scene.add(ifcModel);
+        this.scene.add(ifcModel);
     }
 }
 

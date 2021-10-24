@@ -1,11 +1,11 @@
-import {ParserAPI, ParserProgress} from '../../components/IFCParser';
-import {WorkerActions, WorkerAPIs} from '../BaseDefinitions';
-import {IFCWorkerHandler} from '../IFCWorkerHandler';
-import {IFCModel} from '../../components/IFCModel';
-import {Serializer} from '../serializer/Serializer';
-import {ParserResult} from '../workers/ParserWorker';
-import {BvhManager} from '../../components/BvhManager';
-import {DBOperation, IndexedDatabase} from "../../indexedDB/IndexedDatabase";
+import {OptionalCategories, ParserAPI, ParserProgress } from '../../components/IFCParser';
+import { WorkerActions, WorkerAPIs } from '../BaseDefinitions';
+import { IFCWorkerHandler } from '../IFCWorkerHandler';
+import { IFCModel } from '../../components/IFCModel';
+import { Serializer } from '../serializer/Serializer';
+import { ParserResult } from '../workers/ParserWorker';
+import { BvhManager } from '../../components/BvhManager';
+import { DBOperation, IndexedDatabase } from '../../indexedDB/IndexedDatabase';
 
 export class ParserHandler implements ParserAPI {
 
@@ -15,6 +15,10 @@ export class ParserHandler implements ParserAPI {
                 private serializer: Serializer,
                 private BVH: BvhManager,
                 private IDB: IndexedDatabase) {
+    }
+
+    async setupOptionalCategories(config: OptionalCategories) {
+        return this.handler.request(this.API, WorkerActions.setupOptionalCategories, {config});
     }
 
     async parse(buffer: any): Promise<IFCModel> {

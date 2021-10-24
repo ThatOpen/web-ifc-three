@@ -109,7 +109,8 @@ export class SubsetManager {
         const geomsByMaterial: BufferGeometry[] = [];
         const materials: Material[] = [];
         for (let matID in filtered) {
-            const geoms = Object.values(filtered[matID].geometries);
+            let geoms = Object.values(filtered[matID].geometries);
+            geoms = geoms.filter(geom => Object.values(geom.attributes).length > 0);
             if (!geoms.length) continue;
             materials.push(filtered[matID].material);
             if (geoms.length > 1) geomsByMaterial.push(merge(geoms));

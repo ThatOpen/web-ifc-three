@@ -1,7 +1,5 @@
 import { IFCLoader } from 'web-ifc-three/dist/IFCLoader';
-import { MeshLambertMaterial } from 'three';
 import { acceleratedRaycast, computeBoundsTree, disposeBoundsTree } from 'three-mesh-bvh';
-import { IFCWALLSTANDARDCASE, IFCSLAB } from 'web-ifc';
 
 export class IfcManager {
     constructor(scene, ifcModels) {
@@ -37,7 +35,6 @@ export class IfcManager {
             async (changed) => {
                 // await this.ifcLoader.ifcManager.useJSONData();
                 await this.loadIFC(changed);
-                // await this.ifcLoader.ifcManager.loadJsonDataFromWorker(0, '../../example/model/test.json');
             },
             false
         );
@@ -53,6 +50,6 @@ export class IfcManager {
         this.ifcLoader.ifcManager.setOnProgress((event) => console.log(event));
         const ifcModel = await this.ifcLoader.loadAsync(ifcURL);
         this.ifcModels.push(ifcModel);
-        // this.scene.add(ifcModel);
+        this.scene.add(ifcModel);
     }
 }

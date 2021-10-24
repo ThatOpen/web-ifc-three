@@ -4,15 +4,16 @@ import {
     ErrorStateNotAvailable,
     IfcEventData,
     IfcWorkerAPI,
+    IfcWorkerEventHandler,
     ParserWorkerAPI,
     WorkerAPIs
 } from '../BaseDefinitions';
-import {IFCParser, ParserProgress} from '../../components/IFCParser';
-import {BvhManager} from '../../components/BvhManager';
-import {Serializer} from '../serializer/Serializer';
-import {IdGeometries} from "../../BaseDefinitions";
-import {IFCModel} from "../../components/IFCModel";
-import {DBOperation, IndexedDatabase} from "../../indexedDB/IndexedDatabase";
+import { IFCParser, ParserProgress } from '../../components/IFCParser';
+import { BvhManager } from '../../components/BvhManager';
+import { Serializer } from '../serializer/Serializer';
+import { IdGeometries } from '../../BaseDefinitions';
+import { IFCModel } from '../../components/IFCModel';
+import { DBOperation, IndexedDatabase } from '../../indexedDB/IndexedDatabase';
 
 export interface ParserResult {
     modelID: number;
@@ -33,6 +34,13 @@ export class ParserWorker implements ParserWorkerAPI {
             if (!this.worker.state) throw new Error(ErrorRootStateNotAvailable);
             this.parser = new IFCParser(this.worker.state, this.BVH);
         }
+    }
+
+    setupOptionalCategories(data: IfcEventData): void {
+        this.initializeParser();
+        if(this.parser === undefined) throw new Error(ErrorParserNotAvailable);
+        this.parser.setupOptionalCategories(data.args.config);
+        this.worker.post(data);
     }
 
     async parse(data: IfcEventData): Promise<void> {

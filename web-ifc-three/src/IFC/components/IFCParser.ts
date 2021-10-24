@@ -1,5 +1,5 @@
 //@ts-ignore
-import { PlacedGeometry, Color as ifcColor, IfcGeometry, IFCSPACE, FlatMesh } from 'web-ifc';
+import { PlacedGeometry, Color as ifcColor, IfcGeometry, IFCSPACE, FlatMesh, IFCOPENINGELEMENT } from 'web-ifc';
 import {
     IfcState,
     IfcMesh,
@@ -25,17 +25,28 @@ export interface ParserProgress {
     total: number;
 }
 
+export interface OptionalCategories {
+    [category: number]: boolean
+}
+
 export interface ParserAPI {
     parse(buffer: any): Promise<IFCModel>;
 
     getAndClearErrors(_modelId: number): void;
+
+    setupOptionalCategories(config: OptionalCategories): void;
 }
 
 /**
  * Reads all the geometry of the IFC file and generates an optimized `THREE.Mesh`.
  */
-export class IFCParser {
+export class IFCParser implements ParserAPI {
     loadedModels = 0;
+
+    optionalCategories: OptionalCategories = {
+        [IFCSPACE]: true,
+        [IFCOPENINGELEMENT]: false
+    }
 
     // Represents the index of the model in webIfcAPI
     private currentWebIfcID = -1;
@@ -44,6 +55,10 @@ export class IFCParser {
     private currentModelID = -1;
 
     constructor(private state: IfcState, private BVH: BvhManager) {
+    }
+
+    async setupOptionalCategories(config: OptionalCategories) {
+        this.optionalCategories = config;
     }
 
     async parse(buffer: any) {
@@ -105,7 +120,7 @@ export class IFCParser {
 
     private async saveAllPlacedGeometriesByMaterial() {
 
-        await this.getAllIfcSpaces();
+        await this.addOptionalCategories();
 
         const flatMeshes = await this.state.api.LoadAllGeometry(this.currentWebIfcID);
         const size = flatMeshes.size();
@@ -124,8 +139,18 @@ export class IFCParser {
     }
 
     // Temporary: in the future everything will use StreamAllMeshes()
-    private async getAllIfcSpaces() {
-        await this.state.api.StreamAllMeshesWithTypes(this.currentWebIfcID, [IFCSPACE], async (mesh: FlatMesh) => {
+    private async addOptionalCategories() {
+
+        const optionalTypes: number[] =[];
+
+        for(let key in this.optionalCategories) {
+            if(this.optionalCategories.hasOwnProperty(key)) {
+                const category = parseInt(key);
+                if(this.optionalCategories[category]) optionalTypes.push(category);
+            }
+        }
+
+        await this.state.api.StreamAllMeshesWithTypes(this.currentWebIfcID, optionalTypes, async (mesh: FlatMesh) => {
             const geometries = mesh.geometries;
             const size = geometries.size();
             for (let j = 0; j < size; j++) {
@@ -135,11 +160,16 @@ export class IFCParser {
     }
 
     private async savePlacedGeometry(placedGeometry: PlacedGeometry, id: number) {
+        const geometry = await this.getGeometry(placedGeometry);
+        this.saveGeometryByMaterial(geometry, placedGeometry, id);
+    }
+
+    private async getGeometry(placedGeometry: PlacedGeometry) {
         const geometry = await this.getBufferGeometry(placedGeometry);
         geometry.computeVertexNormals();
         const matrix = IFCParser.getMeshMatrix(placedGeometry.flatTransformation);
         geometry.applyMatrix4(matrix);
-        this.saveGeometryByMaterial(geometry, placedGeometry, id);
+        return geometry;
     }
 
     private async getBufferGeometry(placed: PlacedGeometry) {
