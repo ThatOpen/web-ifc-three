@@ -21,6 +21,12 @@ export class StateWorker implements WorkerStateAPI {
         this.worker.post(data);
     }
 
+    updateStateWebIfcSettings(data: IfcEventData): void {
+        if (!this.worker.state) throw new Error(ErrorRootStateNotAvailable);
+        this.worker.state.webIfcSettings = data.args.webIfcSettings;
+        this.worker.post(data);
+    }
+
     updateModelStateJsonData(data: IfcEventData): void {
         if (!this.worker.state) throw new Error(ErrorRootStateNotAvailable);
         const model = this.getModel(data);

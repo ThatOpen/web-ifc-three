@@ -10,20 +10,25 @@ export class WorkerStateHandler {
         this.state = this.handler.state;
     }
 
-    updateStateUseJson() {
+    async updateStateUseJson() {
         const useJson = this.state.useJSON;
         return this.handler.request(this.API, WorkerActions.updateStateUseJson, { useJson });
     }
 
-    updateModelStateTypes (modelID: number, types: any) {
+    async updateStateWebIfcSettings() {
+        const webIfcSettings = this.state.webIfcSettings;
+        return this.handler.request(this.API, WorkerActions.updateStateWebIfcSettings, { webIfcSettings });
+    }
+
+    async updateModelStateTypes (modelID: number, types: any) {
         return this.handler.request(this.API, WorkerActions.updateModelStateTypes, { modelID, types });
     }
 
-    updateModelStateJsonData(modelID: number, jsonData: any) {
+    async updateModelStateJsonData(modelID: number, jsonData: any) {
         return this.handler.request(this.API, WorkerActions.updateModelStateJsonData, { modelID, jsonData });
     }
 
-    loadJsonDataFromWorker(modelID: number, path: string) {
+    async loadJsonDataFromWorker(modelID: number, path: string) {
         return this.handler.request(this.API, WorkerActions.loadJsonDataFromWorker, { modelID, path });
     }
 }

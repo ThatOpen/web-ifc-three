@@ -54,7 +54,9 @@ export class IFCParser implements ParserAPI {
     // This means that currentID is always 0, while currentModelID is the real index of stored models
     private currentModelID = -1;
 
-    constructor(private state: IfcState, private BVH: BvhManager) {
+    // BVH is optional because when using workers we have to apply it in the main thread,
+    // once the model has been serialized and reconstructed
+    constructor(private state: IfcState, private BVH?: BvhManager) {
     }
 
     async setupOptionalCategories(config: OptionalCategories) {
@@ -96,7 +98,7 @@ export class IFCParser implements ParserAPI {
 
     private generateAllGeometriesByMaterial() {
         const {geometry, materials} = this.getGeometryAndMaterials();
-        this.BVH.applyThreeMeshBVH(geometry);
+        if(this.BVH) this.BVH.applyThreeMeshBVH(geometry);
         const mesh = new IFCModel(geometry, materials);
         mesh.modelID = this.currentModelID;
         this.state.models[this.currentModelID].mesh = mesh;

@@ -12,6 +12,7 @@ export interface IfcWorkerAPI {
 export enum WorkerActions {
     // Worker State Actions
     updateStateUseJson = 'updateStateUseJson',
+    updateStateWebIfcSettings = 'updateStateWebIfcSettings',
     updateModelStateTypes = 'updateModelStateTypes',
     updateModelStateJsonData = 'updateModelStateJsonData',
     loadJsonDataFromWorker = 'loadJsonDataFromWorker',
@@ -89,6 +90,7 @@ export type IfcWorkerEventHandler = (data: IfcEventData) => void;
 
 export interface WorkerStateAPI extends BaseWorkerAPI {
     [WorkerActions.updateStateUseJson]: IfcWorkerEventHandler;
+    [WorkerActions.updateStateWebIfcSettings]: IfcWorkerEventHandler;
     [WorkerActions.updateModelStateTypes]: IfcWorkerEventHandler;
     [WorkerActions.updateModelStateJsonData]: IfcWorkerEventHandler;
     [WorkerActions.loadJsonDataFromWorker]: IfcWorkerEventHandler;

@@ -4,12 +4,10 @@ import {
     ErrorStateNotAvailable,
     IfcEventData,
     IfcWorkerAPI,
-    IfcWorkerEventHandler,
     ParserWorkerAPI,
     WorkerAPIs
 } from '../BaseDefinitions';
 import { IFCParser, ParserProgress } from '../../components/IFCParser';
-import { BvhManager } from '../../components/BvhManager';
 import { Serializer } from '../serializer/Serializer';
 import { IdGeometries } from '../../BaseDefinitions';
 import { IFCModel } from '../../components/IFCModel';
@@ -25,14 +23,14 @@ export class ParserWorker implements ParserWorkerAPI {
 
     constructor(private worker: IfcWorkerAPI,
                 private serializer: Serializer,
-                private BVH: BvhManager,
+                // private BVH: BvhManager,
                 private IDB: IndexedDatabase) {
     }
 
     initializeParser() {
         if (!this.parser) {
             if (!this.worker.state) throw new Error(ErrorRootStateNotAvailable);
-            this.parser = new IFCParser(this.worker.state, this.BVH);
+            this.parser = new IFCParser(this.worker.state);
         }
     }
 

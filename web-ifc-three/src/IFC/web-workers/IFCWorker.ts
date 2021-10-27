@@ -12,7 +12,6 @@ import {WebIfcWorker} from './workers/WebIfcWorker';
 import {IfcState, WebIfcAPI} from '../BaseDefinitions';
 import {PropertyWorker} from './workers/PropertyWorker';
 import {StateWorker} from './workers/StateWorker';
-import {BvhManager} from '../components/BvhManager';
 import {ParserWorker} from './workers/ParserWorker';
 import {IndexedDatabase} from "../indexedDB/IndexedDatabase";
 
@@ -24,16 +23,14 @@ class IFCWorker implements RootWorker {
     webIfc: WebIfcWorkerAPI;
     properties: PropertyWorkerAPI;
     parser: ParserWorker;
-    BVH: BvhManager;
     IDB: IndexedDatabase
 
     constructor() {
         this.IDB = new IndexedDatabase();
-        this.BVH = new BvhManager();
         this.workerState = new StateWorker(this);
         this.webIfc = new WebIfcWorker(this, this.serializer);
         this.properties = new PropertyWorker(this);
-        this.parser = new ParserWorker(this, this.serializer, this.BVH, this.IDB);
+        this.parser = new ParserWorker(this, this.serializer, this.IDB);
     }
 
     initializeAPI(api: WebIfcAPI) {

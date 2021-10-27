@@ -71,15 +71,18 @@ export class IFCManager {
      *
      * @path Relative path to web-ifc.wasm.
      */
-    setWasmPath(path: string) {
+    async setWasmPath(path: string) {
         this.state.api.SetWasmPath(path);
     }
 
     /**
      * Applies a configuration for [web-ifc](https://ifcjs.github.io/info/docs/Guide/web-ifc/Introduction).
      */
-    applyWebIfcConfig(settings: LoaderSettings) {
+    async applyWebIfcConfig(settings: LoaderSettings) {
         this.state.webIfcSettings = settings;
+        if(this.state.worker.active && this.worker) {
+            await this.worker.workerState.updateStateWebIfcSettings();
+        }
     }
 
     /**
@@ -370,6 +373,7 @@ export class IFCManager {
         this.state.api = this.worker.webIfc;
         this.properties = this.worker.properties;
         this.parser = this.worker.parser;
-        await this.worker.workerState.updateStateUseJson()
+        await this.worker.workerState.updateStateUseJson();
+        await this.worker.workerState.updateStateWebIfcSettings();
     }
 }
