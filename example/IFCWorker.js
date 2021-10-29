@@ -42058,7 +42058,6 @@ class Serializer {
 var WorkerActions;
 (function (WorkerActions) {
     WorkerActions["updateStateUseJson"] = "updateStateUseJson";
-    WorkerActions["updateStateWebIfcSettings"] = "updateStateWebIfcSettings";
     WorkerActions["updateModelStateTypes"] = "updateModelStateTypes";
     WorkerActions["updateModelStateJsonData"] = "updateModelStateJsonData";
     WorkerActions["loadJsonDataFromWorker"] = "loadJsonDataFromWorker";
@@ -42088,8 +42087,8 @@ var WorkerActions;
     WorkerActions["LoadAllGeometry"] = "LoadAllGeometry";
     WorkerActions["GetFlatMesh"] = "GetFlatMesh";
     WorkerActions["SetWasmPath"] = "SetWasmPath";
+    WorkerActions["initParser"] = "init";
     WorkerActions["parse"] = "parse";
-    WorkerActions["setupOptionalCategories"] = "setupOptionalCategories";
     WorkerActions["getExpressId"] = "getExpressId";
     WorkerActions["initializeProperties"] = "initializeProperties";
     WorkerActions["getAllItemsOfType"] = "getAllItemsOfType";
@@ -78924,27 +78923,24 @@ class BasePropertyManager {
     async getMaterialsProperties(modelID, elementID, recursive = false) {
         return await this.getProperty(modelID, elementID, recursive, PropsNames.materials);
     }
-    async getSpatialNode(modelID, node, treeChunks, includeProperties) {
-        await this.getChildren(modelID, node, treeChunks, PropsNames.aggregates, includeProperties);
-        await this.getChildren(modelID, node, treeChunks, PropsNames.spatial, includeProperties);
+    getSpatialNode(modelID, node, treeChunks, includeProperties) {
+        this.getChildren(modelID, node, treeChunks, PropsNames.aggregates, includeProperties);
+        this.getChildren(modelID, node, treeChunks, PropsNames.spatial, includeProperties);
     }
-    async getChildren(modelID, node, treeChunks, propNames, includeProperties) {
+    getChildren(modelID, node, treeChunks, propNames, includeProperties) {
         const children = treeChunks[node.expressID];
         if (children == undefined)
             return;
         const prop = propNames.key;
-        const nodes = [];
-        for (let i = 0; i < children.length; i++) {
-            const child = children[i];
+        node[prop] = children.map((child) => {
             let node = this.newNode(modelID, child);
             if (includeProperties) {
-                const properties = await this.getItemProperties(modelID, node.expressID);
+                const properties = this.getItemProperties(modelID, node.expressID);
                 node = { ...node, ...properties };
             }
-            await this.getSpatialNode(modelID, node, treeChunks, includeProperties);
-            nodes.push(node);
-        }
-        node[prop] = nodes;
+            this.getSpatialNode(modelID, node, treeChunks, includeProperties);
+            return node;
+        });
     }
     newNode(modelID, id) {
         const typeName = this.getNodeType(modelID, id);
@@ -79151,7 +79147,7 @@ class WebIfcPropertyManager extends BasePropertyManager {
         const allLines = await this.state.api.GetLineIDsWithType(modelID, IFCPROJECT);
         const projectID = allLines.get(0);
         const project = WebIfcPropertyManager.newIfcProject(projectID);
-        await this.getSpatialNode(modelID, project, chunks, includeProperties);
+        this.getSpatialNode(modelID, project, chunks, includeProperties);
         return project;
     }
     async getAllItemsOfType(modelID, type, verbose) {
@@ -80027,7 +80023,7 @@ class JSONPropertyManager extends BasePropertyManager {
         const projectsIDs = await this.getAllItemsOfType(modelID, IFCPROJECT, false);
         const projectID = projectsIDs[0];
         const project = JSONPropertyManager.newIfcProject(projectID);
-        await this.getSpatialNode(modelID, project, chunks, includeProperties);
+        this.getSpatialNode(modelID, project, chunks, includeProperties);
         return { ...project };
     }
     async getAllItemsOfType(modelID, type, verbose) {
@@ -80148,7 +80144,7 @@ class PropertyManager {
         if (!this.state.useJSON && includeProperties) {
             console.warn('Including properties in getSpatialStructure with the JSON workflow disabled can lead to poor performance.');
         }
-        return await this.currentProps.getSpatialStructure(modelID, includeProperties);
+        return this.currentProps.getSpatialStructure(modelID, includeProperties);
     }
     updateCurrentProps() {
         this.currentProps = this.state.useJSON ? this.jsonProps : this.webIfcProps;
@@ -80228,12 +80224,6 @@ class StateWorker {
         this.worker.state.useJSON = data.args.useJson;
         this.worker.post(data);
     }
-    updateStateWebIfcSettings(data) {
-        if (!this.worker.state)
-            throw new Error(ErrorRootStateNotAvailable);
-        this.worker.state.webIfcSettings = data.args.webIfcSettings;
-        this.worker.post(data);
-    }
     updateModelStateJsonData(data) {
         if (!this.worker.state)
             throw new Error(ErrorRootStateNotAvailable);
@@ -80272,20 +80262,33 @@ class StateWorker {
     }
 }
 
+class BvhManager {
+    initializeMeshBVH(computeBoundsTree, disposeBoundsTree, acceleratedRaycast) {
+        this.computeBoundsTree = computeBoundsTree;
+        this.disposeBoundsTree = disposeBoundsTree;
+        this.acceleratedRaycast = acceleratedRaycast;
+        this.setupThreeMeshBVH();
+    }
+    applyThreeMeshBVH(geometry) {
+        if (this.computeBoundsTree)
+            geometry.computeBoundsTree();
+    }
+    setupThreeMeshBVH() {
+        if (!this.computeBoundsTree || !this.disposeBoundsTree || !this.acceleratedRaycast)
+            return;
+        BufferGeometry.prototype.computeBoundsTree = this.computeBoundsTree;
+        BufferGeometry.prototype.disposeBoundsTree = this.disposeBoundsTree;
+        Mesh.prototype.raycast = this.acceleratedRaycast;
+    }
+}
+
 class IFCParser {
     constructor(state, BVH) {
         this.state = state;
         this.BVH = BVH;
         this.loadedModels = 0;
-        this.optionalCategories = {
-            [IFCSPACE]: true,
-            [IFCOPENINGELEMENT]: false
-        };
         this.currentWebIfcID = -1;
         this.currentModelID = -1;
-    }
-    async setupOptionalCategories(config) {
-        this.optionalCategories = config;
     }
     async parse(buffer) {
         if (this.state.api.wasmModule === undefined)
@@ -80318,8 +80321,7 @@ class IFCParser {
     }
     generateAllGeometriesByMaterial() {
         const { geometry, materials } = this.getGeometryAndMaterials();
-        if (this.BVH)
-            this.BVH.applyThreeMeshBVH(geometry);
+        this.BVH.applyThreeMeshBVH(geometry);
         const mesh = new IFCModel(geometry, materials);
         mesh.modelID = this.currentModelID;
         this.state.models[this.currentModelID].mesh = mesh;
@@ -80340,7 +80342,6 @@ class IFCParser {
         return { geometry, materials };
     }
     async saveAllPlacedGeometriesByMaterial() {
-        await this.addOptionalCategories();
         const flatMeshes = await this.state.api.LoadAllGeometry(this.currentWebIfcID);
         const size = flatMeshes.size();
         let counter = 0;
@@ -80356,33 +80357,12 @@ class IFCParser {
             }
         }
     }
-    async addOptionalCategories() {
-        const optionalTypes = [];
-        for (let key in this.optionalCategories) {
-            if (this.optionalCategories.hasOwnProperty(key)) {
-                const category = parseInt(key);
-                if (this.optionalCategories[category])
-                    optionalTypes.push(category);
-            }
-        }
-        await this.state.api.StreamAllMeshesWithTypes(this.currentWebIfcID, optionalTypes, async (mesh) => {
-            const geometries = mesh.geometries;
-            const size = geometries.size();
-            for (let j = 0; j < size; j++) {
-                await this.savePlacedGeometry(geometries.get(j), mesh.expressID);
-            }
-        });
-    }
     async savePlacedGeometry(placedGeometry, id) {
-        const geometry = await this.getGeometry(placedGeometry);
-        this.saveGeometryByMaterial(geometry, placedGeometry, id);
-    }
-    async getGeometry(placedGeometry) {
         const geometry = await this.getBufferGeometry(placedGeometry);
         geometry.computeVertexNormals();
         const matrix = IFCParser.getMeshMatrix(placedGeometry.flatTransformation);
         geometry.applyMatrix4(matrix);
-        return geometry;
+        this.saveGeometryByMaterial(geometry, placedGeometry, id);
     }
     async getBufferGeometry(placed) {
         const geometry = await this.state.api.GetGeometry(this.currentWebIfcID, placed.geometryExpressID);
@@ -80509,9 +80489,10 @@ class IndexedDatabase {
 }
 
 class ParserWorker {
-    constructor(worker, serializer, IDB) {
+    constructor(worker, serializer, BVH, IDB) {
         this.worker = worker;
         this.serializer = serializer;
+        this.BVH = BVH;
         this.IDB = IDB;
         this.API = WorkerAPIs.parser;
     }
@@ -80519,15 +80500,11 @@ class ParserWorker {
         if (!this.parser) {
             if (!this.worker.state)
                 throw new Error(ErrorRootStateNotAvailable);
-            this.parser = new IFCParser(this.worker.state);
+            this.parser = new IFCParser(this.worker.state, this.BVH);
         }
     }
-    setupOptionalCategories(data) {
-        this.initializeParser();
-        if (this.parser === undefined)
-            throw new Error(ErrorParserNotAvailable);
-        this.parser.setupOptionalCategories(data.args.config);
-        this.worker.post(data);
+    init(data) {
+        this.buffer = data.args.buffer;
     }
     async parse(data) {
         this.initializeParser();
@@ -80546,7 +80523,7 @@ class ParserWorker {
     async getResponse(data) {
         if (!this.parser)
             throw new Error(ErrorParserNotAvailable);
-        const ifcModel = await this.parser.parse(data.args.buffer);
+        const ifcModel = await this.parser.parse(this.buffer);
         const serializedIfcModel = this.serializer.serializeIfcModel(ifcModel);
         data.result = { modelID: ifcModel.modelID };
         const serializedItems = this.getSerializedItems(ifcModel);
@@ -80588,10 +80565,11 @@ class IFCWorker {
     constructor() {
         this.serializer = new Serializer();
         this.IDB = new IndexedDatabase();
+        this.BVH = new BvhManager();
         this.workerState = new StateWorker(this);
         this.webIfc = new WebIfcWorker(this, this.serializer);
         this.properties = new PropertyWorker(this);
-        this.parser = new ParserWorker(this, this.serializer, this.IDB);
+        this.parser = new ParserWorker(this, this.serializer, this.BVH, this.IDB);
     }
     initializeAPI(api) {
         this.state = {

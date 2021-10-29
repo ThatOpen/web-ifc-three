@@ -5,7 +5,7 @@ import { PropertyManager } from './properties/PropertyManager';
 import { IfcElements } from './IFCElementsMap';
 import { TypeManager } from './TypeManager';
 import { HighlightConfigOfModel, IfcState, JSONObject } from '../BaseDefinitions';
-import { BufferGeometry, Material, Object3D, Scene } from 'three';
+import {BufferGeometry, Material, Matrix4, Object3D, Scene} from 'three';
 import { IFCModel } from './IFCModel';
 import { BvhManager } from './BvhManager';
 import { ItemsHider } from './ItemsHider';
@@ -34,8 +34,8 @@ export class IFCManager {
     private cleaner = new MemoryCleaner(this.state);
     private worker?: IFCWorkerHandler;
 
-    async parse(buffer: ArrayBuffer) {
-        const model = await this.parser.parse(buffer) as IFCModel;
+    async parse(buffer: ArrayBuffer, translationMatrix?: Matrix4) {
+        const model = await this.parser.parse(buffer, translationMatrix) as IFCModel;
         model.setIFCManager(this);
         this.state.useJSON ? await this.disposeMemory() : await this.types.getAllTypes(this.worker);
         this.hider.processCoordinates(model.modelID);

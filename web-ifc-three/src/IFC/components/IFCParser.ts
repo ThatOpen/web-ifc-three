@@ -30,7 +30,7 @@ export interface OptionalCategories {
 }
 
 export interface ParserAPI {
-    parse(buffer: any): Promise<IFCModel>;
+    parse(buffer: any, translationMatrix?: Matrix4): Promise<IFCModel>;
 
     getAndClearErrors(_modelId: number): void;
 
@@ -63,10 +63,13 @@ export class IFCParser implements ParserAPI {
         this.optionalCategories = config;
     }
 
-    async parse(buffer: any) {
+    async parse(buffer: any, translationMatrix?: Matrix4) {
         if (this.state.api.wasmModule === undefined) await this.state.api.Init();
         await this.newIfcModel(buffer);
         this.loadedModels++;
+        if(translationMatrix){
+            await this.state.api.SetGeometryTransformation(this.currentWebIfcID, translationMatrix.toArray());
+        }
         return this.loadAllGeometry();
     }
 
