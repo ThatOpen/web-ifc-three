@@ -42,7 +42,7 @@ export class IfcManager {
         );
     }
 
-    // TODO: CleanUp() method to realease webgl memory of IFCLoader
+    // TODO: CleanUp() method to release webgl memory of IFCLoader
     releaseMemory() {
         this.ifcLoader.ifcManager.disposeMemory();
     }
