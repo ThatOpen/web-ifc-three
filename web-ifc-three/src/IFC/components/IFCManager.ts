@@ -1,5 +1,5 @@
 import * as WebIFC from 'web-ifc';
-import {IFCParser, ParserAPI, ParserProgress} from './IFCParser';
+import { IFCParser, ParserAPI, ParserProgress } from './IFCParser';
 import { SubsetManager } from './SubsetManager';
 import { PropertyManager } from './properties/PropertyManager';
 import { IfcElements } from './IFCElementsMap';
@@ -34,27 +34,21 @@ export class IFCManager {
     private cleaner = new MemoryCleaner(this.state);
     private worker?: IFCWorkerHandler;
 
+    /**
+     * Returns the underlying web-ifc API.
+     */
+    get ifcAPI() {
+        return this.state.api;
+    }
+
+    // SETUP - all the logic regarding the configuration of web-ifc-three
+
     async parse(buffer: ArrayBuffer) {
         const model = await this.parser.parse(buffer) as IFCModel;
         model.setIFCManager(this);
         this.state.useJSON ? await this.disposeMemory() : await this.types.getAllTypes(this.worker);
         this.hider.processCoordinates(model.modelID);
         return model;
-    }
-
-    /**
-     * Sets a callback function that is called every 10% of IFC loaded.
-     * @onProgress callback function
-     */
-    setOnProgress(onProgress: (event: ParserProgress) => void) {
-        this.state.onProgress = onProgress;
-    }
-
-    /**
-     * For internal use of IFC.js dev team and testers
-     */
-    getAndClearErrors(modelID: number) {
-        return this.parser.getAndClearErrors(modelID);
     }
 
     /**
@@ -76,11 +70,28 @@ export class IFCManager {
     }
 
     /**
+     * Makes object picking a lot faster
+     * Courtesy of gkjohnson's [work](https://github.com/gkjohnson/three-mesh-bvh).
+     * Import these objects from his library and pass them as arguments. IFC.js takes care of the rest!
+     */
+    setupThreeMeshBVH(computeBoundsTree: any, disposeBoundsTree: any, acceleratedRaycast: any) {
+        this.BVH.initializeMeshBVH(computeBoundsTree, disposeBoundsTree, acceleratedRaycast);
+    }
+
+    /**
+     * Sets a callback function that is called every 10% of IFC loaded.
+     * @onProgress callback function
+     */
+    setOnProgress(onProgress: (event: ParserProgress) => void) {
+        this.state.onProgress = onProgress;
+    }
+
+    /**
      * Applies a configuration for [web-ifc](https://ifcjs.github.io/info/docs/Guide/web-ifc/Introduction).
      */
     async applyWebIfcConfig(settings: LoaderSettings) {
         this.state.webIfcSettings = settings;
-        if(this.state.worker.active && this.worker) {
+        if (this.state.worker.active && this.worker) {
             await this.worker.workerState.updateStateWebIfcSettings();
         }
     }
@@ -144,31 +155,6 @@ export class IFCManager {
         if (this.state.worker.active) {
             await this.worker?.workerState.loadJsonDataFromWorker(modelID, path);
         }
-    }
-
-    /**
-     * Completely releases the WASM memory, thus drastically decreasing the memory use of the app.
-     * Only use this in the following scenarios:
-     * - If you don't need to access the properties of the IFC
-     * - If you will provide the properties as JSON.
-     */
-    async disposeMemory() {
-        if (this.state.worker.active) {
-            await this.worker?.Close();
-        } else {
-            // @ts-ignore
-            this.state.api = null;
-            this.state.api = new WebIFC.IfcAPI();
-        }
-    }
-
-    /**
-     * Makes object picking a lot faster
-     * Courtesy of gkjohnson's [work](https://github.com/gkjohnson/three-mesh-bvh).
-     * Import these objects from his library and pass them as arguments. IFC.js takes care of the rest!
-     */
-    setupThreeMeshBVH(computeBoundsTree: any, disposeBoundsTree: any, acceleratedRaycast: any) {
-        this.BVH.initializeMeshBVH(computeBoundsTree, disposeBoundsTree, acceleratedRaycast);
     }
 
     /**
@@ -344,12 +330,7 @@ export class IFCManager {
         this.hider.showAllItems(modelID);
     }
 
-    /**
-     * Returns the underlying web-ifc API.
-     */
-    get ifcAPI() {
-        return this.state.api;
-    }
+    // MISC - Miscelaneus logic for various purposes
 
     /**
      * Deletes all data, releasing all memory
@@ -366,6 +347,29 @@ export class IFCManager {
         this.state.models = null;
         // @ts-ignore
         this.state = null;
+    }
+
+    /**
+     * Completely releases the WASM memory, thus drastically decreasing the memory use of the app.
+     * Only use this in the following scenarios:
+     * - If you don't need to access the properties of the IFC
+     * - If you will provide the properties as JSON.
+     */
+    async disposeMemory() {
+        if (this.state.worker.active) {
+            await this.worker?.Close();
+        } else {
+            // @ts-ignore
+            this.state.api = null;
+            this.state.api = new WebIFC.IfcAPI();
+        }
+    }
+
+    /**
+     * For internal use of IFC.js dev team and testers
+     */
+    getAndClearErrors(modelID: number) {
+        return this.parser.getAndClearErrors(modelID);
     }
 
     private async initializeWorkers() {

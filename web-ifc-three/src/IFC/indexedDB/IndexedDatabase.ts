@@ -4,7 +4,7 @@ export enum DBOperation {
 }
 
 export class IndexedDatabase {
-    save(item: any, id: DBOperation) {
+    async save(item: any, id: DBOperation) {
         const open = IndexedDatabase.openOrCreateDB(id);
         this.createSchema(open, id)
         return new Promise<any>((resolve, reject) => {
