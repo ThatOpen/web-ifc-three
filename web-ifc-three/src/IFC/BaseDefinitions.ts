@@ -1,4 +1,4 @@
-import { BufferAttribute, BufferGeometry, Material, Mesh, Object3D } from 'three';
+import { BufferAttribute, BufferGeometry, Material, Matrix4, Mesh, Object3D } from 'three';
 // TODO: Remove ts ignore comments when @types/three gets updated
 // @ts-ignore
 import { mergeBufferGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils';
@@ -94,6 +94,7 @@ export interface IfcState {
     worker: Worker;
     webIfcSettings?: LoaderSettings;
     onProgress?: (event: ParserProgress) => void;
+    coordinationMatrix?: Matrix4
 }
 
 export interface IfcMesh extends Mesh {

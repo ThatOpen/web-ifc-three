@@ -6,6 +6,7 @@ import { Serializer } from '../serializer/Serializer';
 import { ParserResult } from '../workers/ParserWorker';
 import { BvhManager } from '../../components/BvhManager';
 import { DBOperation, IndexedDatabase } from '../../indexedDB/IndexedDatabase';
+import { Matrix4 } from 'three';
 
 export class ParserHandler implements ParserAPI {
 
@@ -21,7 +22,7 @@ export class ParserHandler implements ParserAPI {
         return this.handler.request(this.API, WorkerActions.setupOptionalCategories, {config});
     }
 
-    async parse(buffer: any): Promise<IFCModel> {
+    async parse(buffer: any, coordinationMatrix?: number[]): Promise<IFCModel> {
         this.handler.onprogressHandlers[this.handler.requestID] = (progress: ParserProgress) => {
             if (this.handler.state.onProgress) this.handler.state.onProgress(progress);
         };
@@ -30,7 +31,7 @@ export class ParserHandler implements ParserAPI {
             await this.getItems(result.modelID);
             return this.getModel();
         };
-        return this.handler.request(this.API, WorkerActions.parse, {buffer});
+        return this.handler.request(this.API, WorkerActions.parse, {buffer, coordinationMatrix});
     }
 
     getAndClearErrors(_modelId: number): void {

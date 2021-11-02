@@ -15,8 +15,7 @@ class IFCLoader extends Loader {
         url: any,
         onLoad: (ifc: IFCModel) => void,
         onProgress?: (event: ProgressEvent) => void,
-        onError?: (event: ErrorEvent) => void,
-        translationMatrix?: Matrix4
+        onError?: (event: ErrorEvent) => void
     ) {
         const scope = this;
 
@@ -33,7 +32,7 @@ class IFCLoader extends Loader {
                     if (typeof buffer == 'string') {
                         throw new Error('IFC files must be given as a buffer!');
                     }
-                    onLoad(await scope.parse(buffer, translationMatrix));
+                    onLoad(await scope.parse(buffer));
                 } catch (e: any) {
                     if (onError) {
                         onError(e);
@@ -49,8 +48,8 @@ class IFCLoader extends Loader {
         );
     }
 
-    parse(buffer: ArrayBuffer, translationMatrix?: Matrix4) {
-        return this.ifcManager.parse(buffer, translationMatrix);
+    parse(buffer: ArrayBuffer) {
+        return this.ifcManager.parse(buffer);
     }
 }
 

@@ -1,4 +1,4 @@
-import { MeshLambertMaterial } from 'three';
+import { MeshLambertMaterial, Matrix4 } from 'three';
 import { IFCLoader } from 'web-ifc-three/dist/IFCLoader';
 import { acceleratedRaycast, computeBoundsTree, disposeBoundsTree } from 'three-mesh-bvh';
 import { IFCSPACE } from 'web-ifc';
@@ -21,10 +21,7 @@ export class IfcManager {
 
     async setupIfcLoader() {
         await this.ifcLoader.ifcManager.useWebWorkers(true, 'IFCWorker.js');
-        await this.ifcLoader.ifcManager.applyWebIfcConfig({
-            COORDINATE_TO_ORIGIN: true,
-            USE_FAST_BOOLS: false
-        });
+
         this.setupThreeMeshBVH();
         this.setupFileOpener();
     }
@@ -50,7 +47,22 @@ export class IfcManager {
     async loadIFC(changed) {
         const ifcURL = URL.createObjectURL(changed.target.files[0]);
         this.ifcLoader.ifcManager.setOnProgress((event) => console.log(event));
+
+        const firstModel = Boolean(this.ifcModels.length === 0);
+
+        await this.ifcLoader.ifcManager.applyWebIfcConfig({
+            COORDINATE_TO_ORIGIN: firstModel,
+            USE_FAST_BOOLS: false
+        });
+
         const ifcModel = await this.ifcLoader.loadAsync(ifcURL);
+
+        if(firstModel){
+            const matrixArr = await this.ifcLoader.ifcManager.ifcAPI.GetCoordinationMatrix(ifcModel.modelID);
+            const matrix = new Matrix4().fromArray(matrixArr);
+            this.ifcLoader.ifcManager.setupCoordinationMatrix(matrix);
+        }
+
         this.ifcModels.push(ifcModel);
         this.scene.add(ifcModel);
     }

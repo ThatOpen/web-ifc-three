@@ -43,8 +43,8 @@ export class IFCManager {
 
     // SETUP - all the logic regarding the configuration of web-ifc-three
 
-    async parse(buffer: ArrayBuffer, translationMatrix?: Matrix4) {
-        const model = await this.parser.parse(buffer, translationMatrix) as IFCModel;
+    async parse(buffer: ArrayBuffer) {
+        const model = await this.parser.parse(buffer, this.state.coordinationMatrix?.toArray()) as IFCModel;
         model.setIFCManager(this);
         this.state.useJSON ? await this.disposeMemory() : await this.types.getAllTypes(this.worker);
         this.hider.processCoordinates(model.modelID);
@@ -84,6 +84,22 @@ export class IFCManager {
      */
     setOnProgress(onProgress: (event: ParserProgress) => void) {
         this.state.onProgress = onProgress;
+    }
+
+
+    /**
+     * Sets a coordination matrix to be applied when loading geometry.
+     * @matrix THREE.Matrix4
+     */
+    setupCoordinationMatrix(matrix: Matrix4){
+        this.state.coordinationMatrix = matrix;
+    }
+
+    /**
+     * Clears the coordination matrix that is applied when loading geometry.
+     */
+    clearCoordinationMatrix(){
+        delete this.state.coordinationMatrix;
     }
 
     /**

@@ -57,7 +57,7 @@ export class ParserWorker implements ParserWorkerAPI {
 
     private async getResponse(data: IfcEventData) {
         if (!this.parser) throw new Error(ErrorParserNotAvailable);
-        const ifcModel = await this.parser.parse(data.args.buffer);
+        const ifcModel = await this.parser.parse(data.args.buffer, data.args.coordinationMatrix);
         const serializedIfcModel = this.serializer.serializeIfcModel(ifcModel);
         data.result = {modelID: ifcModel.modelID};
         const serializedItems = this.getSerializedItems(ifcModel);
