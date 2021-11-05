@@ -22,7 +22,7 @@ export class PropertyManager implements PropertyManagerAPI {
         this.currentProps = this.webIfcProps;
     }
 
-    async getExpressId(geometry: BufferGeometry, faceIndex: number) {
+    getExpressId(geometry: BufferGeometry, faceIndex: number) {
         if (!geometry.index) throw new Error('Geometry does not have index information.');
         const geoIndex = geometry.index.array;
         return geometry.attributes[IdAttrName].getX(geoIndex[3 * faceIndex]);

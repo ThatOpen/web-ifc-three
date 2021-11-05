@@ -16,5 +16,5 @@ export interface PropertyAPI {
 }
 
 export interface PropertyManagerAPI extends PropertyAPI {
-    getExpressId(geometry: BufferGeometry, faceIndex: number): Promise<number>
+    getExpressId(geometry: BufferGeometry, faceIndex: number): number;
 }
