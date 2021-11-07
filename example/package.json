@@ -1,6 +1,6 @@
 {
   "name": "example",
-  "version": "0.0.79",
+  "version": "0.0.80",
   "author": "IFC.js",
   "license": "Mozilla Public License Version 2.0",
   "description": "This library is the implementation of [web-ifc](https://github.com/tomvandig/web-ifc) for [THREE.js](https://github.com/mrdoob/three.js/). This is the official IFCLoader of Three.js.",
@@ -25,13 +25,13 @@
   "scripts": {
     "build": "rollup -c && npm run copy-files",
     "watch": "rollup -c -w",
-    "copy-files": "cpy ../node_modules/web-ifc/web-ifc.wasm . && cpy ../web-ifc-three/dist/IFCWorker.js . && cpy ../web-ifc-three/dist/IFCWorker.js.map ."
+    "copy-files": "cpy ../node_modules/web-ifc/web-ifc.wasm . && cpy ../node_modules/web-ifc/web-ifc-mt.wasm . && cpy ../web-ifc-three/dist/IFCWorker.js . && cpy ../web-ifc-three/dist/IFCWorker.js.map ."
   },
   "dependencies": {
     "stats.js": "^0.17.0",
     "three": "^0.132.2",
-    "web-ifc": "^0.0.25",
-    "web-ifc-three": "0.0.79"
+    "web-ifc": "^0.0.28",
+    "web-ifc-three": "0.0.80"
   },
   "devDependencies": {
     "cpy-cli": "^3.1.1"
