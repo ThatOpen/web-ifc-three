@@ -87214,7 +87214,7 @@ class BasePropertyManager {
       if (includeProperties) {
         const properties = await this.getItemProperties(modelID, node.expressID);
         node = {
-          ...node, ...properties
+          ...properties, ...node
         };
       }
       await this.getSpatialNode(modelID, node, treeChunks, includeProperties);
