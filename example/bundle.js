@@ -93538,6 +93538,9 @@ class IfcManager {
     }
 
     async loadIFC(changed) {
+
+        const start = window.performance.now();
+
         const ifcURL = URL.createObjectURL(changed.target.files[0]);
         this.ifcLoader.ifcManager.setOnProgress((event) => console.log(event));
 
@@ -93558,6 +93561,10 @@ class IfcManager {
 
         this.ifcModels.push(ifcModel);
         this.scene.add(ifcModel);
+
+        const stop = window.performance.now();
+
+        console.log(`Time Taken to execute = ${(stop - start)/1000} seconds`);
     }
 }
 
