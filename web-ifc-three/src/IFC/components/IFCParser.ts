@@ -6,7 +6,7 @@ import {
     IdAttrName,
     merge,
     newFloatAttr,
-    newIntAttr
+    newIntAttr, MaterialIndices
 } from '../BaseDefinitions';
 import {
     Color,
@@ -89,6 +89,7 @@ export class IFCParser implements ParserAPI {
             modelID: this.currentModelID,
             mesh: {} as IfcMesh,
             items: {},
+            map: new Map<number, MaterialIndices>(),
             types: {},
             jsonData: {}
         };
@@ -105,6 +106,54 @@ export class IFCParser implements ParserAPI {
         const mesh = new IFCModel(geometry, materials);
         mesh.modelID = this.currentModelID;
         this.state.models[this.currentModelID].mesh = mesh;
+
+        console.log(geometry);
+
+        const map = new Map<number, any>();
+
+        for(const group of Object.values(geometry.groups) as any){
+
+            let prevExpressID = -1;
+            const end = group.start + group.count;
+
+            for (let i = group.start; i <= end;){
+
+                const endOfArr = i === end;
+                const expressID = geometry.attributes.expressID.array[i / 3]
+
+                // The expressID has changed or we're at the end of this group.
+                if(prevExpressID !== expressID || endOfArr){
+                    // Finalise previous entry
+                    const prevEntry = map.get(prevExpressID);
+                    if(prevEntry && prevEntry[group.materialIndex]){
+                        const endIndex = endOfArr ? i : i - 1;
+                        map.set(prevExpressID, {
+                            ...prevEntry,
+                            [group.materialIndex]: [...prevEntry[group.materialIndex], endIndex]
+                        });
+                    }
+
+                    // Don't continue here if we're at the end - it will overwrite the work above.
+                    if(endOfArr) break;
+
+                    // Create new
+                    const existingEntry = map.get(expressID);
+                    map.set(expressID, {
+                        ...existingEntry,
+                        [group.materialIndex]: [i]
+                    });
+
+                    // Update prev change
+                    prevExpressID = expressID;
+                }
+
+                if(!endOfArr) {
+                    i += 3
+                }
+            }
+        }
+        this.state.models[this.currentModelID].map = map;
+        console.log(map);
         return mesh;
     }
 
