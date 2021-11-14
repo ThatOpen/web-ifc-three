@@ -112,7 +112,7 @@ export class IFCParser implements ParserAPI {
         const map = new Map<number, any>();
         let prevExpressID = -1;
 
-        for(const group of Object.values(geometry.groups) as any){
+        for(const group of geometry.groups){
 
             const end = group.start + group.count;
 
@@ -123,6 +123,11 @@ export class IFCParser implements ParserAPI {
                 const endOfArr = (i + 1) === end;
 
                 if(endOfArr){
+                    // Reset expressID since we're at the end for this group.
+                    // The next group might start with the same expressID;
+                    prevExpressID = -1;
+
+                    // Finalise entry for this group
                     const entry = map.get(expressID);
                     if(entry && entry[group.materialIndex]){
                         map.set(expressID, {
@@ -130,6 +135,7 @@ export class IFCParser implements ParserAPI {
                             [group.materialIndex]: [...entry[group.materialIndex], i]
                         });
                     }
+                    break;
                 }
 
                 // The expressID has changed;

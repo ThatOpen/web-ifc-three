@@ -86804,13 +86804,14 @@ class IFCParser {
         console.log(geometry);
         const map = new Map();
         let prevExpressID = -1;
-        for (const group of Object.values(geometry.groups)) {
+        for (const group of geometry.groups) {
             const end = group.start + group.count;
             for (let i = group.start; i < end; i++) {
                 const index = geometry.index.array[i];
                 const expressID = geometry.attributes.expressID.array[index];
                 const endOfArr = (i + 1) === end;
                 if (endOfArr) {
+                    prevExpressID = -1;
                     const entry = map.get(expressID);
                     if (entry && entry[group.materialIndex]) {
                         map.set(expressID, {
@@ -86818,6 +86819,7 @@ class IFCParser {
                             [group.materialIndex]: [...entry[group.materialIndex], i]
                         });
                     }
+                    break;
                 }
                 if (prevExpressID !== expressID) {
                     const prevEntry = map.get(prevExpressID);
