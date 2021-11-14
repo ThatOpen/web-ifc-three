@@ -86785,6 +86785,7 @@ class IFCParser {
             modelID: this.currentModelID,
             mesh: {},
             items: {},
+            map: new Map(),
             types: {},
             jsonData: {}
         };
@@ -86802,40 +86803,40 @@ class IFCParser {
         this.state.models[this.currentModelID].mesh = mesh;
         console.log(geometry);
         const map = new Map();
-        new Set([...geometry.attributes.expressID.array]);
+        let prevExpressID = -1;
         for (const group of Object.values(geometry.groups)) {
             const end = group.start + group.count;
-            let prev = -1;
-            console.log("End: " + end);
-            for (let i = group.start; i <= end;) {
-                const endOfArr = i === end;
-                const expressID = geometry.attributes.expressID.array[i / 3];
-                if (prev !== expressID || endOfArr) {
-                    const prevEntry = map.get(prev);
-                    if (prevEntry && prevEntry[group.materialIndex]) {
-                        const endIndex = endOfArr ? i : i - 1;
-                        map.set(prev, {
-                            ...prevEntry,
-                            [group.materialIndex]: [...prevEntry[group.materialIndex], endIndex]
+            for (let i = group.start; i < end; i++) {
+                const index = geometry.index.array[i];
+                const expressID = geometry.attributes.expressID.array[index];
+                const endOfArr = (i + 1) === end;
+                if (endOfArr) {
+                    const entry = map.get(expressID);
+                    if (entry && entry[group.materialIndex]) {
+                        map.set(expressID, {
+                            ...entry,
+                            [group.materialIndex]: [...entry[group.materialIndex], i]
                         });
                     }
-                    if (endOfArr)
-                        break;
+                }
+                if (prevExpressID !== expressID) {
+                    const prevEntry = map.get(prevExpressID);
+                    if (prevEntry && prevEntry[group.materialIndex]) {
+                        map.set(prevExpressID, {
+                            ...prevEntry,
+                            [group.materialIndex]: [...prevEntry[group.materialIndex], i - 1]
+                        });
+                    }
                     const existingEntry = map.get(expressID);
                     map.set(expressID, {
                         ...existingEntry,
                         [group.materialIndex]: [i]
                     });
-                    prev = expressID;
-                }
-                if (!endOfArr) {
-                    i += 3;
-                }
-                else {
-                    console.log("End");
+                    prevExpressID = expressID;
                 }
             }
         }
+        this.state.models[this.currentModelID].map = map;
         console.log(map);
         return mesh;
     }
@@ -89091,6 +89092,7 @@ class ParserHandler {
             mesh: {},
             items: {},
             types: {},
+            map: new Map(),
             jsonData: {}
         };
     }

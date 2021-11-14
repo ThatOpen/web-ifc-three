@@ -110,31 +110,38 @@ export class IFCParser implements ParserAPI {
         console.log(geometry);
 
         const map = new Map<number, any>();
+        let prevExpressID = -1;
 
         for(const group of Object.values(geometry.groups) as any){
 
-            let prevExpressID = -1;
             const end = group.start + group.count;
 
-            for (let i = group.start; i <= end;){
+            for (let i = group.start; i < end; i++){
 
-                const endOfArr = i === end;
-                const expressID = geometry.attributes.expressID.array[i / 3]
+                const index = geometry.index.array[i];
+                const expressID = geometry.attributes.expressID.array[index];
+                const endOfArr = (i + 1) === end;
 
-                // The expressID has changed or we're at the end of this group.
-                if(prevExpressID !== expressID || endOfArr){
+                if(endOfArr){
+                    const entry = map.get(expressID);
+                    if(entry && entry[group.materialIndex]){
+                        map.set(expressID, {
+                            ...entry,
+                            [group.materialIndex]: [...entry[group.materialIndex], i]
+                        });
+                    }
+                }
+
+                // The expressID has changed;
+                if(prevExpressID !== expressID){
                     // Finalise previous entry
                     const prevEntry = map.get(prevExpressID);
                     if(prevEntry && prevEntry[group.materialIndex]){
-                        const endIndex = endOfArr ? i : i - 1;
                         map.set(prevExpressID, {
                             ...prevEntry,
-                            [group.materialIndex]: [...prevEntry[group.materialIndex], endIndex]
+                            [group.materialIndex]: [...prevEntry[group.materialIndex], i - 1]
                         });
                     }
-
-                    // Don't continue here if we're at the end - it will overwrite the work above.
-                    if(endOfArr) break;
 
                     // Create new
                     const existingEntry = map.get(expressID);
@@ -146,12 +153,9 @@ export class IFCParser implements ParserAPI {
                     // Update prev change
                     prevExpressID = expressID;
                 }
-
-                if(!endOfArr) {
-                    i += 3
-                }
             }
         }
+
         this.state.models[this.currentModelID].map = map;
         console.log(map);
         return mesh;

@@ -7,6 +7,7 @@ import { ParserResult } from '../workers/ParserWorker';
 import { BvhManager } from '../../components/BvhManager';
 import { DBOperation, IndexedDatabase } from '../../indexedDB/IndexedDatabase';
 import { Matrix4 } from 'three';
+import {MaterialIndices} from "../../BaseDefinitions";
 
 export class ParserHandler implements ParserAPI {
 
@@ -43,6 +44,7 @@ export class ParserHandler implements ParserAPI {
             mesh: {} as any,
             items: {},
             types: {},
+            map: new Map<number, MaterialIndices>(),
             jsonData: {}
         };
     }
