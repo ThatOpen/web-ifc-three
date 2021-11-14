@@ -19,6 +19,7 @@ import {
 } from 'three';
 import {BvhManager} from './BvhManager';
 import {IFCModel} from './IFCModel';
+import {createGeomByExpressID, generateGeometryIndexMap} from "./GeometryIndexTest";
 
 export interface ParserProgress {
     loaded: number;
@@ -107,63 +108,13 @@ export class IFCParser implements ParserAPI {
         mesh.modelID = this.currentModelID;
         this.state.models[this.currentModelID].mesh = mesh;
 
-        console.log(geometry);
-
-        const map = new Map<number, any>();
-        let prevExpressID = -1;
-
-        for(const group of geometry.groups){
-
-            const end = group.start + group.count;
-
-            for (let i = group.start; i < end; i++){
-
-                const index = geometry.index.array[i];
-                const expressID = geometry.attributes.expressID.array[index];
-                const endOfArr = (i + 1) === end;
-
-                if(endOfArr){
-                    // Reset expressID since we're at the end for this group.
-                    // The next group might start with the same expressID;
-                    prevExpressID = -1;
-
-                    // Finalise entry for this group
-                    const entry = map.get(expressID);
-                    if(entry && entry[group.materialIndex]){
-                        map.set(expressID, {
-                            ...entry,
-                            [group.materialIndex]: [...entry[group.materialIndex], i]
-                        });
-                    }
-                    break;
-                }
-
-                // The expressID has changed;
-                if(prevExpressID !== expressID){
-                    // Finalise previous entry
-                    const prevEntry = map.get(prevExpressID);
-                    if(prevEntry && prevEntry[group.materialIndex]){
-                        map.set(prevExpressID, {
-                            ...prevEntry,
-                            [group.materialIndex]: [...prevEntry[group.materialIndex], i - 1]
-                        });
-                    }
-
-                    // Create new
-                    const existingEntry = map.get(expressID);
-                    map.set(expressID, {
-                        ...existingEntry,
-                        [group.materialIndex]: [i]
-                    });
-
-                    // Update prev change
-                    prevExpressID = expressID;
-                }
-            }
-        }
-
-        this.state.models[this.currentModelID].map = map;
+        const map = generateGeometryIndexMap(geometry);
         console.log(map);
+        this.state.models[this.currentModelID].map = map;
+
+        console.log(geometry);
+        // createGeomByExpressID(this.state.models[this.currentModelID], 107);
+
         return mesh;
     }
 

@@ -42131,13 +42131,93 @@ class ItemSelector {
     }
 
     highlightModel(removePrevious) {
-        this.currentModel.ifcManager.createSubset({
+        /*this.currentModel.ifcManager.createSubset({
             modelID: this.currentModel.modelID,
             scene: this.currentModel,
             ids: [this.currentItemID],
             removePrevious: removePrevious,
             material: this.material
-        });
+        });*/
+
+        const expressID = this.currentItemID;
+        const model = this.currentModel.ifcManager.state.models[0];
+        console.log(model);
+
+        const map = model.map;
+        const geometry = model.mesh.geometry;
+        const entry = map.get(expressID);
+        console.log(entry);
+
+        if (!geometry.index) throw new Error(`BufferGeometry is not indexed.`)
+        if (!entry) throw new Error(`Entry for expressID: ${expressID} not found.`)
+
+        const positions = [];
+        const normals = [];
+        const indexes = [];
+
+        let smallestIndex = -1;
+
+        for (const materialIndex in entry) {
+
+            const index = Number.parseInt(materialIndex);
+            const value = entry[index];
+            const start = value[0];
+            const end = value[1];
+
+            for (let i = start; i < end; i++) {
+                const index = geometry.index.array[i];
+                if (smallestIndex === -1 || smallestIndex > index) smallestIndex = index;
+            }
+        }
+
+        console.log(`Smallest: ${smallestIndex}`);
+
+        for (const materialIndex in entry) {
+
+            const index = Number.parseInt(materialIndex);
+            const value = entry[index];
+            const start = value[0];
+            const end = value[1];
+
+            for (let i = start; i < end; i++) {
+                const index = geometry.index.array[i];
+                const positionIndex = index * 3;
+                indexes.push(index - smallestIndex);
+
+                const v1 = geometry.attributes.position.array[positionIndex];
+                const v2 = geometry.attributes.position.array[positionIndex + 1];
+                const v3 = geometry.attributes.position.array[positionIndex + 2];
+
+                const n1 = geometry.attributes.normal.array[positionIndex];
+                const n2 = geometry.attributes.normal.array[positionIndex + 1];
+                const n3 = geometry.attributes.normal.array[positionIndex + 2];
+
+                const newIndex = (index - smallestIndex) * 3;
+
+                positions[newIndex] = v1;
+                positions[newIndex + 1] = v2;
+                positions[newIndex + 2] = v3;
+
+                normals[newIndex] = n1;
+                normals[newIndex + 1] = n2;
+                normals[newIndex + 2] = n3;
+            }
+        }
+
+        const newGeom = new BufferGeometry();
+        const positionNumComponents = 3;
+        const normalNumComponents = 3;
+        newGeom.setAttribute(
+            'position',
+            new BufferAttribute(new Float32Array(positions), positionNumComponents));
+        newGeom.setAttribute(
+            'normal',
+            new BufferAttribute(new Float32Array(normals), normalNumComponents));
+
+        newGeom.setIndex(indexes);
+
+        const cube = new Mesh(newGeom, new MeshBasicMaterial({ color: "red", depthTest: false, side: 2 }));
+        model.mesh.add(cube);
     }
 
     async logTree() {
@@ -86746,6 +86826,48 @@ class IFCModel extends Mesh {
     }
 }
 
+function generateGeometryIndexMap(geometry) {
+    const map = new Map();
+    if (!geometry.index)
+        throw new Error("BufferGeometry is not indexed.");
+    for (const group of geometry.groups) {
+        let prevExpressID = -1;
+        const materialIndex = group.materialIndex;
+        const end = group.start + group.count;
+        for (let i = group.start; i < end; i++) {
+            const index = geometry.index.array[i];
+            const expressID = geometry.attributes.expressID.array[index];
+            const endOfArr = (i + 1) === end;
+            if (endOfArr) {
+                const entry = map.get(expressID);
+                if (entry && entry[materialIndex]) {
+                    map.set(expressID, {
+                        ...entry,
+                        [materialIndex]: [...entry[materialIndex], i]
+                    });
+                }
+                break;
+            }
+            if (prevExpressID !== expressID) {
+                const prevEntry = map.get(prevExpressID);
+                if (prevEntry && prevEntry[materialIndex]) {
+                    map.set(prevExpressID, {
+                        ...prevEntry,
+                        [materialIndex]: [...prevEntry[materialIndex], i - 1]
+                    });
+                }
+                const existingEntry = map.get(expressID);
+                map.set(expressID, {
+                    ...existingEntry,
+                    [materialIndex]: [i]
+                });
+                prevExpressID = expressID;
+            }
+        }
+    }
+    return map;
+}
+
 class IFCParser {
     constructor(state, BVH) {
         this.state = state;
@@ -86801,45 +86923,10 @@ class IFCParser {
         const mesh = new IFCModel(geometry, materials);
         mesh.modelID = this.currentModelID;
         this.state.models[this.currentModelID].mesh = mesh;
-        console.log(geometry);
-        const map = new Map();
-        let prevExpressID = -1;
-        for (const group of geometry.groups) {
-            const end = group.start + group.count;
-            for (let i = group.start; i < end; i++) {
-                const index = geometry.index.array[i];
-                const expressID = geometry.attributes.expressID.array[index];
-                const endOfArr = (i + 1) === end;
-                if (endOfArr) {
-                    prevExpressID = -1;
-                    const entry = map.get(expressID);
-                    if (entry && entry[group.materialIndex]) {
-                        map.set(expressID, {
-                            ...entry,
-                            [group.materialIndex]: [...entry[group.materialIndex], i]
-                        });
-                    }
-                    break;
-                }
-                if (prevExpressID !== expressID) {
-                    const prevEntry = map.get(prevExpressID);
-                    if (prevEntry && prevEntry[group.materialIndex]) {
-                        map.set(prevExpressID, {
-                            ...prevEntry,
-                            [group.materialIndex]: [...prevEntry[group.materialIndex], i - 1]
-                        });
-                    }
-                    const existingEntry = map.get(expressID);
-                    map.set(expressID, {
-                        ...existingEntry,
-                        [group.materialIndex]: [i]
-                    });
-                    prevExpressID = expressID;
-                }
-            }
-        }
-        this.state.models[this.currentModelID].map = map;
+        const map = generateGeometryIndexMap(geometry);
         console.log(map);
+        this.state.models[this.currentModelID].map = map;
+        console.log(geometry);
         return mesh;
     }
     getGeometryAndMaterials() {
