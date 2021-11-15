@@ -1,6 +1,6 @@
 {
   "name": "web-ifc-three",
-  "version": "0.0.81",
+  "version": "0.0.82",
   "author": "IFC.js",
   "license": "Mozilla Public License Version 2.0",
   "description": "This library is the implementation of [web-ifc](https://github.com/tomvandig/web-ifc) for [THREE.js](https://github.com/mrdoob/three.js/). This is the official IFCLoader of Three.js.",
@@ -23,12 +23,11 @@
   },
   "homepage": "https://github.com/agviegas/web-ifc-three#readme",
   "scripts": {
-    "build": "rollup -c config/rollup.config.js && npm run build-declaration && npm run build-worker && npm run clean && npm run copy-wasm",
+    "build": "rollup -c config/rollup.config.js && npm run build-declaration && npm run build-worker && npm run clean",
     "build-declaration": "tsc -p config/tsconfig.declaration.json",
     "build-worker": "rollup -c config/rollup-worker.config.js",
     "clean": "esformatter --config config/esformatter.config.json dist/IFCLoader.js -i",
     "build-example": "rollup -c ../example/rollup.config.js && npm run copy-wasm",
-    "copy-wasm": "cpy ../node_modules/web-ifc/web-ifc.wasm ../example && cpy ../node_modules/web-ifc/web-ifc.wasm ../web-ifc-three/dist",
     "publish-repo": "npm run build && cpy package.json dist && cd dist && npm publish",
     "watch": "rollup -c config/rollup.config.js -w",
     "test": "jest"
@@ -36,7 +35,7 @@
   "dependencies": {
     "@types/three": "^0.131.0",
     "three-mesh-bvh": "^0.3.7",
-    "web-ifc": "^0.0.28"
+    "web-ifc": "^0.0.29"
   },
   "devDependencies": {
     "@babel/core": "^7.13.8",
