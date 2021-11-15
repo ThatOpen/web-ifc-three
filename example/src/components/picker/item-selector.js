@@ -1,4 +1,4 @@
-import {BufferAttribute, BufferGeometry, Mesh, MeshBasicMaterial} from "three";
+import { BufferAttribute, BufferGeometry, Material, Mesh, MeshBasicMaterial } from 'three';
 
 let firstTime = true;
 
@@ -28,6 +28,85 @@ export class ItemSelector {
 
     previousObject = null;
 
+    getSmallestIndex(start, end, geometry){
+        let smallestIndex = -1;
+
+        for (let i = start; i < end; i++) {
+            const index = geometry.index.array[i];
+            if (smallestIndex === -1 || smallestIndex > index) smallestIndex = index;
+        }
+
+        return smallestIndex;
+    }
+
+    generateGeometryIndexMap(geometry) {
+
+        const map = new Map();
+
+        if (!geometry.index) throw new Error('BufferGeometry is not indexed.');
+
+        for (const group of geometry.groups) {
+
+            let prevExpressID = -1;
+
+            const materialIndex = group.materialIndex;
+            const materialStart = group.start;
+            const materialEnd = materialStart + group.count - 1;
+
+            let objectStart = -1;
+            let objectEnd = -1;
+
+            for (let i = materialStart; i <= materialEnd; i++) {
+                const index = geometry.index.array[i];
+                const expressID = geometry.attributes.expressID.array[index];
+
+                // First iteration
+                if (prevExpressID === -1) {
+                    prevExpressID = expressID;
+                    objectStart = i;
+                }
+
+                // It's the end of the material, which also means end of the object
+                const isEndOfMaterial = i === materialEnd;
+                if (isEndOfMaterial) {
+                    const store = this.getMaterialStore(map, expressID, materialIndex);
+                    store.push(objectStart, materialEnd);
+                    break;
+                }
+
+                // Still going through the same object
+                if (prevExpressID === expressID) continue;
+
+                // New object starts; save previous object
+
+                // Store previous object
+                const store = this.getMaterialStore(map, prevExpressID, materialIndex);
+                objectEnd = i - 1;
+                store.push(objectStart, objectEnd);
+
+                // Get ready to process next object
+                prevExpressID = expressID;
+                objectStart = i;
+            }
+        }
+        return map;
+    }
+
+    getMaterialStore(map, id, matIndex) {
+        // If this object wasn't store before, add it to the map
+        if (map.get(id) === undefined) {
+            map.set(id, {});
+        }
+        const storedIfcItem = map.get(id);
+        if (storedIfcItem === undefined) throw new Error('Geometry map generation error');
+
+        // If this material wasn't stored for this object before, add it to the object
+        if (storedIfcItem[matIndex] === undefined) {
+            storedIfcItem[matIndex] = [];
+        }
+        return storedIfcItem[matIndex];
+    }
+
     highlightModel(removePrevious) {
         /*this.currentModel.ifcManager.createSubset({
             modelID: this.currentModel.modelID,
@@ -42,10 +121,10 @@ export class ItemSelector {
 
         const expressID = this.currentItemID;
         const model = this.currentModel.ifcManager.state.models[0];
-        console.log(model);
 
-        const map = model.map;
         const geometry = model.mesh.geometry;
+        const map = this.generateGeometryIndexMap(geometry);
+
         const entry = map.get(expressID);
         console.log(entry);
 
@@ -56,43 +135,11 @@ export class ItemSelector {
         const normals = [];
         const originalIndexSlice = [];
         const indexes = [];
-
-        /*let smallestIndex = -1;
-
-        for (const materialIndex in entry) {
-
-            const index = Number.parseInt(materialIndex);
-            const value = entry[index];
-            const start = value[0];
-            const end = value[1];
-
-            for (let i = start; i < end; i++) {
-                const index = geometry.index.array[i];
-                if (smallestIndex === -1 || smallestIndex > index) smallestIndex = index;
-            }
-        }*/
-
-        function getSmallestIndex(start, end){
-            let smallestIndex = -1;
-
-            for (let i = start; i < end; i++) {
-                const index = geometry.index.array[i];
-                if (smallestIndex === -1 || smallestIndex > index) smallestIndex = index;
-            }
-
-            return smallestIndex;
-        }
-
-        // console.log(`Smallest: ${smallestIndex}`);
-
         let counter = 0;
 
         for (const materialIndex in entry) {
 
-
-
-            const index = Number.parseInt(materialIndex);
-            const value = entry[index];
+            const value = entry[Number.parseInt(materialIndex)];
 
             const pairs = value.length / 2;
 
@@ -100,13 +147,13 @@ export class ItemSelector {
 
             for (let pair = 0; pair < pairs; pair++){
 
-                const paidIndex = pair * 2;
-                const start = value[paidIndex];
-                const end = value[paidIndex + 1];
+                const pairIndex = pair * 2;
+                const start = value[pairIndex];
+                const end = value[pairIndex + 1];
 
                 console.log("Pair: " + pair)
 
-                const smallestIndex = getSmallestIndex(start, end);
+                const smallestIndex = this.getSmallestIndex(start, end, geometry);
 
                 for (let i = start; i <= end; i++) {
 
@@ -114,7 +161,8 @@ export class ItemSelector {
                     const positionIndex = index * 3;
 
                     originalIndexSlice.push(index);
-                    indexes.push(index - smallestIndex + counter);
+                    const newIndex = index - smallestIndex + counter;
+                    indexes.push(newIndex);
 
                     const v1 = geometry.attributes.position.array[positionIndex];
                     const v2 = geometry.attributes.position.array[positionIndex + 1];
@@ -124,19 +172,17 @@ export class ItemSelector {
                     const n2 = geometry.attributes.normal.array[positionIndex + 1];
                     const n3 = geometry.attributes.normal.array[positionIndex + 2];
 
-                    const newIndex = ((index - smallestIndex) + counter) * 3;
+                    const newPositionIndex = newIndex * 3;
 
-                    positions[newIndex] = v1;
-                    positions[newIndex + 1] = v2;
-                    positions[newIndex + 2] = v3;
+                    positions[newPositionIndex] = v1;
+                    positions[newPositionIndex + 1] = v2;
+                    positions[newPositionIndex + 2] = v3;
 
-                    normals[newIndex] = n1;
-                    normals[newIndex + 1] = n2;
-                    normals[newIndex + 2] = n3;
+                    normals[newPositionIndex] = n1;
+                    normals[newPositionIndex + 1] = n2;
+                    normals[newPositionIndex + 2] = n3;
                 }
             }
-
-
 
             counter = indexes.length;
         }

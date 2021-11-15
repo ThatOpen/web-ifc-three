@@ -103,14 +103,16 @@ export class IFCParser implements ParserAPI {
 
     private generateAllGeometriesByMaterial() {
         const {geometry, materials} = this.getGeometryAndMaterials();
+        console.log(Array.from(geometry.index.array));
         if(this.BVH) this.BVH.applyThreeMeshBVH(geometry);
+        console.log(Array.from(geometry.index.array));
         const mesh = new IFCModel(geometry, materials);
         mesh.modelID = this.currentModelID;
         this.state.models[this.currentModelID].mesh = mesh;
 
-        const map = generateGeometryIndexMap(geometry);
-        console.log(map);
-        this.state.models[this.currentModelID].map = map;
+        // const map = generateGeometryIndexMap(geometry);
+        // console.log(map);
+        // this.state.models[this.currentModelID].map = map;
 
         console.log(geometry);
         // createGeomByExpressID(this.state.models[this.currentModelID], 107);
