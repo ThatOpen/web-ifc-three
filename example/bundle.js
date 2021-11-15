@@ -42106,6 +42106,8 @@ class RayCaster {
     }
 }
 
+let firstTime = true;
+
 class ItemSelector {
     constructor(scene, ifcModels, raycaster, highlightMaterial) {
         this.scene = scene;
@@ -42140,6 +42142,9 @@ class ItemSelector {
             removePrevious: removePrevious,
             material: this.material
         });*/
+
+        if(!firstTime) return;
+        firstTime = false;
 
         const expressID = this.currentItemID;
         const model = this.currentModel.ifcManager.state.models[0];
@@ -86872,53 +86877,49 @@ class IFCModel extends Mesh {
 function generateGeometryIndexMap(geometry) {
     const map = new Map();
     if (!geometry.index)
-        throw new Error("BufferGeometry is not indexed.");
+        throw new Error('BufferGeometry is not indexed.');
     for (const group of geometry.groups) {
         let prevExpressID = -1;
         const materialIndex = group.materialIndex;
-        const end = group.start + group.count;
-        const visited = [];
-        for (let i = group.start; i < end; i++) {
+        const materialStart = group.start;
+        const materialEnd = materialStart + group.count - 1;
+        let objectStart = -1;
+        let objectEnd = -1;
+        for (let i = materialStart; i <= materialEnd; i++) {
             const index = geometry.index.array[i];
             const expressID = geometry.attributes.expressID.array[index];
-            const endOfArr = (i + 1) === end;
-            if (endOfArr) {
-                const entry = map.get(expressID);
-                if (entry && entry[materialIndex]) {
-                    map.set(expressID, {
-                        ...entry,
-                        [materialIndex]: [...entry[materialIndex], i]
-                    });
-                }
+            if (prevExpressID === -1) {
+                prevExpressID = expressID;
+                objectStart = i;
+            }
+            const isEndOfMaterial = i === materialEnd;
+            if (isEndOfMaterial) {
+                const store = getMaterialStore(map, expressID, materialIndex);
+                store.push(objectStart, materialEnd);
                 break;
             }
-            if (prevExpressID !== expressID) {
-                if (visited.includes(expressID))
-                    console.log(`ExpressID: ${expressID} already visited.`);
-                visited.push(expressID);
-                const prevEntry = map.get(prevExpressID);
-                if (prevEntry && prevEntry[materialIndex]) {
-                    map.set(prevExpressID, {
-                        ...prevEntry,
-                        [materialIndex]: [...prevEntry[materialIndex], i - 1]
-                    });
-                }
-                const existingEntry = map.get(expressID);
-                let existingMat = [];
-                if (existingEntry && existingEntry[materialIndex]) {
-                    existingMat = existingEntry[materialIndex];
-                    console.log("Existing");
-                }
-                map.set(expressID, {
-                    ...existingEntry,
-                    [materialIndex]: [...existingMat, i]
-                });
-                prevExpressID = expressID;
-            }
+            if (prevExpressID === expressID)
+                continue;
+            const store = getMaterialStore(map, prevExpressID, materialIndex);
+            objectEnd = i - 1;
+            store.push(objectStart, objectEnd);
+            prevExpressID = expressID;
+            objectStart = i;
         }
     }
-    console.log(map);
     return map;
+}
+function getMaterialStore(map, id, matIndex) {
+    if (map.get(id) === undefined) {
+        map.set(id, {});
+    }
+    const storedIfcItem = map.get(id);
+    if (storedIfcItem === undefined)
+        throw new Error('Geometry map generation error');
+    if (storedIfcItem[matIndex] === undefined) {
+        storedIfcItem[matIndex] = [];
+    }
+    return storedIfcItem[matIndex];
 }
 
 class IFCParser {

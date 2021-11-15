@@ -1,5 +1,7 @@
 import {BufferAttribute, BufferGeometry, Mesh, MeshBasicMaterial} from "three";
 
+let firstTime = true;
+
 export class ItemSelector {
     constructor(scene, ifcModels, raycaster, highlightMaterial) {
         this.scene = scene;
@@ -34,6 +36,9 @@ export class ItemSelector {
             removePrevious: removePrevious,
             material: this.material
         });*/
+
+        if(!firstTime) return;
+        firstTime = false;
 
         const expressID = this.currentItemID;
         const model = this.currentModel.ifcManager.state.models[0];

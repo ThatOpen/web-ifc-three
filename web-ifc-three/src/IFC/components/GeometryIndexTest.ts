@@ -1,85 +1,74 @@
-import {BufferAttribute, BufferGeometry, Mesh, MeshBasicMaterial} from "three";
-import {IfcModel} from "../BaseDefinitions";
+import { BufferAttribute, BufferGeometry, Mesh, MeshBasicMaterial } from 'three';
+import { IfcModel } from '../BaseDefinitions';
+
+export type GeometryIndicesMap = Map<number, { [materialIndex: number]: number[] }>;
 
 export function generateGeometryIndexMap(geometry: BufferGeometry) {
 
-    const map = new Map<number, any>();
+    const map = new Map<number, { [materialIndex: number]: number[] }>();
 
-    if (!geometry.index) throw new Error("BufferGeometry is not indexed.")
-
-
-
+    if (!geometry.index) throw new Error('BufferGeometry is not indexed.');
 
     for (const group of geometry.groups) {
 
         let prevExpressID = -1;
 
         const materialIndex = group.materialIndex!;
-        const end = group.start + group.count;
+        const materialStart = group.start;
+        const materialEnd = materialStart + group.count - 1;
 
-        const visited : number[] = []
+        let objectStart = -1;
+        let objectEnd = -1;
 
-        for (let i = group.start; i < end; i++) {
+        for (let i = materialStart; i <= materialEnd; i++) {
             const index = geometry.index.array[i];
             const expressID = geometry.attributes.expressID.array[index];
-            const endOfArr = (i + 1) === end;
 
+            // First iteration
+            if (prevExpressID === -1) {
+                prevExpressID = expressID;
+                objectStart = i;
+            }
 
-
-            if (endOfArr) {
-
-                // Reset expressID since we're at the end for this group.
-                // The next group might start with the same expressID;
-                // prevExpressID = -1;
-
-                // Finalise entry for this group
-                const entry = map.get(expressID);
-                if (entry && entry[materialIndex]) {
-                    map.set(expressID, {
-                        ...entry,
-                        [materialIndex]: [...entry[materialIndex], i]
-                    });
-                }
+            // It's the end of the material, which also means end of the object
+            const isEndOfMaterial = i === materialEnd;
+            if (isEndOfMaterial) {
+                const store = getMaterialStore(map, expressID, materialIndex);
+                store.push(objectStart, materialEnd);
                 break;
             }
 
-            // The expressID has changed
-            if (prevExpressID !== expressID) {
+            // Still going through the same object
+            if (prevExpressID === expressID) continue;
 
-                if(visited.includes(expressID)) console.log(`ExpressID: ${expressID} already visited.`)
-                visited.push(expressID);
+            // New object starts; save previous object
 
-                // Finalise previous entry
-                const prevEntry = map.get(prevExpressID);
-                if (prevEntry && prevEntry[materialIndex]) {
-                    map.set(prevExpressID, {
-                        ...prevEntry,
-                        [materialIndex]: [...prevEntry[materialIndex], i - 1]
-                    });
-                }
+            // Store previous object
+            const store = getMaterialStore(map, prevExpressID, materialIndex);
+            objectEnd = i - 1;
+            store.push(objectStart, objectEnd);
 
-                // Create new
-                const existingEntry = map.get(expressID);
-
-                let existingMat = [];
-
-                if(existingEntry && existingEntry[materialIndex]){
-                    existingMat = existingEntry[materialIndex];
-                    console.log("Existing")
-                }
-
-                map.set(expressID, {
-                    ...existingEntry,
-                    [materialIndex]: [...existingMat, i]
-                });
-
-                // Update prev change
-                prevExpressID = expressID;
-            }
+            // Get ready to process next object
+            prevExpressID = expressID;
+            objectStart = i;
         }
     }
-    console.log(map);
     return map;
+}
+
+function getMaterialStore(map: GeometryIndicesMap, id: number, matIndex: number) {
+    // If this object wasn't store before, add it to the map
+    if (map.get(id) === undefined) {
+        map.set(id, {});
+    }
+    const storedIfcItem = map.get(id);
+    if (storedIfcItem === undefined) throw new Error('Geometry map generation error');
+
+    // If this material wasn't stored for this object before, add it to the object
+    if (storedIfcItem[matIndex] === undefined) {
+        storedIfcItem[matIndex] = [];
+    }
+    return storedIfcItem[matIndex];
 }
 
 export function createGeomByExpressID(model: IfcModel, expressID: number) {
@@ -91,8 +80,8 @@ export function createGeomByExpressID(model: IfcModel, expressID: number) {
     const entry = map.get(expressID);
     console.log(entry);
 
-    if (!geometry.index) throw new Error(`BufferGeometry is not indexed.`)
-    if (!entry) throw new Error(`Entry for expressID: ${expressID} not found.`)
+    if (!geometry.index) throw new Error(`BufferGeometry is not indexed.`);
+    if (!entry) throw new Error(`Entry for expressID: ${expressID} not found.`);
 
     const positions = [];
     const normals = [];
@@ -155,7 +144,7 @@ export function createGeomByExpressID(model: IfcModel, expressID: number) {
     console.log(normals);
     console.log(indexes);
 
-    console.log("Original Index Slice")
+    console.log('Original Index Slice');
     console.log(originalIndexSlice);
 
     const newGeom = new BufferGeometry();
@@ -170,7 +159,7 @@ export function createGeomByExpressID(model: IfcModel, expressID: number) {
 
     newGeom.setIndex(indexes);
 
-    const cube = new Mesh(newGeom, new MeshBasicMaterial({ color: "red", depthTest: false, side: 2 }));
+    const cube = new Mesh(newGeom, new MeshBasicMaterial({ color: 'red', depthTest: false, side: 2 }));
     model.mesh.add(cube);
     cube.position.x += 4;
 }
