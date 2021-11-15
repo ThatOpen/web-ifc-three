@@ -7,6 +7,9 @@ export function generateGeometryIndexMap(geometry: BufferGeometry) {
 
     if (!geometry.index) throw new Error("BufferGeometry is not indexed.")
 
+
+
+
     for (const group of geometry.groups) {
 
         let prevExpressID = -1;
@@ -14,10 +17,14 @@ export function generateGeometryIndexMap(geometry: BufferGeometry) {
         const materialIndex = group.materialIndex!;
         const end = group.start + group.count;
 
+        const visited : number[] = []
+
         for (let i = group.start; i < end; i++) {
             const index = geometry.index.array[i];
             const expressID = geometry.attributes.expressID.array[index];
             const endOfArr = (i + 1) === end;
+
+
 
             if (endOfArr) {
 
@@ -39,6 +46,9 @@ export function generateGeometryIndexMap(geometry: BufferGeometry) {
             // The expressID has changed
             if (prevExpressID !== expressID) {
 
+                if(visited.includes(expressID)) console.log(`ExpressID: ${expressID} already visited.`)
+                visited.push(expressID);
+
                 // Finalise previous entry
                 const prevEntry = map.get(prevExpressID);
                 if (prevEntry && prevEntry[materialIndex]) {
@@ -50,9 +60,17 @@ export function generateGeometryIndexMap(geometry: BufferGeometry) {
 
                 // Create new
                 const existingEntry = map.get(expressID);
+
+                let existingMat = [];
+
+                if(existingEntry && existingEntry[materialIndex]){
+                    existingMat = existingEntry[materialIndex];
+                    console.log("Existing")
+                }
+
                 map.set(expressID, {
                     ...existingEntry,
-                    [materialIndex]: [i]
+                    [materialIndex]: [...existingMat, i]
                 });
 
                 // Update prev change
@@ -60,6 +78,7 @@ export function generateGeometryIndexMap(geometry: BufferGeometry) {
             }
         }
     }
+    console.log(map);
     return map;
 }
 

@@ -42130,6 +42130,8 @@ class ItemSelector {
         if (logProps) await this.logProperties();
     }
 
+    previousObject = null;
+
     highlightModel(removePrevious) {
         /*this.currentModel.ifcManager.createSubset({
             modelID: this.currentModel.modelID,
@@ -42155,7 +42157,7 @@ class ItemSelector {
         const normals = [];
         const indexes = [];
 
-        let smallestIndex = -1;
+        /*let smallestIndex = -1;
 
         for (const materialIndex in entry) {
 
@@ -42168,40 +42170,73 @@ class ItemSelector {
                 const index = geometry.index.array[i];
                 if (smallestIndex === -1 || smallestIndex > index) smallestIndex = index;
             }
-        }
+        }*/
 
-        console.log(`Smallest: ${smallestIndex}`);
-
-        for (const materialIndex in entry) {
-
-            const index = Number.parseInt(materialIndex);
-            const value = entry[index];
-            const start = value[0];
-            const end = value[1];
+        function getSmallestIndex(start, end){
+            let smallestIndex = -1;
 
             for (let i = start; i < end; i++) {
                 const index = geometry.index.array[i];
-                const positionIndex = index * 3;
-                indexes.push(index - smallestIndex);
-
-                const v1 = geometry.attributes.position.array[positionIndex];
-                const v2 = geometry.attributes.position.array[positionIndex + 1];
-                const v3 = geometry.attributes.position.array[positionIndex + 2];
-
-                const n1 = geometry.attributes.normal.array[positionIndex];
-                const n2 = geometry.attributes.normal.array[positionIndex + 1];
-                const n3 = geometry.attributes.normal.array[positionIndex + 2];
-
-                const newIndex = (index - smallestIndex) * 3;
-
-                positions[newIndex] = v1;
-                positions[newIndex + 1] = v2;
-                positions[newIndex + 2] = v3;
-
-                normals[newIndex] = n1;
-                normals[newIndex + 1] = n2;
-                normals[newIndex + 2] = n3;
+                if (smallestIndex === -1 || smallestIndex > index) smallestIndex = index;
             }
+
+            return smallestIndex;
+        }
+
+        // console.log(`Smallest: ${smallestIndex}`);
+
+        let counter = 0;
+
+        for (const materialIndex in entry) {
+
+
+
+            const index = Number.parseInt(materialIndex);
+            const value = entry[index];
+
+            const pairs = value.length / 2;
+
+            console.log("Pairs: " + pairs);
+
+            for (let pair = 0; pair < pairs; pair++){
+
+                const paidIndex = pair * 2;
+                const start = value[paidIndex];
+                const end = value[paidIndex + 1];
+
+                console.log("Pair: " + pair);
+
+                const smallestIndex = getSmallestIndex(start, end);
+
+                for (let i = start; i <= end; i++) {
+
+                    const index = geometry.index.array[i];
+                    const positionIndex = index * 3;
+                    indexes.push(index - smallestIndex + counter);
+
+                    const v1 = geometry.attributes.position.array[positionIndex];
+                    const v2 = geometry.attributes.position.array[positionIndex + 1];
+                    const v3 = geometry.attributes.position.array[positionIndex + 2];
+
+                    const n1 = geometry.attributes.normal.array[positionIndex];
+                    const n2 = geometry.attributes.normal.array[positionIndex + 1];
+                    const n3 = geometry.attributes.normal.array[positionIndex + 2];
+
+                    const newIndex = ((index - smallestIndex) + counter) * 3;
+
+                    positions[newIndex] = v1;
+                    positions[newIndex + 1] = v2;
+                    positions[newIndex + 2] = v3;
+
+                    normals[newIndex] = n1;
+                    normals[newIndex + 1] = n2;
+                    normals[newIndex + 2] = n3;
+                }
+            }
+
+
+
+            counter = indexes.length;
         }
 
         const newGeom = new BufferGeometry();
@@ -42216,8 +42251,16 @@ class ItemSelector {
 
         newGeom.setIndex(indexes);
 
-        const cube = new Mesh(newGeom, new MeshBasicMaterial({ color: "red", depthTest: false, side: 2 }));
+        const cube = new Mesh(newGeom, new MeshBasicMaterial({ color: "red", depthTest: false,}));
         model.mesh.add(cube);
+
+        if(this.previousObject){
+            model.mesh.remove(this.previousObject);
+        }
+        this.previousObject = cube;
+
+        // console.log(positions);
+        // console.log(indexes)
     }
 
     async logTree() {
@@ -86834,6 +86877,7 @@ function generateGeometryIndexMap(geometry) {
         let prevExpressID = -1;
         const materialIndex = group.materialIndex;
         const end = group.start + group.count;
+        const visited = [];
         for (let i = group.start; i < end; i++) {
             const index = geometry.index.array[i];
             const expressID = geometry.attributes.expressID.array[index];
@@ -86849,6 +86893,9 @@ function generateGeometryIndexMap(geometry) {
                 break;
             }
             if (prevExpressID !== expressID) {
+                if (visited.includes(expressID))
+                    console.log(`ExpressID: ${expressID} already visited.`);
+                visited.push(expressID);
                 const prevEntry = map.get(prevExpressID);
                 if (prevEntry && prevEntry[materialIndex]) {
                     map.set(prevExpressID, {
@@ -86857,14 +86904,20 @@ function generateGeometryIndexMap(geometry) {
                     });
                 }
                 const existingEntry = map.get(expressID);
+                let existingMat = [];
+                if (existingEntry && existingEntry[materialIndex]) {
+                    existingMat = existingEntry[materialIndex];
+                    console.log("Existing");
+                }
                 map.set(expressID, {
                     ...existingEntry,
-                    [materialIndex]: [i]
+                    [materialIndex]: [...existingMat, i]
                 });
                 prevExpressID = expressID;
             }
         }
     }
+    console.log(map);
     return map;
 }
 

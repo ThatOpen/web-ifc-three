@@ -24,6 +24,8 @@ export class ItemSelector {
         if (logProps) await this.logProperties();
     }
 
+    previousObject = null;
+
     highlightModel(removePrevious) {
         /*this.currentModel.ifcManager.createSubset({
             modelID: this.currentModel.modelID,
@@ -50,7 +52,7 @@ export class ItemSelector {
         const originalIndexSlice = [];
         const indexes = [];
 
-        let smallestIndex = -1;
+        /*let smallestIndex = -1;
 
         for (const materialIndex in entry) {
 
@@ -63,46 +65,75 @@ export class ItemSelector {
                 const index = geometry.index.array[i];
                 if (smallestIndex === -1 || smallestIndex > index) smallestIndex = index;
             }
+        }*/
+
+        function getSmallestIndex(start, end){
+            let smallestIndex = -1;
+
+            for (let i = start; i < end; i++) {
+                const index = geometry.index.array[i];
+                if (smallestIndex === -1 || smallestIndex > index) smallestIndex = index;
+            }
+
+            return smallestIndex;
         }
 
-        console.log(`Smallest: ${smallestIndex}`);
+        // console.log(`Smallest: ${smallestIndex}`);
 
         let counter = 0;
 
         for (const materialIndex in entry) {
 
+
+
             const index = Number.parseInt(materialIndex);
             const value = entry[index];
-            const start = value[0];
-            const end = value[1];
 
-            for (let i = start; i < end; i++) {
+            const pairs = value.length / 2;
 
-                counter = end - start;
-                const index = geometry.index.array[i];
-                const positionIndex = index * 3;
+            console.log("Pairs: " + pairs);
 
-                originalIndexSlice.push(index);
-                indexes.push(index - smallestIndex);
+            for (let pair = 0; pair < pairs; pair++){
 
-                const v1 = geometry.attributes.position.array[positionIndex];
-                const v2 = geometry.attributes.position.array[positionIndex + 1];
-                const v3 = geometry.attributes.position.array[positionIndex + 2];
+                const paidIndex = pair * 2;
+                const start = value[paidIndex];
+                const end = value[paidIndex + 1];
 
-                const n1 = geometry.attributes.normal.array[positionIndex];
-                const n2 = geometry.attributes.normal.array[positionIndex + 1];
-                const n3 = geometry.attributes.normal.array[positionIndex + 2];
+                console.log("Pair: " + pair)
 
-                const newIndex = (index - smallestIndex) * 3;
+                const smallestIndex = getSmallestIndex(start, end);
 
-                positions[newIndex] = v1;
-                positions[newIndex + 1] = v2;
-                positions[newIndex + 2] = v3;
+                for (let i = start; i <= end; i++) {
 
-                normals[newIndex] = n1;
-                normals[newIndex + 1] = n2;
-                normals[newIndex + 2] = n3;
+                    const index = geometry.index.array[i];
+                    const positionIndex = index * 3;
+
+                    originalIndexSlice.push(index);
+                    indexes.push(index - smallestIndex + counter);
+
+                    const v1 = geometry.attributes.position.array[positionIndex];
+                    const v2 = geometry.attributes.position.array[positionIndex + 1];
+                    const v3 = geometry.attributes.position.array[positionIndex + 2];
+
+                    const n1 = geometry.attributes.normal.array[positionIndex];
+                    const n2 = geometry.attributes.normal.array[positionIndex + 1];
+                    const n3 = geometry.attributes.normal.array[positionIndex + 2];
+
+                    const newIndex = ((index - smallestIndex) + counter) * 3;
+
+                    positions[newIndex] = v1;
+                    positions[newIndex + 1] = v2;
+                    positions[newIndex + 2] = v3;
+
+                    normals[newIndex] = n1;
+                    normals[newIndex + 1] = n2;
+                    normals[newIndex + 2] = n3;
+                }
             }
+
+
+
+            counter = indexes.length;
         }
 
         const newGeom = new BufferGeometry();
@@ -117,8 +148,16 @@ export class ItemSelector {
 
         newGeom.setIndex(indexes);
 
-        const cube = new Mesh(newGeom, new MeshBasicMaterial({ color: "red", depthTest: false, side: 2 }));
+        const cube = new Mesh(newGeom, new MeshBasicMaterial({ color: "red", depthTest: false,}));
         model.mesh.add(cube);
+
+        if(this.previousObject){
+            model.mesh.remove(this.previousObject);
+        }
+        this.previousObject = cube;
+
+        // console.log(positions);
+        // console.log(indexes)
     }
 
     async logTree() {
