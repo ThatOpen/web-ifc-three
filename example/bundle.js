@@ -42106,8 +42106,6 @@ class RayCaster {
     }
 }
 
-let firstTime = true;
-
 class ItemSelector {
     constructor(scene, ifcModels, raycaster, highlightMaterial) {
         this.scene = scene;
@@ -42222,9 +42220,6 @@ class ItemSelector {
             material: this.material
         });*/
 
-        if(!firstTime) return;
-        firstTime = false;
-
         const expressID = this.currentItemID;
         const model = this.currentModel.ifcManager.state.models[0];
 
@@ -42303,10 +42298,10 @@ class ItemSelector {
         newGeom.setIndex(indexes);
 
         const cube = new Mesh(newGeom, new MeshBasicMaterial({ color: "red", depthTest: false,}));
-        model.mesh.add(cube);
+        this.scene.add(cube);
 
         if(this.previousObject){
-            model.mesh.remove(this.previousObject);
+            this.scene.remove(this.previousObject);
         }
         this.previousObject = cube;
 

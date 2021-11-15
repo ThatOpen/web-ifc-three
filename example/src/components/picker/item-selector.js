@@ -1,7 +1,5 @@
 import { BufferAttribute, BufferGeometry, Material, Mesh, MeshBasicMaterial } from 'three';
 
-let firstTime = true;
-
 export class ItemSelector {
     constructor(scene, ifcModels, raycaster, highlightMaterial) {
         this.scene = scene;
@@ -116,9 +114,6 @@ export class ItemSelector {
             material: this.material
         });*/
 
-        if(!firstTime) return;
-        firstTime = false;
-
         const expressID = this.currentItemID;
         const model = this.currentModel.ifcManager.state.models[0];
 
@@ -200,10 +195,10 @@ export class ItemSelector {
         newGeom.setIndex(indexes);
 
         const cube = new Mesh(newGeom, new MeshBasicMaterial({ color: "red", depthTest: false,}));
-        model.mesh.add(cube);
+        this.scene.add(cube);
 
         if(this.previousObject){
-            model.mesh.remove(this.previousObject);
+            this.scene.remove(this.previousObject);
         }
         this.previousObject = cube;
 
