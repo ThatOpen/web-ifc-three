@@ -42140,6 +42140,7 @@ class ItemSelector {
         }, 5000)*/
 
         this.mapCache = {};
+        this.indexCache = null;
     }
 
     sleep(ms) {
@@ -42172,20 +42173,24 @@ class ItemSelector {
     }
 
     generateGeometryIndexMap(modelID, geometry) {
-        // if(this.mapCache[modelID]) {
-        //     return this.mapCache[modelID]
-        // }
-
-        if(this.previousGeomIndexStr){
-            if(geometry.attributes.position.array.toString() !== this.previousGeomIndexStr){
-                console.log("Not Equal!");
-                console.log(this.previousGeomIndexStr);
-                console.log(geometry.attributes.position.array.toString());
-            }
-            this.previousGeomIndexStr = geometry.attributes.position.array.toString();
-        }else {
-            this.previousGeomIndexStr = geometry.attributes.position.array.toString();
+        if(this.mapCache[modelID]) {
+            return this.mapCache[modelID]
         }
+
+        if(!this.indexCache){
+            this.indexCache = geometry.index.array.slice(0, geometry.index.array.length);
+        }
+
+        // if(this.previousGeomIndexStr){
+        //     if(geometry.attributes.position.array.toString() !== this.previousGeomIndexStr){
+        //         console.log("Not Equal!")
+        //         console.log(this.previousGeomIndexStr);
+        //         console.log(geometry.attributes.position.array.toString())
+        //     }
+        //     this.previousGeomIndexStr = geometry.attributes.position.array.toString();
+        // }else {
+        //     this.previousGeomIndexStr = geometry.attributes.position.array.toString()
+        // }
 
         const map = new Map();
 
@@ -42291,7 +42296,7 @@ class ItemSelector {
 
                 for (let i = start; i <= end; i++) {
 
-                    const index = geometry.index.array[i];
+                    const index = this.indexCache[i];
                     const positionIndex = index * 3;
                     const newIndex = indexes.length;
                     indexes.push(newIndex);

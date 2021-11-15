@@ -102,7 +102,7 @@ export class IFCParser implements ParserAPI {
     }
 
     private generateAllGeometriesByMaterial() {
-        const {geometry, materials} = this.getGeometryAndMaterials();
+        const { geometry, materials } = this.getGeometryAndMaterials();
         console.log(Array.from(geometry.index.array));
         if(this.BVH) this.BVH.applyThreeMeshBVH(geometry);
         console.log(Array.from(geometry.index.array));
