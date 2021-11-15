@@ -42227,7 +42227,6 @@ class ItemSelector {
         const map = this.generateGeometryIndexMap(geometry);
 
         const entry = map.get(expressID);
-        console.log(entry);
 
         if (!geometry.index) throw new Error(`BufferGeometry is not indexed.`)
         if (!entry) throw new Error(`Entry for expressID: ${expressID} not found.`)
@@ -42235,15 +42234,11 @@ class ItemSelector {
         const positions = [];
         const normals = [];
         const indexes = [];
-        let counter = 0;
 
         for (const materialIndex in entry) {
 
             const value = entry[Number.parseInt(materialIndex)];
-
             const pairs = value.length / 2;
-
-            console.log("Pairs: " + pairs);
 
             for (let pair = 0; pair < pairs; pair++){
 
@@ -42251,15 +42246,11 @@ class ItemSelector {
                 const start = value[pairIndex];
                 const end = value[pairIndex + 1];
 
-                console.log("Pair: " + pair);
-
-                const smallestIndex = this.getSmallestIndex(start, end, geometry);
-
                 for (let i = start; i <= end; i++) {
 
                     const index = geometry.index.array[i];
                     const positionIndex = index * 3;
-                    const newIndex = index - smallestIndex + counter;
+                    const newIndex = indexes.length;
                     indexes.push(newIndex);
 
                     const v1 = geometry.attributes.position.array[positionIndex];
@@ -42281,8 +42272,6 @@ class ItemSelector {
                     normals[newPositionIndex + 2] = n3;
                 }
             }
-
-            counter = indexes.length;
         }
 
         const newGeom = new BufferGeometry();
@@ -42304,9 +42293,6 @@ class ItemSelector {
             this.scene.remove(this.previousObject);
         }
         this.previousObject = cube;
-
-        // console.log(positions);
-        // console.log(indexes)
     }
 
     async logTree() {
