@@ -42116,6 +42116,34 @@ class ItemSelector {
         this.material = highlightMaterial;
         this.currentItemID = -1;
         this.currentModel = null;
+
+        this.previousGeomIndexStr = "";
+
+        this.geom = new BufferGeometry();
+
+        const cube = new Mesh( this.geom , new MeshBasicMaterial({ color: "red", depthTest: false,}));
+        this.previousObject = cube;
+        this.scene.add(cube);
+
+        /*setInterval(async () => {
+            await this.sleep(1000);
+            this.currentItemID = 7343;
+            this.highlightModel()
+
+            await this.sleep(1000);
+            this.currentItemID = 7451;
+            this.highlightModel()
+
+            await this.sleep(1000);
+            this.currentItemID = 7501;
+            this.highlightModel()
+        }, 5000)*/
+
+        this.mapCache = {};
+    }
+
+    sleep(ms) {
+        return new Promise(resolve => setTimeout(resolve, ms));
     }
 
     async select(event, logTree = false, logProps = false, removePrevious = true) {
@@ -42143,7 +42171,21 @@ class ItemSelector {
         return smallestIndex;
     }
 
-    generateGeometryIndexMap(geometry) {
+    generateGeometryIndexMap(modelID, geometry) {
+        // if(this.mapCache[modelID]) {
+        //     return this.mapCache[modelID]
+        // }
+
+        if(this.previousGeomIndexStr){
+            if(geometry.attributes.position.array.toString() !== this.previousGeomIndexStr){
+                console.log("Not Equal!");
+                console.log(this.previousGeomIndexStr);
+                console.log(geometry.attributes.position.array.toString());
+            }
+            this.previousGeomIndexStr = geometry.attributes.position.array.toString();
+        }else {
+            this.previousGeomIndexStr = geometry.attributes.position.array.toString();
+        }
 
         const map = new Map();
 
@@ -42193,6 +42235,7 @@ class ItemSelector {
                 objectStart = i;
             }
         }
+        this.mapCache[modelID] = map;
         return map;
     }
 
@@ -42224,7 +42267,7 @@ class ItemSelector {
         const model = this.currentModel.ifcManager.state.models[0];
 
         const geometry = model.mesh.geometry;
-        const map = this.generateGeometryIndexMap(geometry);
+        const map = this.generateGeometryIndexMap(model.modelID, geometry);
 
         const entry = map.get(expressID);
 
