@@ -13,7 +13,9 @@ export class ItemSelector {
 
         this.geom = new BufferGeometry();
 
-        const cube = new Mesh( this.geom , new MeshBasicMaterial({ color: "red", depthTest: false,}));
+        this.material = new MeshBasicMaterial({ color: "red", depthTest: false });
+        const cube = new Mesh( this.geom , this.material );
+        this.cube = cube;
         this.previousObject = cube;
         this.scene.add(cube);
 
@@ -21,9 +23,36 @@ export class ItemSelector {
         this.indexCache = null;
 
         // Geometry Caching
-        this.geomCacheEnabled = true;
+        this.geomCacheEnabled = false;
         this.cacheThresold = 40000;
         this.geomCache = {}
+
+        this.subsetSelection = []
+
+        // Random stuff
+        window.onkeydown = async (event) => {
+
+            console.log(event);
+
+            if(event.code === "Delete"){
+                this.subsetSelection = [];
+            }
+            if(event.code === "KeyS"){
+                this.generateGeometryForItems(0, this.subsetSelection)
+            }
+            if(event.code === "KeyA"){
+                const ids = [];
+
+                const collectIDs = (node) => {
+                    ids.push(node.expressID)
+                    if(node.children) node.children.forEach(collectIDs)
+                }
+                const structure = await this.currentModel.ifcManager.getSpatialStructure(0);
+                collectIDs(structure);
+
+                this.generateGeometryForItems(0, ids);
+            }
+        }
     }
 
     sleep(ms) {
@@ -132,26 +161,62 @@ export class ItemSelector {
     }
 
     highlightModel(removePrevious) {
+        this.generateGeometryForItems(this.currentModel, [this.currentItemID]);
+        this.subsetSelection.push(this.currentItemID);
+    }
+
+    async logTree() {
+        const tree = await this.currentModel.ifcManager.getSpatialStructure(0);
+        console.log(tree);
+    }
+
+    async logProperties() {
+        const modelID = this.currentModel.modelID;
+        const id = this.currentItemID;
+        const props = await this.currentModel.ifcManager.getItemProperties(modelID, id);
+        props.psets = await this.currentModel.ifcManager.getPropertySets(modelID, id);
+        props.mats = await this.currentModel.ifcManager.getMaterialsProperties(modelID, id);
+        props.type = await this.currentModel.ifcManager.getTypeProperties(modelID, id);
+        console.log(props);
+    }
+
+    async getModelAndItemID(item) {
+        const modelID = item.object.modelID;
+        this.currentModel = this.ifcModels.find(model => model.modelID === modelID);
+        if (!this.currentModel) {
+            throw new Error('The selected item doesn\'t belong to a model!');
+        }
+        this.currentItemID = await this.currentModel.ifcManager.getExpressId(item.object.geometry, item.faceIndex);
+    }
+
+    removePreviousSelection() {
+        const isNotPreviousSelection = this.previousSelection.modelID !== this.currentModel.modelID;
+        if (this.previousSelection && isNotPreviousSelection) {
+            this.previousSelection.removeSubset(this.scene, this.material);
+        }
+        this.previousSelection = this.currentModel;
+    }
+
+    generateGeometryForItems(modelID, expressIDs){
+        const t0 = performance.now();
 
         const positions = [];
         const normals = [];
         const indexes = [];
 
-        const expressID = this.currentItemID;
         const model = this.currentModel.ifcManager.state.models[0];
+        const geometry = model.mesh.geometry;
+        const map = this.generateGeometryIndexMap(model.modelID, geometry);
 
-        const cached = this.geomCache[expressID];
+        for(const expressID of expressIDs){
 
-        if(!this.geomCacheEnabled || !cached){
-
-            const geometry = model.mesh.geometry;
-            const map = this.generateGeometryIndexMap(model.modelID, geometry);
             const entry = map.get(expressID);
 
             if (!geometry.index) throw new Error(`BufferGeometry is not indexed.`)
-            if (!entry) throw new Error(`Entry for expressID: ${expressID} not found.`)
-
-            let counter = 0;
+            if (!entry) {
+                // console.error(`Entry for expressID: ${expressID} not found.`)
+                continue;
+            }
 
             for (const materialIndex in entry) {
 
@@ -190,77 +255,29 @@ export class ItemSelector {
                         normals[newPositionIndex + 2] = n3;
                     }
                 }
-
-                counter = indexes.length;
             }
-
-            const newGeom = new BufferGeometry();
-            const positionNumComponents = 3;
-            const normalNumComponents = 3;
-            newGeom.setAttribute(
-                'position',
-                new BufferAttribute(new Float32Array(positions), positionNumComponents));
-            newGeom.setAttribute(
-                'normal',
-                new BufferAttribute(new Float32Array(normals), normalNumComponents));
-            newGeom.setIndex(indexes);
-
-            const cube = new Mesh(newGeom, new MeshBasicMaterial({ color: "red", depthTest: false,}));
-            this.scene.add(cube);
-
-            if(this.previousObject){
-                this.scene.remove(this.previousObject);
-            }
-
-            this.previousObject = cube;
-
-            if(this.geomCacheEnabled && newGeom.attributes.position.array.length >= this.cacheThresold){
-                this.geomCache[expressID] = newGeom;
-                console.log(`${Object.keys(this.geomCache).length} cached items.`)
-            }
-        }else
-        {
-            const cube = new Mesh(cached, new MeshBasicMaterial({color: "red", depthTest: false,}));
-            this.scene.add(cube);
-
-            if (this.previousObject)
-            {
-                this.scene.remove(this.previousObject);
-            }
-
-            this.previousObject = cube;
         }
-    }
+        const newGeom = new BufferGeometry();
+        const positionNumComponents = 3;
+        const normalNumComponents = 3;
+        newGeom.setAttribute(
+            'position',
+            new BufferAttribute(new Float32Array(positions), positionNumComponents));
+        newGeom.setAttribute(
+            'normal',
+            new BufferAttribute(new Float32Array(normals), normalNumComponents));
+        newGeom.setIndex(indexes);
 
-    async logTree() {
-        const tree = await this.currentModel.ifcManager.getSpatialStructure(0);
-        console.log(tree);
-    }
+        const cube = new Mesh(newGeom, new MeshBasicMaterial({ color: "red", depthTest: false,}));
+        this.scene.add(cube);
 
-    async logProperties() {
-        const modelID = this.currentModel.modelID;
-        const id = this.currentItemID;
-        const props = await this.currentModel.ifcManager.getItemProperties(modelID, id);
-        props.psets = await this.currentModel.ifcManager.getPropertySets(modelID, id);
-        props.mats = await this.currentModel.ifcManager.getMaterialsProperties(modelID, id);
-        props.type = await this.currentModel.ifcManager.getTypeProperties(modelID, id);
-        console.log(props);
-    }
-
-    async getModelAndItemID(item) {
-        const modelID = item.object.modelID;
-        this.currentModel = this.ifcModels.find(model => model.modelID === modelID);
-        if (!this.currentModel) {
-            throw new Error('The selected item doesn\'t belong to a model!');
+        if(this.previousObject){
+            this.scene.remove(this.previousObject);
         }
-        this.currentItemID = await this.currentModel.ifcManager.getExpressId(item.object.geometry, item.faceIndex);
-    }
 
-    removePreviousSelection() {
-        const isNotPreviousSelection = this.previousSelection.modelID !== this.currentModel.modelID;
-        if (this.previousSelection && isNotPreviousSelection) {
-            this.previousSelection.removeSubset(this.scene, this.material);
-        }
-        this.previousSelection = this.currentModel;
+        this.previousObject = cube;
+
+        const t1 = performance.now();
+        console.log(`Pick took ${t1 - t0} milliseconds.`);
     }
 }
