@@ -11,30 +11,19 @@ export class ItemSelector {
         this.currentItemID = -1;
         this.currentModel = null;
 
-        this.previousGeomIndexStr = "";
-
         this.geom = new BufferGeometry();
 
         const cube = new Mesh( this.geom , new MeshBasicMaterial({ color: "red", depthTest: false,}));
         this.previousObject = cube;
         this.scene.add(cube);
 
-        /*setInterval(async () => {
-            await this.sleep(1000);
-            this.currentItemID = 7343;
-            this.highlightModel()
-
-            await this.sleep(1000);
-            this.currentItemID = 7451;
-            this.highlightModel()
-
-            await this.sleep(1000);
-            this.currentItemID = 7501;
-            this.highlightModel()
-        }, 5000)*/
-
         this.mapCache = {}
         this.indexCache = null;
+
+        // Geometry Caching
+        this.geomCacheEnabled = true;
+        this.cacheThresold = 40000;
+        this.geomCache = {}
     }
 
     sleep(ms) {
@@ -74,17 +63,6 @@ export class ItemSelector {
         if(!this.indexCache){
             this.indexCache = geometry.index.array.slice(0, geometry.index.array.length);
         }
-
-        // if(this.previousGeomIndexStr){
-        //     if(geometry.attributes.position.array.toString() !== this.previousGeomIndexStr){
-        //         console.log("Not Equal!")
-        //         console.log(this.previousGeomIndexStr);
-        //         console.log(geometry.attributes.position.array.toString())
-        //     }
-        //     this.previousGeomIndexStr = geometry.attributes.position.array.toString();
-        // }else {
-        //     this.previousGeomIndexStr = geometry.attributes.position.array.toString()
-        // }
 
         const map = new Map();
 
@@ -154,90 +132,104 @@ export class ItemSelector {
     }
 
     highlightModel(removePrevious) {
-        /*this.currentModel.ifcManager.createSubset({
-            modelID: this.currentModel.modelID,
-            scene: this.currentModel,
-            ids: [this.currentItemID],
-            removePrevious: removePrevious,
-            material: this.material
-        });*/
-
-        const expressID = this.currentItemID;
-        const model = this.currentModel.ifcManager.state.models[0];
-
-        const geometry = model.mesh.geometry;
-        const map = this.generateGeometryIndexMap(model.modelID, geometry);
-
-        const entry = map.get(expressID);
-
-        if (!geometry.index) throw new Error(`BufferGeometry is not indexed.`)
-        if (!entry) throw new Error(`Entry for expressID: ${expressID} not found.`)
 
         const positions = [];
         const normals = [];
         const indexes = [];
-        let counter = 0;
 
-        for (const materialIndex in entry) {
+        const expressID = this.currentItemID;
+        const model = this.currentModel.ifcManager.state.models[0];
 
-            const value = entry[Number.parseInt(materialIndex)];
-            const pairs = value.length / 2;
+        const cached = this.geomCache[expressID];
 
-            for (let pair = 0; pair < pairs; pair++){
+        if(!this.geomCacheEnabled || !cached){
 
-                const pairIndex = pair * 2;
-                const start = value[pairIndex];
-                const end = value[pairIndex + 1];
+            const geometry = model.mesh.geometry;
+            const map = this.generateGeometryIndexMap(model.modelID, geometry);
+            const entry = map.get(expressID);
 
-                for (let i = start; i <= end; i++) {
+            if (!geometry.index) throw new Error(`BufferGeometry is not indexed.`)
+            if (!entry) throw new Error(`Entry for expressID: ${expressID} not found.`)
 
-                    const index = this.indexCache[i];
-                    const positionIndex = index * 3;
-                    const newIndex = indexes.length;
-                    indexes.push(newIndex);
+            let counter = 0;
 
-                    const v1 = geometry.attributes.position.array[positionIndex];
-                    const v2 = geometry.attributes.position.array[positionIndex + 1];
-                    const v3 = geometry.attributes.position.array[positionIndex + 2];
+            for (const materialIndex in entry) {
 
-                    const n1 = geometry.attributes.normal.array[positionIndex];
-                    const n2 = geometry.attributes.normal.array[positionIndex + 1];
-                    const n3 = geometry.attributes.normal.array[positionIndex + 2];
+                const value = entry[Number.parseInt(materialIndex)];
+                const pairs = value.length / 2;
 
-                    const newPositionIndex = newIndex * 3;
+                for (let pair = 0; pair < pairs; pair++){
 
-                    positions[newPositionIndex] = v1;
-                    positions[newPositionIndex + 1] = v2;
-                    positions[newPositionIndex + 2] = v3;
+                    const pairIndex = pair * 2;
+                    const start = value[pairIndex];
+                    const end = value[pairIndex + 1];
 
-                    normals[newPositionIndex] = n1;
-                    normals[newPositionIndex + 1] = n2;
-                    normals[newPositionIndex + 2] = n3;
+                    for (let i = start; i <= end; i++) {
+
+                        const index = this.indexCache[i];
+                        const positionIndex = index * 3;
+                        const newIndex = indexes.length;
+                        indexes.push(newIndex);
+
+                        const v1 = geometry.attributes.position.array[positionIndex];
+                        const v2 = geometry.attributes.position.array[positionIndex + 1];
+                        const v3 = geometry.attributes.position.array[positionIndex + 2];
+
+                        const n1 = geometry.attributes.normal.array[positionIndex];
+                        const n2 = geometry.attributes.normal.array[positionIndex + 1];
+                        const n3 = geometry.attributes.normal.array[positionIndex + 2];
+
+                        const newPositionIndex = newIndex * 3;
+
+                        positions[newPositionIndex] = v1;
+                        positions[newPositionIndex + 1] = v2;
+                        positions[newPositionIndex + 2] = v3;
+
+                        normals[newPositionIndex] = n1;
+                        normals[newPositionIndex + 1] = n2;
+                        normals[newPositionIndex + 2] = n3;
+                    }
                 }
+
+                counter = indexes.length;
             }
 
-            counter = indexes.length;
+            const newGeom = new BufferGeometry();
+            const positionNumComponents = 3;
+            const normalNumComponents = 3;
+            newGeom.setAttribute(
+                'position',
+                new BufferAttribute(new Float32Array(positions), positionNumComponents));
+            newGeom.setAttribute(
+                'normal',
+                new BufferAttribute(new Float32Array(normals), normalNumComponents));
+            newGeom.setIndex(indexes);
+
+            const cube = new Mesh(newGeom, new MeshBasicMaterial({ color: "red", depthTest: false,}));
+            this.scene.add(cube);
+
+            if(this.previousObject){
+                this.scene.remove(this.previousObject);
+            }
+
+            this.previousObject = cube;
+
+            if(this.geomCacheEnabled && newGeom.attributes.position.array.length >= this.cacheThresold){
+                this.geomCache[expressID] = newGeom;
+                console.log(`${Object.keys(this.geomCache).length} cached items.`)
+            }
+        }else
+        {
+            const cube = new Mesh(cached, new MeshBasicMaterial({color: "red", depthTest: false,}));
+            this.scene.add(cube);
+
+            if (this.previousObject)
+            {
+                this.scene.remove(this.previousObject);
+            }
+
+            this.previousObject = cube;
         }
-
-        const newGeom = new BufferGeometry();
-        const positionNumComponents = 3;
-        const normalNumComponents = 3;
-        newGeom.setAttribute(
-            'position',
-            new BufferAttribute(new Float32Array(positions), positionNumComponents));
-        newGeom.setAttribute(
-            'normal',
-            new BufferAttribute(new Float32Array(normals), normalNumComponents));
-
-        newGeom.setIndex(indexes);
-
-        const cube = new Mesh(newGeom, new MeshBasicMaterial({ color: "red", depthTest: false,}));
-        this.scene.add(cube);
-
-        if(this.previousObject){
-            this.scene.remove(this.previousObject);
-        }
-        this.previousObject = cube;
     }
 
     async logTree() {
