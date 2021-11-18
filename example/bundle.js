@@ -42322,9 +42322,9 @@ class ItemSelector {
             // The subset shares the same attributes as the original (no memory consumed)
             newGeom.setAttribute('position', geometry.attributes.position);
             newGeom.setAttribute('normal', geometry.attributes.normal);
-            const cube = new Mesh(newGeom, new MeshBasicMaterial({ color: "red", depthTest: false, side: 2}));
-            model.mesh.userData.subset = cube;
-            this.scene.add(cube);
+            const subsetMesh = new Mesh(newGeom, new MeshBasicMaterial({ color: "red", depthTest: false, side: 2}));
+            model.mesh.userData.subset = subsetMesh;
+            this.scene.add(subsetMesh);
         }
 
         modelMesh.userData.index.length = 0;
