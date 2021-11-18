@@ -1,4 +1,4 @@
-import { BufferAttribute, BufferGeometry, Material, Mesh, MeshBasicMaterial } from 'three';
+import { BufferAttribute, Uint16BufferAttribute, BufferGeometry, Material, Mesh, MeshBasicMaterial } from 'three';
 
 export class ItemSelector {
     constructor(scene, ifcModels, raycaster, highlightMaterial) {
@@ -200,13 +200,28 @@ export class ItemSelector {
     generateGeometryForItems(modelID, expressIDs){
         const t0 = performance.now();
 
-        const positions = [];
-        const normals = [];
-        const indexes = [];
+        // const positions = [];
+        // const normals = [];
+        // const indexes = [];
 
         const model = this.currentModel.ifcManager.state.models[0];
         const geometry = model.mesh.geometry;
         const map = this.generateGeometryIndexMap(model.modelID, geometry);
+
+        const modelMesh = this.ifcModels[0];
+        // If it's the first time, create the mesh and the geometry
+        if(!modelMesh.userData.subset || !modelMesh.userData.index) {
+            modelMesh.userData.index = [];
+            const newGeom = new BufferGeometry();
+            // The subset shares the same attributes as the original (no memory consumed)
+            newGeom.setAttribute('position', geometry.attributes.position);
+            newGeom.setAttribute('normal', geometry.attributes.normal);
+            const cube = new Mesh(newGeom, new MeshBasicMaterial({ color: "red", depthTest: false, side: 2}));
+            model.mesh.userData.subset = cube;
+            this.scene.add(cube);
+        }
+
+        modelMesh.userData.index.length = 0;
 
         for(const expressID of expressIDs){
 
@@ -229,53 +244,58 @@ export class ItemSelector {
                     const start = value[pairIndex];
                     const end = value[pairIndex + 1];
 
-                    for (let i = start; i <= end; i++) {
+                    const foundIndices = this.indexCache.slice(start, end + 1);
+                    modelMesh.userData.index.push(...foundIndices);
 
-                        const index = this.indexCache[i];
-                        const positionIndex = index * 3;
-                        const newIndex = indexes.length;
-                        indexes.push(newIndex);
+                    // for (let i = start; i <= end; i++) {
+                        // const index = this.indexCache[i];
+                        // const positionIndex = index * 3;
+                        // const newIndex = indexes.length;
+                        // indexes.push(newIndex);
 
-                        const v1 = geometry.attributes.position.array[positionIndex];
-                        const v2 = geometry.attributes.position.array[positionIndex + 1];
-                        const v3 = geometry.attributes.position.array[positionIndex + 2];
+                        // const v1 = geometry.attributes.position.array[positionIndex];
+                        // const v2 = geometry.attributes.position.array[positionIndex + 1];
+                        // const v3 = geometry.attributes.position.array[positionIndex + 2];
+                        //
+                        // const n1 = geometry.attributes.normal.array[positionIndex];
+                        // const n2 = geometry.attributes.normal.array[positionIndex + 1];
+                        // const n3 = geometry.attributes.normal.array[positionIndex + 2];
 
-                        const n1 = geometry.attributes.normal.array[positionIndex];
-                        const n2 = geometry.attributes.normal.array[positionIndex + 1];
-                        const n3 = geometry.attributes.normal.array[positionIndex + 2];
+                        // const newPositionIndex = newIndex * 3;
 
-                        const newPositionIndex = newIndex * 3;
-
-                        positions[newPositionIndex] = v1;
-                        positions[newPositionIndex + 1] = v2;
-                        positions[newPositionIndex + 2] = v3;
-
-                        normals[newPositionIndex] = n1;
-                        normals[newPositionIndex + 1] = n2;
-                        normals[newPositionIndex + 2] = n3;
-                    }
+                        // positions[newPositionIndex] = v1;
+                        // positions[newPositionIndex + 1] = v2;
+                        // positions[newPositionIndex + 2] = v3;
+                        //
+                        // normals[newPositionIndex] = n1;
+                        // normals[newPositionIndex + 1] = n2;
+                        // normals[newPositionIndex + 2] = n3;
+                    // }
                 }
             }
         }
-        const newGeom = new BufferGeometry();
-        const positionNumComponents = 3;
-        const normalNumComponents = 3;
-        newGeom.setAttribute(
-            'position',
-            new BufferAttribute(new Float32Array(positions), positionNumComponents));
-        newGeom.setAttribute(
-            'normal',
-            new BufferAttribute(new Float32Array(normals), normalNumComponents));
-        newGeom.setIndex(indexes);
 
-        const cube = new Mesh(newGeom, new MeshBasicMaterial({ color: "red", depthTest: false,}));
-        this.scene.add(cube);
+        modelMesh.userData.subset.geometry.setIndex(modelMesh.userData.index);
 
-        if(this.previousObject){
-            this.scene.remove(this.previousObject);
-        }
+        // const newGeom = new BufferGeometry();
+        // const positionNumComponents = 3;
+        // const normalNumComponents = 3;
+        // newGeom.setAttribute(
+        //     'position',
+        //     new BufferAttribute(new Float32Array(positions), positionNumComponents));
+        // newGeom.setAttribute(
+        //     'normal',
+        //     new BufferAttribute(new Float32Array(normals), normalNumComponents));
+        // newGeom.setIndex(indexes);
 
-        this.previousObject = cube;
+        // const cube = new Mesh(newGeom, new MeshBasicMaterial({ color: "red", depthTest: false,}));
+
+
+        // if(this.previousObject){
+        //     this.scene.remove(this.previousObject);
+        // }
+
+        // this.previousObject = cube;
 
         const t1 = performance.now();
         console.log(`Pick took ${t1 - t0} milliseconds.`);
