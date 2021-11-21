@@ -32,8 +32,6 @@ export class ItemSelector {
         // Random stuff
         window.onkeydown = async (event) => {
 
-            console.log(event);
-
             if(event.code === "Delete"){
                 this.subsetSelection = [];
             }
@@ -50,7 +48,7 @@ export class ItemSelector {
                 const structure = await this.currentModel.ifcManager.getSpatialStructure(0);
                 collectIDs(structure);
 
-                this.generateGeometryForItems(0, ids);
+                this.generateGeometryForItems(0, ids, undefined, 25);
             }
         }
     }
@@ -161,7 +159,8 @@ export class ItemSelector {
     }
 
     highlightModel(removePrevious) {
-        this.generateGeometryForItems(this.currentModel, [this.currentItemID]);
+        const mat = new MeshBasicMaterial({ color: "red", depthTest: false, side: 2});
+        this.generateGeometryForItems(this.currentModel, [this.currentItemID], mat);
         this.subsetSelection.push(this.currentItemID);
     }
 
@@ -197,12 +196,8 @@ export class ItemSelector {
         this.previousSelection = this.currentModel;
     }
 
-    generateGeometryForItems(modelID, expressIDs){
+    generateGeometryForItems(modelID, expressIDs, material, offsetY){
         const t0 = performance.now();
-
-        // const positions = [];
-        // const normals = [];
-        // const indexes = [];
 
         const model = this.currentModel.ifcManager.state.models[0];
         const geometry = model.mesh.geometry;
@@ -216,86 +211,54 @@ export class ItemSelector {
             // The subset shares the same attributes as the original (no memory consumed)
             newGeom.setAttribute('position', geometry.attributes.position);
             newGeom.setAttribute('normal', geometry.attributes.normal);
-            const subsetMesh = new Mesh(newGeom, new MeshBasicMaterial({ color: "red", depthTest: false, side: 2}));
+            const subsetMesh = new Mesh(newGeom, material || modelMesh.material);
             model.mesh.userData.subset = subsetMesh;
             this.scene.add(subsetMesh);
         }
 
         modelMesh.userData.index.length = 0;
 
-        for(const expressID of expressIDs){
+        for(let i = 0; i < geometry.groups.length; i++) {
 
-            const entry = map.get(expressID);
+            const start = modelMesh.userData.index.length;
 
-            if (!geometry.index) throw new Error(`BufferGeometry is not indexed.`)
-            if (!entry) {
-                // console.error(`Entry for expressID: ${expressID} not found.`)
-                continue;
-            }
+            for(const expressID of expressIDs){
+                const entry = map.get(expressID);
 
-            for (const materialIndex in entry) {
+                if (!geometry.index) throw new Error(`BufferGeometry is not indexed.`)
+                if (!entry) continue;
 
-                const value = entry[Number.parseInt(materialIndex)];
+                const value = entry[i];
+                if (!value) continue;
+
                 const pairs = value.length / 2;
-
                 for (let pair = 0; pair < pairs; pair++){
 
                     const pairIndex = pair * 2;
                     const start = value[pairIndex];
                     const end = value[pairIndex + 1];
 
-                    const foundIndices = this.indexCache.slice(start, end + 1);
-                    modelMesh.userData.index.push(...foundIndices);
-
-                    // for (let i = start; i <= end; i++) {
-                        // const index = this.indexCache[i];
-                        // const positionIndex = index * 3;
-                        // const newIndex = indexes.length;
-                        // indexes.push(newIndex);
-
-                        // const v1 = geometry.attributes.position.array[positionIndex];
-                        // const v2 = geometry.attributes.position.array[positionIndex + 1];
-                        // const v3 = geometry.attributes.position.array[positionIndex + 2];
-                        //
-                        // const n1 = geometry.attributes.normal.array[positionIndex];
-                        // const n2 = geometry.attributes.normal.array[positionIndex + 1];
-                        // const n3 = geometry.attributes.normal.array[positionIndex + 2];
-
-                        // const newPositionIndex = newIndex * 3;
-
-                        // positions[newPositionIndex] = v1;
-                        // positions[newPositionIndex + 1] = v2;
-                        // positions[newPositionIndex + 2] = v3;
-                        //
-                        // normals[newPositionIndex] = n1;
-                        // normals[newPositionIndex + 1] = n2;
-                        // normals[newPositionIndex + 2] = n3;
-                    // }
+                    for (let i = start; i <= end; i++) {
+                        modelMesh.userData.index.push(this.indexCache[i])
+                    }
                 }
+            }
+
+            if(!material){
+                const count = modelMesh.userData.index.length - start;
+                modelMesh.userData.subset.geometry.addGroup(start, count, i);
             }
         }
 
         modelMesh.userData.subset.geometry.setIndex(modelMesh.userData.index);
+        modelMesh.userData.subset.material = material || modelMesh.material;
 
-        // const newGeom = new BufferGeometry();
-        // const positionNumComponents = 3;
-        // const normalNumComponents = 3;
-        // newGeom.setAttribute(
-        //     'position',
-        //     new BufferAttribute(new Float32Array(positions), positionNumComponents));
-        // newGeom.setAttribute(
-        //     'normal',
-        //     new BufferAttribute(new Float32Array(normals), normalNumComponents));
-        // newGeom.setIndex(indexes);
-
-        // const cube = new Mesh(newGeom, new MeshBasicMaterial({ color: "red", depthTest: false,}));
-
-
-        // if(this.previousObject){
-        //     this.scene.remove(this.previousObject);
-        // }
-
-        // this.previousObject = cube;
+        // For debugging purposes
+        if(offsetY){
+            modelMesh.userData.subset.position.setY(offsetY);
+        }else{
+            modelMesh.userData.subset.position.setY(0);
+        }
 
         const t1 = performance.now();
         console.log(`Pick took ${t1 - t0} milliseconds.`);
