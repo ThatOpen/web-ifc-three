@@ -64,6 +64,10 @@ export interface GeometriesByMaterials {
     [materialID: string]: GeometriesByMaterial;
 }
 
+export interface MaterialIndices {
+    [materialID: number]: number[]
+}
+
 export interface TypesMap {
     [key: number]: number;
 }
@@ -72,6 +76,7 @@ export interface IfcModel {
     modelID: number;
     mesh: IfcMesh;
     items: GeometriesByMaterials;
+    map: Map<number, MaterialIndices>;
     types: TypesMap;
     jsonData: { [id: number]: JSONObject };
 }

@@ -95,6 +95,7 @@ export class IFCParser implements ParserAPI {
             modelID: this.currentModelID,
             mesh: {} as IfcMesh,
             items: {},
+            map: new Map<number, MaterialIndices>(),
             types: {},
             jsonData: {}
         };
