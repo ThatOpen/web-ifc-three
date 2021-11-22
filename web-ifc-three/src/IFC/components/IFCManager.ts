@@ -47,7 +47,7 @@ export class IFCManager {
         const model = await this.parser.parse(buffer, this.state.coordinationMatrix?.toArray()) as IFCModel;
         model.setIFCManager(this);
         this.state.useJSON ? await this.disposeMemory() : await this.types.getAllTypes(this.worker);
-        this.hider.processCoordinates(model.modelID);
+        // this.hider.processCoordinates(model.modelID);
         return model;
     }
 

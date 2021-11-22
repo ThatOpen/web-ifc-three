@@ -86565,50 +86565,6 @@ function mergeBufferAttributes( attributes ) {
 
 }
 
-const IdAttrName = 'expressID';
-const merge = (geoms, createGroups = false) => {
-  return mergeBufferGeometries(geoms, createGroups);
-};
-const newFloatAttr = (data, size) => {
-  return new BufferAttribute(new Float32Array(data), size);
-};
-const newIntAttr = (data, size) => {
-  return new BufferAttribute(new Uint32Array(data), size);
-};
-const DEFAULT = 'default';
-const PropsNames = {
-  aggregates: {
-    name: IFCRELAGGREGATES,
-    relating: 'RelatingObject',
-    related: 'RelatedObjects',
-    key: 'children'
-  },
-  spatial: {
-    name: IFCRELCONTAINEDINSPATIALSTRUCTURE,
-    relating: 'RelatingStructure',
-    related: 'RelatedElements',
-    key: 'children'
-  },
-  psets: {
-    name: IFCRELDEFINESBYPROPERTIES,
-    relating: 'RelatingPropertyDefinition',
-    related: 'RelatedObjects',
-    key: 'hasPsets'
-  },
-  materials: {
-    name: IFCRELASSOCIATESMATERIAL,
-    relating: 'RelatingMaterial',
-    related: 'RelatedObjects',
-    key: 'hasMaterial'
-  },
-  type: {
-    name: IFCRELDEFINESBYTYPE,
-    relating: 'RelatingType',
-    related: 'RelatedObjects',
-    key: 'hasType'
-  }
-};
-
 let modelIdCounter = 0;
 const nullIfcManagerErrorMessage = 'IfcManager is null!';
 
@@ -86737,6 +86693,7 @@ class IFCParser {
       [IFCSPACE]: true,
       [IFCOPENINGELEMENT]: false
     };
+    this.geometriesByMaterials = {};
     this.currentWebIfcID = -1;
     this.currentModelID = -1;
   }
@@ -86753,7 +86710,7 @@ class IFCParser {
     if (coordinationMatrix) {
       await this.state.api.SetGeometryTransformation(this.currentWebIfcID, coordinationMatrix);
     }
-    return this.loadAllGeometry();
+    return this.loadAllGeometry(this.currentWebIfcID);
   }
 
   getAndClearErrors(_modelId) {}
@@ -86779,174 +86736,139 @@ class IFCParser {
     };
   }
 
-  async loadAllGeometry() {
-    await this.saveAllPlacedGeometriesByMaterial();
-    return this.generateAllGeometriesByMaterial();
+  async loadAllGeometry(modelID) {
+    this.state.api.StreamAllMeshes(modelID, (mesh) => {
+      const placedGeometries = mesh.geometries;
+      const size = placedGeometries.size();
+      for (let i = 0; i < size; i++) {
+        const placedGeometry = placedGeometries.get(i);
+        let mesh = this.getPlacedGeometry(modelID, placedGeometry);
+        let geom = mesh.geometry.applyMatrix4(mesh.matrix);
+        this.storeGeometryByMaterial(placedGeometry.color, geom);
+      }
+    });
+    const geometries = [];
+    const materials = [];
+    Object.keys(this.geometriesByMaterials).forEach((key) => {
+      const geometriesByMaterial = this.geometriesByMaterials[key].geometries;
+      const merged = mergeBufferGeometries(geometriesByMaterial);
+      materials.push(this.geometriesByMaterials[key].material);
+      geometries.push(merged);
+    });
+    const combinedGeometry = mergeBufferGeometries(geometries, true);
+    const model = new IFCModel(combinedGeometry, materials);
+    this.state.models[this.currentModelID].mesh = model;
+    return model;
   }
 
-  generateAllGeometriesByMaterial() {
-    const {geometry, materials} = this.getGeometryAndMaterials();
-    if (this.BVH)
-      this.BVH.applyThreeMeshBVH(geometry);
-    const mesh = new IFCModel(geometry, materials);
-    mesh.modelID = this.currentModelID;
-    this.state.models[this.currentModelID].mesh = mesh;
+  getPlacedGeometry(modelID, placedGeometry) {
+    const geometry = this.getBufferGeometry(modelID, placedGeometry);
+    const mesh = new Mesh(geometry);
+    mesh.matrix = this.getMeshMatrix(placedGeometry.flatTransformation);
+    mesh.matrixAutoUpdate = false;
     return mesh;
   }
 
-  getGeometryAndMaterials() {
-    const items = this.state.models[this.currentModelID].items;
-    const mergedByMaterial = [];
-    const materials = [];
-    for (let materialID in items) {
-      if (items.hasOwnProperty(materialID)) {
-        materials.push(items[materialID].material);
-        const geometries = Object.values(items[materialID].geometries);
-        mergedByMaterial.push(merge(geometries));
-      }
+  getBufferGeometry(modelID, placedGeometry) {
+    const geometry = this.state.api.GetGeometry(modelID, placedGeometry.geometryExpressID);
+    const verts = this.state.api.GetVertexArray(geometry.GetVertexData(), geometry.GetVertexDataSize());
+    const indices = this.state.api.GetIndexArray(geometry.GetIndexData(), geometry.GetIndexDataSize());
+    return this.ifcGeometryToBuffer(placedGeometry.color, verts, indices);
+  }
+
+  storeGeometryByMaterial(color, geometry) {
+    let colID = `${color.x}${color.y}${color.z}${color.w}`;
+    if (this.geometriesByMaterials[colID]) {
+      this.geometriesByMaterials[colID].geometries.push(geometry);
+      return;
     }
-    const geometry = merge(mergedByMaterial, true);
-    return {
-      geometry,
-      materials
+    const col = new Color(color.x, color.y, color.z);
+    const material = new MeshLambertMaterial({
+      color: col,
+      side: DoubleSide
+    });
+    material.transparent = color.w !== 1;
+    if (material.transparent)
+      material.opacity = color.w;
+    this.geometriesByMaterials[colID] = {
+      material,
+      geometries: [geometry]
     };
   }
 
-  async saveAllPlacedGeometriesByMaterial() {
-    await this.addOptionalCategories();
-    const flatMeshes = await this.state.api.LoadAllGeometry(this.currentWebIfcID);
-    const size = flatMeshes.size();
-    let counter = 0;
-    for (let i = 0; i < size; i++) {
-      if (i > counter) {
-        this.notifyProgress(i, size);
-        counter += Math.trunc(size / 10);
-      }
-      const flatMesh = flatMeshes.get(i);
-      const placedGeom = flatMesh.geometries;
-      for (let j = 0; j < placedGeom.size(); j++) {
-        await this.savePlacedGeometry(placedGeom.get(j), flatMesh.expressID);
-      }
-    }
-  }
-
-  async addOptionalCategories() {
-    const optionalTypes = [];
-    for (let key in this.optionalCategories) {
-      if (this.optionalCategories.hasOwnProperty(key)) {
-        const category = parseInt(key);
-        if (this.optionalCategories[category])
-          optionalTypes.push(category);
-      }
-    }
-    await this.state.api.StreamAllMeshesWithTypes(this.currentWebIfcID, optionalTypes, async (mesh) => {
-      const geometries = mesh.geometries;
-      const size = geometries.size();
-      for (let j = 0; j < size; j++) {
-        await this.savePlacedGeometry(geometries.get(j), mesh.expressID);
-      }
-    });
-  }
-
-  async savePlacedGeometry(placedGeometry, id) {
-    const geometry = await this.getGeometry(placedGeometry);
-    this.saveGeometryByMaterial(geometry, placedGeometry, id);
-  }
-
-  async getGeometry(placedGeometry) {
-    const geometry = await this.getBufferGeometry(placedGeometry);
-    geometry.computeVertexNormals();
-    const matrix = IFCParser.getMeshMatrix(placedGeometry.flatTransformation);
-    geometry.applyMatrix4(matrix);
-    return geometry;
-  }
-
-  async getBufferGeometry(placed) {
-    const geometry = await this.state.api.GetGeometry(this.currentWebIfcID, placed.geometryExpressID);
-    const vertexData = await this.getVertices(geometry);
-    const indices = await this.getIndices(geometry);
-    const {vertices, normals} = IFCParser.extractVertexData(vertexData);
-    return IFCParser.ifcGeomToBufferGeom(vertices, normals, indices);
-  }
-
-  async getVertices(geometry) {
-    const vData = geometry.GetVertexData();
-    const vDataSize = geometry.GetVertexDataSize();
-    return this.state.api.GetVertexArray(vData, vDataSize);
-  }
-
-  async getIndices(geometry) {
-    const iData = geometry.GetIndexData();
-    const iDataSize = geometry.GetIndexDataSize();
-    return this.state.api.GetIndexArray(iData, iDataSize);
-  }
-
-  static getMeshMatrix(matrix) {
+  getMeshMatrix(matrix) {
     const mat = new Matrix4();
     mat.fromArray(matrix);
     return mat;
   }
 
-  static ifcGeomToBufferGeom(vertices, normals, indexData) {
+  ifcGeometryToBuffer(color, vertexData, indexData) {
     const geometry = new BufferGeometry();
-    geometry.setAttribute('position', newFloatAttr(vertices, 3));
-    geometry.setAttribute('normal', newFloatAttr(normals, 3));
+    let posFloats = new Float32Array(vertexData.length / 2);
+    let normFloats = new Float32Array(vertexData.length / 2);
+    for (let i = 0; i < vertexData.length; i += 6) {
+      posFloats[i / 2] = vertexData[i];
+      posFloats[i / 2 + 1] = vertexData[i + 1];
+      posFloats[i / 2 + 2] = vertexData[i + 2];
+      normFloats[i / 2] = vertexData[i + 3];
+      normFloats[i / 2 + 1] = vertexData[i + 4];
+      normFloats[i / 2 + 2] = vertexData[i + 5];
+    }
+    geometry.setAttribute('position', new BufferAttribute(posFloats, 3));
+    geometry.setAttribute('normal', new BufferAttribute(normFloats, 3));
     geometry.setIndex(new BufferAttribute(indexData, 1));
     return geometry;
   }
 
-  static extractVertexData(vertexData) {
-    const vertices = [];
-    const normals = [];
-    let isNormalData = false;
-    for (let i = 0; i < vertexData.length; i++) {
-      isNormalData ? normals.push(vertexData[i]) : vertices.push(vertexData[i]);
-      if ((i + 1) % 3 == 0)
-        isNormalData = !isNormalData;
-    }
-    return {
-      vertices,
-      normals
-    };
-  }
-
-  saveGeometryByMaterial(geom, placedGeom, id) {
-    const color = placedGeom.color;
-    const colorID = `${color.x}${color.y}${color.z}${color.w}`;
-    IFCParser.storeGeometryAttribute(id, geom);
-    this.createMaterial(colorID, color);
-    const item = this.state.models[this.currentModelID].items[colorID];
-    const currentGeom = item.geometries[id];
-    if (!currentGeom)
-      return (item.geometries[id] = geom);
-    item.geometries[id] = merge([currentGeom, geom]);
-  }
-
-  static storeGeometryAttribute(id, geometry) {
-    const size = geometry.attributes.position.count;
-    const idAttribute = new Array(size).fill(id);
-    geometry.setAttribute(IdAttrName, newIntAttr(idAttribute, 1));
-  }
-
-  createMaterial(colorID, color) {
-    const items = this.state.models[this.currentModelID].items;
-    if (items[colorID])
-      return;
-    const col = new Color(color.x, color.y, color.z);
-    const newMaterial = new MeshLambertMaterial({
-      color: col,
-      side: DoubleSide
+  cleanUp() {
+    Object.keys(this.geometriesByMaterials).forEach((materialID) => {
+      const geometriesByMaterial = this.geometriesByMaterials[materialID];
+      geometriesByMaterial.geometries.forEach(geometry => geometry.dispose());
+      geometriesByMaterial.geometries = [];
+      geometriesByMaterial.material = null;
     });
-    newMaterial.transparent = color.w !== 1;
-    if (newMaterial.transparent)
-      newMaterial.opacity = color.w;
-    items[colorID] = {
-      material: newMaterial,
-      geometries: {}
-    };
+    this.geometriesByMaterials = {};
   }
 
 }
+
+const IdAttrName = 'expressID';
+const merge = (geoms, createGroups = false) => {
+  return mergeBufferGeometries(geoms, createGroups);
+};
+const DEFAULT = 'default';
+const PropsNames = {
+  aggregates: {
+    name: IFCRELAGGREGATES,
+    relating: 'RelatingObject',
+    related: 'RelatedObjects',
+    key: 'children'
+  },
+  spatial: {
+    name: IFCRELCONTAINEDINSPATIALSTRUCTURE,
+    relating: 'RelatingStructure',
+    related: 'RelatedElements',
+    key: 'children'
+  },
+  psets: {
+    name: IFCRELDEFINESBYPROPERTIES,
+    relating: 'RelatingPropertyDefinition',
+    related: 'RelatedObjects',
+    key: 'hasPsets'
+  },
+  materials: {
+    name: IFCRELASSOCIATESMATERIAL,
+    relating: 'RelatingMaterial',
+    related: 'RelatedObjects',
+    key: 'hasMaterial'
+  },
+  type: {
+    name: IFCRELDEFINESBYTYPE,
+    relating: 'RelatingType',
+    related: 'RelatedObjects',
+    key: 'hasType'
+  }
+};
 
 class SubsetManager {
 
@@ -89543,7 +89465,6 @@ class IFCManager {
     const model = await this.parser.parse(buffer, (_a = this.state.coordinationMatrix) === null || _a === void 0 ? void 0 : _a.toArray());
     model.setIFCManager(this);
     this.state.useJSON ? await this.disposeMemory() : await this.types.getAllTypes(this.worker);
-    this.hider.processCoordinates(model.modelID);
     return model;
   }
 
@@ -93794,7 +93715,7 @@ class IfcManager {
     }
 
     async setupIfcLoader() {
-        await this.ifcLoader.ifcManager.useWebWorkers(true, 'IFCWorker.js');
+        // await this.ifcLoader.ifcManager.useWebWorkers(true, 'IFCWorker.js');
 
         this.setupThreeMeshBVH();
         this.setupFileOpener();

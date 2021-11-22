@@ -33,7 +33,7 @@
     "test": "jest"
   },
   "dependencies": {
-    "@types/three": "^0.131.0",
+    "@types/three": "^0.134.0",
     "three-mesh-bvh": "^0.5.2",
     "web-ifc": "^0.0.29"
   },
