@@ -56,7 +56,7 @@ export class StateWorker implements WorkerStateAPI {
         if (!this.worker.state) throw new Error(ErrorRootStateNotAvailable);
         const modelID = data.args.modelID;
         if (!this.worker.state.models[modelID]) {
-            this.worker.state.models[modelID] = { modelID, mesh: {} as any, items: {}, types: {}, jsonData: {} };
+            this.worker.state.models[modelID] = { modelID, mesh: {} as any, types: {}, jsonData: {} };
         }
         return this.worker.state.models[modelID];
     }

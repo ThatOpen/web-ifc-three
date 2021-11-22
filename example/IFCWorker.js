@@ -41813,10 +41813,10 @@ class IFCModel extends Mesh {
             throw new Error(nullIfcManagerErrorMessage);
         this.ifcManager.close(this.modelID, scene);
     }
-    getExpressId(geometry, faceIndex) {
+    getExpressId(modelID, faceIndex) {
         if (this.ifcManager === null)
             throw new Error(nullIfcManagerErrorMessage);
-        return this.ifcManager.getExpressId(geometry, faceIndex);
+        return this.ifcManager.getExpressId(modelID, faceIndex);
     }
     getAllItemsOfType(type, verbose) {
         if (this.ifcManager === null)
@@ -42106,7 +42106,6 @@ var WorkerAPIs;
     WorkerAPIs["properties"] = "properties";
     WorkerAPIs["parser"] = "parser";
 })(WorkerAPIs || (WorkerAPIs = {}));
-const ErrorStateNotAvailable = 'The state of the worker does not exist';
 const ErrorRootStateNotAvailable = 'The root worker does not have any state';
 const ErrorPropertiesNotAvailable = 'Error: Properties not available from web worker';
 const ErrorParserNotAvailable = 'Error: Parser not available from web worker';
@@ -84910,272 +84909,6 @@ class WebIfcWorker {
     }
 }
 
-/**
-	 * @param  {Array<BufferGeometry>} geometries
-	 * @param  {Boolean} useGroups
-	 * @return {BufferGeometry}
-	 */
-function mergeBufferGeometries( geometries, useGroups = false ) {
-
-	const isIndexed = geometries[ 0 ].index !== null;
-
-	const attributesUsed = new Set( Object.keys( geometries[ 0 ].attributes ) );
-	const morphAttributesUsed = new Set( Object.keys( geometries[ 0 ].morphAttributes ) );
-
-	const attributes = {};
-	const morphAttributes = {};
-
-	const morphTargetsRelative = geometries[ 0 ].morphTargetsRelative;
-
-	const mergedGeometry = new BufferGeometry();
-
-	let offset = 0;
-
-	for ( let i = 0; i < geometries.length; ++ i ) {
-
-		const geometry = geometries[ i ];
-		let attributesCount = 0;
-
-		// ensure that all geometries are indexed, or none
-
-		if ( isIndexed !== ( geometry.index !== null ) ) {
-
-			console.error( 'THREE.BufferGeometryUtils: .mergeBufferGeometries() failed with geometry at index ' + i + '. All geometries must have compatible attributes; make sure index attribute exists among all geometries, or in none of them.' );
-			return null;
-
-		}
-
-		// gather attributes, exit early if they're different
-
-		for ( const name in geometry.attributes ) {
-
-			if ( ! attributesUsed.has( name ) ) {
-
-				console.error( 'THREE.BufferGeometryUtils: .mergeBufferGeometries() failed with geometry at index ' + i + '. All geometries must have compatible attributes; make sure "' + name + '" attribute exists among all geometries, or in none of them.' );
-				return null;
-
-			}
-
-			if ( attributes[ name ] === undefined ) attributes[ name ] = [];
-
-			attributes[ name ].push( geometry.attributes[ name ] );
-
-			attributesCount ++;
-
-		}
-
-		// ensure geometries have the same number of attributes
-
-		if ( attributesCount !== attributesUsed.size ) {
-
-			console.error( 'THREE.BufferGeometryUtils: .mergeBufferGeometries() failed with geometry at index ' + i + '. Make sure all geometries have the same number of attributes.' );
-			return null;
-
-		}
-
-		// gather morph attributes, exit early if they're different
-
-		if ( morphTargetsRelative !== geometry.morphTargetsRelative ) {
-
-			console.error( 'THREE.BufferGeometryUtils: .mergeBufferGeometries() failed with geometry at index ' + i + '. .morphTargetsRelative must be consistent throughout all geometries.' );
-			return null;
-
-		}
-
-		for ( const name in geometry.morphAttributes ) {
-
-			if ( ! morphAttributesUsed.has( name ) ) {
-
-				console.error( 'THREE.BufferGeometryUtils: .mergeBufferGeometries() failed with geometry at index ' + i + '.  .morphAttributes must be consistent throughout all geometries.' );
-				return null;
-
-			}
-
-			if ( morphAttributes[ name ] === undefined ) morphAttributes[ name ] = [];
-
-			morphAttributes[ name ].push( geometry.morphAttributes[ name ] );
-
-		}
-
-		// gather .userData
-
-		mergedGeometry.userData.mergedUserData = mergedGeometry.userData.mergedUserData || [];
-		mergedGeometry.userData.mergedUserData.push( geometry.userData );
-
-		if ( useGroups ) {
-
-			let count;
-
-			if ( isIndexed ) {
-
-				count = geometry.index.count;
-
-			} else if ( geometry.attributes.position !== undefined ) {
-
-				count = geometry.attributes.position.count;
-
-			} else {
-
-				console.error( 'THREE.BufferGeometryUtils: .mergeBufferGeometries() failed with geometry at index ' + i + '. The geometry must have either an index or a position attribute' );
-				return null;
-
-			}
-
-			mergedGeometry.addGroup( offset, count, i );
-
-			offset += count;
-
-		}
-
-	}
-
-	// merge indices
-
-	if ( isIndexed ) {
-
-		let indexOffset = 0;
-		const mergedIndex = [];
-
-		for ( let i = 0; i < geometries.length; ++ i ) {
-
-			const index = geometries[ i ].index;
-
-			for ( let j = 0; j < index.count; ++ j ) {
-
-				mergedIndex.push( index.getX( j ) + indexOffset );
-
-			}
-
-			indexOffset += geometries[ i ].attributes.position.count;
-
-		}
-
-		mergedGeometry.setIndex( mergedIndex );
-
-	}
-
-	// merge attributes
-
-	for ( const name in attributes ) {
-
-		const mergedAttribute = mergeBufferAttributes( attributes[ name ] );
-
-		if ( ! mergedAttribute ) {
-
-			console.error( 'THREE.BufferGeometryUtils: .mergeBufferGeometries() failed while trying to merge the ' + name + ' attribute.' );
-			return null;
-
-		}
-
-		mergedGeometry.setAttribute( name, mergedAttribute );
-
-	}
-
-	// merge morph attributes
-
-	for ( const name in morphAttributes ) {
-
-		const numMorphTargets = morphAttributes[ name ][ 0 ].length;
-
-		if ( numMorphTargets === 0 ) break;
-
-		mergedGeometry.morphAttributes = mergedGeometry.morphAttributes || {};
-		mergedGeometry.morphAttributes[ name ] = [];
-
-		for ( let i = 0; i < numMorphTargets; ++ i ) {
-
-			const morphAttributesToMerge = [];
-
-			for ( let j = 0; j < morphAttributes[ name ].length; ++ j ) {
-
-				morphAttributesToMerge.push( morphAttributes[ name ][ j ][ i ] );
-
-			}
-
-			const mergedMorphAttribute = mergeBufferAttributes( morphAttributesToMerge );
-
-			if ( ! mergedMorphAttribute ) {
-
-				console.error( 'THREE.BufferGeometryUtils: .mergeBufferGeometries() failed while trying to merge the ' + name + ' morphAttribute.' );
-				return null;
-
-			}
-
-			mergedGeometry.morphAttributes[ name ].push( mergedMorphAttribute );
-
-		}
-
-	}
-
-	return mergedGeometry;
-
-}
-
-/**
- * @param {Array<BufferAttribute>} attributes
- * @return {BufferAttribute}
- */
-function mergeBufferAttributes( attributes ) {
-
-	let TypedArray;
-	let itemSize;
-	let normalized;
-	let arrayLength = 0;
-
-	for ( let i = 0; i < attributes.length; ++ i ) {
-
-		const attribute = attributes[ i ];
-
-		if ( attribute.isInterleavedBufferAttribute ) {
-
-			console.error( 'THREE.BufferGeometryUtils: .mergeBufferAttributes() failed. InterleavedBufferAttributes are not supported.' );
-			return null;
-
-		}
-
-		if ( TypedArray === undefined ) TypedArray = attribute.array.constructor;
-		if ( TypedArray !== attribute.array.constructor ) {
-
-			console.error( 'THREE.BufferGeometryUtils: .mergeBufferAttributes() failed. BufferAttribute.array must be of consistent array types across matching attributes.' );
-			return null;
-
-		}
-
-		if ( itemSize === undefined ) itemSize = attribute.itemSize;
-		if ( itemSize !== attribute.itemSize ) {
-
-			console.error( 'THREE.BufferGeometryUtils: .mergeBufferAttributes() failed. BufferAttribute.itemSize must be consistent across matching attributes.' );
-			return null;
-
-		}
-
-		if ( normalized === undefined ) normalized = attribute.normalized;
-		if ( normalized !== attribute.normalized ) {
-
-			console.error( 'THREE.BufferGeometryUtils: .mergeBufferAttributes() failed. BufferAttribute.normalized must be consistent across matching attributes.' );
-			return null;
-
-		}
-
-		arrayLength += attribute.array.length;
-
-	}
-
-	const array = new TypedArray( arrayLength );
-	let offset = 0;
-
-	for ( let i = 0; i < attributes.length; ++ i ) {
-
-		array.set( attributes[ i ].array, offset );
-
-		offset += attributes[ i ].array.length;
-
-	}
-
-	return new BufferAttribute( array, itemSize, normalized );
-
-}
-
 const IdAttrName = 'expressID';
 const PropsNames = {
     aggregates: {
@@ -86565,10 +86298,276 @@ class StateWorker {
             throw new Error(ErrorRootStateNotAvailable);
         const modelID = data.args.modelID;
         if (!this.worker.state.models[modelID]) {
-            this.worker.state.models[modelID] = { modelID, mesh: {}, items: {}, types: {}, jsonData: {} };
+            this.worker.state.models[modelID] = { modelID, mesh: {}, types: {}, jsonData: {} };
         }
         return this.worker.state.models[modelID];
     }
+}
+
+/**
+	 * @param  {Array<BufferGeometry>} geometries
+	 * @param  {Boolean} useGroups
+	 * @return {BufferGeometry}
+	 */
+function mergeBufferGeometries( geometries, useGroups = false ) {
+
+	const isIndexed = geometries[ 0 ].index !== null;
+
+	const attributesUsed = new Set( Object.keys( geometries[ 0 ].attributes ) );
+	const morphAttributesUsed = new Set( Object.keys( geometries[ 0 ].morphAttributes ) );
+
+	const attributes = {};
+	const morphAttributes = {};
+
+	const morphTargetsRelative = geometries[ 0 ].morphTargetsRelative;
+
+	const mergedGeometry = new BufferGeometry();
+
+	let offset = 0;
+
+	for ( let i = 0; i < geometries.length; ++ i ) {
+
+		const geometry = geometries[ i ];
+		let attributesCount = 0;
+
+		// ensure that all geometries are indexed, or none
+
+		if ( isIndexed !== ( geometry.index !== null ) ) {
+
+			console.error( 'THREE.BufferGeometryUtils: .mergeBufferGeometries() failed with geometry at index ' + i + '. All geometries must have compatible attributes; make sure index attribute exists among all geometries, or in none of them.' );
+			return null;
+
+		}
+
+		// gather attributes, exit early if they're different
+
+		for ( const name in geometry.attributes ) {
+
+			if ( ! attributesUsed.has( name ) ) {
+
+				console.error( 'THREE.BufferGeometryUtils: .mergeBufferGeometries() failed with geometry at index ' + i + '. All geometries must have compatible attributes; make sure "' + name + '" attribute exists among all geometries, or in none of them.' );
+				return null;
+
+			}
+
+			if ( attributes[ name ] === undefined ) attributes[ name ] = [];
+
+			attributes[ name ].push( geometry.attributes[ name ] );
+
+			attributesCount ++;
+
+		}
+
+		// ensure geometries have the same number of attributes
+
+		if ( attributesCount !== attributesUsed.size ) {
+
+			console.error( 'THREE.BufferGeometryUtils: .mergeBufferGeometries() failed with geometry at index ' + i + '. Make sure all geometries have the same number of attributes.' );
+			return null;
+
+		}
+
+		// gather morph attributes, exit early if they're different
+
+		if ( morphTargetsRelative !== geometry.morphTargetsRelative ) {
+
+			console.error( 'THREE.BufferGeometryUtils: .mergeBufferGeometries() failed with geometry at index ' + i + '. .morphTargetsRelative must be consistent throughout all geometries.' );
+			return null;
+
+		}
+
+		for ( const name in geometry.morphAttributes ) {
+
+			if ( ! morphAttributesUsed.has( name ) ) {
+
+				console.error( 'THREE.BufferGeometryUtils: .mergeBufferGeometries() failed with geometry at index ' + i + '.  .morphAttributes must be consistent throughout all geometries.' );
+				return null;
+
+			}
+
+			if ( morphAttributes[ name ] === undefined ) morphAttributes[ name ] = [];
+
+			morphAttributes[ name ].push( geometry.morphAttributes[ name ] );
+
+		}
+
+		// gather .userData
+
+		mergedGeometry.userData.mergedUserData = mergedGeometry.userData.mergedUserData || [];
+		mergedGeometry.userData.mergedUserData.push( geometry.userData );
+
+		if ( useGroups ) {
+
+			let count;
+
+			if ( isIndexed ) {
+
+				count = geometry.index.count;
+
+			} else if ( geometry.attributes.position !== undefined ) {
+
+				count = geometry.attributes.position.count;
+
+			} else {
+
+				console.error( 'THREE.BufferGeometryUtils: .mergeBufferGeometries() failed with geometry at index ' + i + '. The geometry must have either an index or a position attribute' );
+				return null;
+
+			}
+
+			mergedGeometry.addGroup( offset, count, i );
+
+			offset += count;
+
+		}
+
+	}
+
+	// merge indices
+
+	if ( isIndexed ) {
+
+		let indexOffset = 0;
+		const mergedIndex = [];
+
+		for ( let i = 0; i < geometries.length; ++ i ) {
+
+			const index = geometries[ i ].index;
+
+			for ( let j = 0; j < index.count; ++ j ) {
+
+				mergedIndex.push( index.getX( j ) + indexOffset );
+
+			}
+
+			indexOffset += geometries[ i ].attributes.position.count;
+
+		}
+
+		mergedGeometry.setIndex( mergedIndex );
+
+	}
+
+	// merge attributes
+
+	for ( const name in attributes ) {
+
+		const mergedAttribute = mergeBufferAttributes( attributes[ name ] );
+
+		if ( ! mergedAttribute ) {
+
+			console.error( 'THREE.BufferGeometryUtils: .mergeBufferGeometries() failed while trying to merge the ' + name + ' attribute.' );
+			return null;
+
+		}
+
+		mergedGeometry.setAttribute( name, mergedAttribute );
+
+	}
+
+	// merge morph attributes
+
+	for ( const name in morphAttributes ) {
+
+		const numMorphTargets = morphAttributes[ name ][ 0 ].length;
+
+		if ( numMorphTargets === 0 ) break;
+
+		mergedGeometry.morphAttributes = mergedGeometry.morphAttributes || {};
+		mergedGeometry.morphAttributes[ name ] = [];
+
+		for ( let i = 0; i < numMorphTargets; ++ i ) {
+
+			const morphAttributesToMerge = [];
+
+			for ( let j = 0; j < morphAttributes[ name ].length; ++ j ) {
+
+				morphAttributesToMerge.push( morphAttributes[ name ][ j ][ i ] );
+
+			}
+
+			const mergedMorphAttribute = mergeBufferAttributes( morphAttributesToMerge );
+
+			if ( ! mergedMorphAttribute ) {
+
+				console.error( 'THREE.BufferGeometryUtils: .mergeBufferGeometries() failed while trying to merge the ' + name + ' morphAttribute.' );
+				return null;
+
+			}
+
+			mergedGeometry.morphAttributes[ name ].push( mergedMorphAttribute );
+
+		}
+
+	}
+
+	return mergedGeometry;
+
+}
+
+/**
+ * @param {Array<BufferAttribute>} attributes
+ * @return {BufferAttribute}
+ */
+function mergeBufferAttributes( attributes ) {
+
+	let TypedArray;
+	let itemSize;
+	let normalized;
+	let arrayLength = 0;
+
+	for ( let i = 0; i < attributes.length; ++ i ) {
+
+		const attribute = attributes[ i ];
+
+		if ( attribute.isInterleavedBufferAttribute ) {
+
+			console.error( 'THREE.BufferGeometryUtils: .mergeBufferAttributes() failed. InterleavedBufferAttributes are not supported.' );
+			return null;
+
+		}
+
+		if ( TypedArray === undefined ) TypedArray = attribute.array.constructor;
+		if ( TypedArray !== attribute.array.constructor ) {
+
+			console.error( 'THREE.BufferGeometryUtils: .mergeBufferAttributes() failed. BufferAttribute.array must be of consistent array types across matching attributes.' );
+			return null;
+
+		}
+
+		if ( itemSize === undefined ) itemSize = attribute.itemSize;
+		if ( itemSize !== attribute.itemSize ) {
+
+			console.error( 'THREE.BufferGeometryUtils: .mergeBufferAttributes() failed. BufferAttribute.itemSize must be consistent across matching attributes.' );
+			return null;
+
+		}
+
+		if ( normalized === undefined ) normalized = attribute.normalized;
+		if ( normalized !== attribute.normalized ) {
+
+			console.error( 'THREE.BufferGeometryUtils: .mergeBufferAttributes() failed. BufferAttribute.normalized must be consistent across matching attributes.' );
+			return null;
+
+		}
+
+		arrayLength += attribute.array.length;
+
+	}
+
+	const array = new TypedArray( arrayLength );
+	let offset = 0;
+
+	for ( let i = 0; i < attributes.length; ++ i ) {
+
+		array.set( attributes[ i ].array, offset );
+
+		offset += attributes[ i ].array.length;
+
+	}
+
+	return new BufferAttribute( array, itemSize, normalized );
+
 }
 
 class IFCParser {
@@ -86610,7 +86609,6 @@ class IFCParser {
         this.state.models[this.currentModelID] = {
             modelID: this.currentModelID,
             mesh: {},
-            items: {},
             types: {},
             jsonData: {}
         };
@@ -86621,8 +86619,8 @@ class IFCParser {
             const size = placedGeometries.size();
             for (let i = 0; i < size; i++) {
                 const placedGeometry = placedGeometries.get(i);
-                let mesh = this.getPlacedGeometry(modelID, placedGeometry);
-                let geom = mesh.geometry.applyMatrix4(mesh.matrix);
+                let itemMesh = this.getPlacedGeometry(modelID, mesh.expressID, placedGeometry);
+                let geom = itemMesh.geometry.applyMatrix4(itemMesh.matrix);
                 this.storeGeometryByMaterial(placedGeometry.color, geom);
             }
         });
@@ -86635,22 +86633,25 @@ class IFCParser {
             geometries.push(merged);
         });
         const combinedGeometry = mergeBufferGeometries(geometries, true);
+        this.cleanUpGeometryMemory(geometries);
+        if (this.BVH)
+            this.BVH.applyThreeMeshBVH(combinedGeometry);
         const model = new IFCModel(combinedGeometry, materials);
         this.state.models[this.currentModelID].mesh = model;
         return model;
     }
-    getPlacedGeometry(modelID, placedGeometry) {
-        const geometry = this.getBufferGeometry(modelID, placedGeometry);
+    getPlacedGeometry(modelID, expressID, placedGeometry) {
+        const geometry = this.getBufferGeometry(modelID, expressID, placedGeometry);
         const mesh = new Mesh(geometry);
         mesh.matrix = this.getMeshMatrix(placedGeometry.flatTransformation);
         mesh.matrixAutoUpdate = false;
         return mesh;
     }
-    getBufferGeometry(modelID, placedGeometry) {
+    getBufferGeometry(modelID, expressID, placedGeometry) {
         const geometry = this.state.api.GetGeometry(modelID, placedGeometry.geometryExpressID);
         const verts = this.state.api.GetVertexArray(geometry.GetVertexData(), geometry.GetVertexDataSize());
         const indices = this.state.api.GetIndexArray(geometry.GetIndexData(), geometry.GetIndexDataSize());
-        return this.ifcGeometryToBuffer(placedGeometry.color, verts, indices);
+        return this.ifcGeometryToBuffer(expressID, verts, indices);
     }
     storeGeometryByMaterial(color, geometry) {
         let colID = `${color.x}${color.y}${color.z}${color.w}`;
@@ -86670,10 +86671,11 @@ class IFCParser {
         mat.fromArray(matrix);
         return mat;
     }
-    ifcGeometryToBuffer(color, vertexData, indexData) {
+    ifcGeometryToBuffer(expressID, vertexData, indexData) {
         const geometry = new BufferGeometry();
-        let posFloats = new Float32Array(vertexData.length / 2);
-        let normFloats = new Float32Array(vertexData.length / 2);
+        const posFloats = new Float32Array(vertexData.length / 2);
+        const normFloats = new Float32Array(vertexData.length / 2);
+        const idAttribute = new Uint32Array(vertexData.length / 6);
         for (let i = 0; i < vertexData.length; i += 6) {
             posFloats[i / 2] = vertexData[i];
             posFloats[i / 2 + 1] = vertexData[i + 1];
@@ -86681,13 +86683,16 @@ class IFCParser {
             normFloats[i / 2] = vertexData[i + 3];
             normFloats[i / 2 + 1] = vertexData[i + 4];
             normFloats[i / 2 + 2] = vertexData[i + 5];
+            idAttribute[i / 6] = expressID;
         }
         geometry.setAttribute('position', new BufferAttribute(posFloats, 3));
         geometry.setAttribute('normal', new BufferAttribute(normFloats, 3));
+        geometry.setAttribute('expressID', new BufferAttribute(idAttribute, 1));
         geometry.setIndex(new BufferAttribute(indexData, 1));
         return geometry;
     }
-    cleanUp() {
+    cleanUpGeometryMemory(geometries) {
+        geometries.forEach(geometry => geometry.dispose());
         Object.keys(this.geometriesByMaterials).forEach((materialID) => {
             const geometriesByMaterial = this.geometriesByMaterials[materialID];
             geometriesByMaterial.geometries.forEach(geometry => geometry.dispose());
@@ -86780,9 +86785,8 @@ class ParserWorker {
             throw new Error(ErrorParserNotAvailable);
         if (this.worker.state)
             this.worker.state.onProgress = (event) => this.onProgress(event, data);
-        const { serializedIfcModel, serializedItems } = await this.getResponse(data);
+        const { serializedIfcModel } = await this.getResponse(data);
         await this.IDB.save(serializedIfcModel, DBOperation.transferIfcModel);
-        await this.IDB.save(serializedItems, DBOperation.transferIndividualItems);
         this.worker.post(data);
     }
     onProgress(event, data) {
@@ -86794,38 +86798,7 @@ class ParserWorker {
         const ifcModel = await this.parser.parse(data.args.buffer, data.args.coordinationMatrix);
         const serializedIfcModel = this.serializer.serializeIfcModel(ifcModel);
         data.result = { modelID: ifcModel.modelID };
-        const serializedItems = this.getSerializedItems(ifcModel);
-        return { serializedIfcModel, serializedItems };
-    }
-    getSerializedItems(ifcModel) {
-        var _a;
-        const items = (_a = this.worker.state) === null || _a === void 0 ? void 0 : _a.models[ifcModel.modelID].items;
-        if (items === undefined)
-            throw new Error("Items are not defined in worker");
-        if (!this.worker.state)
-            throw new Error(ErrorStateNotAvailable);
-        const serializedItems = this.serializer.serializeGeometriesByMaterials(items);
-        this.cleanUp(ifcModel.modelID);
-        this.worker.state.models[ifcModel.modelID].items = {};
-        return serializedItems;
-    }
-    cleanUp(modelID) {
-        var _a;
-        const items = (_a = this.worker.state) === null || _a === void 0 ? void 0 : _a.models[modelID].items;
-        if (!items)
-            return;
-        Object.keys(items).forEach(matID => {
-            items[matID].material.dispose();
-            delete items[matID].material;
-            this.cleanUpGeometries(items[matID].geometries);
-            delete items[matID].geometries;
-        });
-    }
-    cleanUpGeometries(geometries) {
-        Object.keys(geometries).map(key => parseInt(key)).forEach(id => {
-            geometries[id].dispose();
-            delete geometries[id];
-        });
+        return { serializedIfcModel };
     }
 }
 

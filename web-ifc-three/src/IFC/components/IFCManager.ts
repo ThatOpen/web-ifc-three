@@ -10,7 +10,6 @@ import { IFCModel } from './IFCModel';
 import { BvhManager } from './BvhManager';
 import { ItemsHider } from './ItemsHider';
 import { LoaderSettings } from 'web-ifc';
-import { MemoryCleaner } from './MemoryCleaner';
 import { IFCWorkerHandler } from '../web-workers/IFCWorkerHandler';
 import { PropertyManagerAPI } from './properties/BaseDefinitions';
 
@@ -31,7 +30,6 @@ export class IFCManager {
     private properties: PropertyManagerAPI = new PropertyManager(this.state);
     private types = new TypeManager(this.state);
     private hider = new ItemsHider(this.state);
-    private cleaner = new MemoryCleaner(this.state);
     private worker?: IFCWorkerHandler;
 
     /**
@@ -187,11 +185,11 @@ export class IFCManager {
     /**
      * Gets the **Express ID** to which the given face belongs.
      * This ID uniquely identifies this entity within this IFC file.
-     * @geometry The geometry of the IFC model.
+     * @modelID ID of the IFC model.
      * @faceIndex The index of the face of a geometry.You can easily get this index using the [Raycaster](https://threejs.org/docs/#api/en/core/Raycaster).
      */
-    getExpressId(geometry: BufferGeometry, faceIndex: number) {
-        return this.properties.getExpressId(geometry, faceIndex);
+    getExpressId(modelID: number, faceIndex: number) {
+        return this.subsets.getExpressID(modelID, faceIndex);
     }
 
     /**
@@ -354,9 +352,8 @@ export class IFCManager {
      * Page reloading recommended to avoid heap overload
      */
     releaseAllMemory() {
-        this.subsets.dispose();
+        // this.subsets.dispose();
         this.hider.dispose();
-        this.cleaner.releaseAllModels();
         // @ts-ignore
         this.state.api = null;
         // @ts-ignore

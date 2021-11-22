@@ -6,7 +6,6 @@ import { FlatMesh } from './FlatMesh';
 import { FlatMeshVector } from './FlatMeshVector';
 import { IFCModel } from '../../components/IFCModel';
 import { MeshReconstructor, SerializedMesh } from './Mesh';
-import { GeometriesByMaterials } from '../../BaseDefinitions';
 import { GeomsByMaterialsReconstructor, SerializedGeomsByMaterials } from './GeomsByMaterials';
 
 export class Serializer {
@@ -74,7 +73,7 @@ export class Serializer {
         return MeshReconstructor.new(model);
     }
 
-    serializeGeometriesByMaterials(geoms: GeometriesByMaterials) {
+    serializeGeometriesByMaterials(geoms: any) {
         return new SerializedGeomsByMaterials(geoms);
     }
 

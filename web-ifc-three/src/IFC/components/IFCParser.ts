@@ -1,9 +1,6 @@
 //@ts-ignore
 import { PlacedGeometry, Color as ifcColor, IfcGeometry, IFCSPACE, FlatMesh, IFCOPENINGELEMENT } from 'web-ifc';
-import {
-    IfcState,
-    IfcMesh
-} from '../BaseDefinitions';
+import { IfcState, IfcMesh } from '../BaseDefinitions';
 import {
     Color,
     MeshLambertMaterial,
@@ -94,8 +91,6 @@ export class IFCParser implements ParserAPI {
         this.state.models[this.currentModelID] = {
             modelID: this.currentModelID,
             mesh: {} as IfcMesh,
-            items: {},
-            map: new Map<number, MaterialIndices>(),
             types: {},
             jsonData: {}
         };
@@ -111,8 +106,8 @@ export class IFCParser implements ParserAPI {
 
             for (let i = 0; i < size; i++) {
                 const placedGeometry = placedGeometries.get(i);
-                let mesh = this.getPlacedGeometry(modelID, placedGeometry);
-                let geom = mesh.geometry.applyMatrix4(mesh.matrix);
+                let itemMesh = this.getPlacedGeometry(modelID, mesh.expressID, placedGeometry);
+                let geom = itemMesh.geometry.applyMatrix4(itemMesh.matrix);
                 this.storeGeometryByMaterial(placedGeometry.color, geom);
             }
         });
@@ -125,28 +120,29 @@ export class IFCParser implements ParserAPI {
             const merged = mergeBufferGeometries(geometriesByMaterial);
             materials.push(this.geometriesByMaterials[key].material);
             geometries.push(merged);
-        })
+        });
 
         const combinedGeometry = mergeBufferGeometries(geometries, true);
+        this.cleanUpGeometryMemory(geometries);
+        if(this.BVH) this.BVH.applyThreeMeshBVH(combinedGeometry);
         const model = new IFCModel(combinedGeometry, materials);
         this.state.models[this.currentModelID].mesh = model;
-        this.cleanUp();
         return model;
     }
 
-    private getPlacedGeometry(modelID: number, placedGeometry: PlacedGeometry) {
-        const geometry = this.getBufferGeometry(modelID, placedGeometry);
+    private getPlacedGeometry(modelID: number, expressID: number, placedGeometry: PlacedGeometry) {
+        const geometry = this.getBufferGeometry(modelID, expressID, placedGeometry);
         const mesh = new Mesh(geometry);
         mesh.matrix = this.getMeshMatrix(placedGeometry.flatTransformation);
         mesh.matrixAutoUpdate = false;
         return mesh;
     }
 
-    private getBufferGeometry(modelID: number, placedGeometry: PlacedGeometry) {
+    private getBufferGeometry(modelID: number, expressID: number, placedGeometry: PlacedGeometry) {
         const geometry = this.state.api.GetGeometry(modelID, placedGeometry.geometryExpressID) as IfcGeometry;
         const verts = this.state.api.GetVertexArray(geometry.GetVertexData(), geometry.GetVertexDataSize()) as Float32Array;
         const indices = this.state.api.GetIndexArray(geometry.GetIndexData(), geometry.GetIndexDataSize()) as Uint32Array;
-        return this.ifcGeometryToBuffer(placedGeometry.color, verts, indices);
+        return this.ifcGeometryToBuffer(expressID, verts, indices);
     }
 
     private storeGeometryByMaterial(color: ifcColor, geometry: BufferGeometry) {
@@ -160,7 +156,7 @@ export class IFCParser implements ParserAPI {
         const material = new MeshLambertMaterial({ color: col, side: DoubleSide });
         material.transparent = color.w !== 1;
         if (material.transparent) material.opacity = color.w;
-        this.geometriesByMaterials[colID] = {material, geometries: [geometry] };
+        this.geometriesByMaterials[colID] = { material, geometries: [geometry] };
     }
 
     private getMeshMatrix(matrix: Array<number>) {
@@ -169,11 +165,12 @@ export class IFCParser implements ParserAPI {
         return mat;
     }
 
-    private ifcGeometryToBuffer(color: ifcColor, vertexData: Float32Array, indexData: Uint32Array) {
+    private ifcGeometryToBuffer(expressID: number, vertexData: Float32Array, indexData: Uint32Array) {
         const geometry = new BufferGeometry();
 
-        let posFloats = new Float32Array(vertexData.length / 2);
-        let normFloats = new Float32Array(vertexData.length / 2);
+        const posFloats = new Float32Array(vertexData.length / 2);
+        const normFloats = new Float32Array(vertexData.length / 2);
+        const idAttribute = new Uint32Array(vertexData.length / 6);
 
         for (let i = 0; i < vertexData.length; i += 6) {
             posFloats[i / 2] = vertexData[i];
@@ -183,6 +180,8 @@ export class IFCParser implements ParserAPI {
             normFloats[i / 2] = vertexData[i + 3];
             normFloats[i / 2 + 1] = vertexData[i + 4];
             normFloats[i / 2 + 2] = vertexData[i + 5];
+
+            idAttribute[i / 6] = expressID;
         }
 
         geometry.setAttribute(
@@ -191,19 +190,25 @@ export class IFCParser implements ParserAPI {
         geometry.setAttribute(
             'normal',
             new BufferAttribute(normFloats, 3));
+        geometry.setAttribute(
+            'expressID',
+            new BufferAttribute(idAttribute, 1));
 
         geometry.setIndex(new BufferAttribute(indexData, 1));
         return geometry;
     }
 
-    private cleanUp() {
+    // Three.js geometry has to be manually deallocated
+    private cleanUpGeometryMemory(geometries: BufferGeometry[]) {
+        geometries.forEach(geometry => geometry.dispose());
+
         Object.keys(this.geometriesByMaterials).forEach((materialID) => {
             const geometriesByMaterial = this.geometriesByMaterials[materialID];
             geometriesByMaterial.geometries.forEach(geometry => geometry.dispose());
             geometriesByMaterial.geometries = [];
             // @ts-ignore
             geometriesByMaterial.material = null;
-        })
+        });
         this.geometriesByMaterials = {};
     }
 }

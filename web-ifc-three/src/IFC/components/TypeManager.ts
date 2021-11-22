@@ -1,4 +1,4 @@
-import { IfcState, SelectedItems } from '../BaseDefinitions';
+import { IfcState } from '../BaseDefinitions';
 import { IfcElements } from './IFCElementsMap'
 import { IFCWorkerHandler } from '../web-workers/IFCWorkerHandler';
 

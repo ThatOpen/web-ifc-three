@@ -1,4 +1,3 @@
-import { GeometriesByMaterials } from '../../BaseDefinitions';
 import { MaterialReconstructor, SerializedMaterial } from './Material';
 import { GeometryReconstructor, SerializedGeometry } from './Geometry';
 import { MeshLambertMaterial } from 'three';
@@ -12,7 +11,7 @@ export interface SerializedGeomsByMat {
 
 export class SerializedGeomsByMaterials implements SerializedGeomsByMat {
 
-    constructor(geoms: GeometriesByMaterials) {
+    constructor(geoms: any) {
         const matIDs = Object.keys(geoms);
         matIDs.forEach(id => {
             this[id] = {} as any;
@@ -30,7 +29,7 @@ export class SerializedGeomsByMaterials implements SerializedGeomsByMat {
 
 export class GeomsByMaterialsReconstructor {
     static new(serialized: SerializedGeomsByMaterials) {
-        const geomsByMat: GeometriesByMaterials = {}
+        const geomsByMat: any = {}
         const matIDs = Object.keys(serialized);
         matIDs.forEach(id => {
             geomsByMat[id] = {} as any;

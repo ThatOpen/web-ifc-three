@@ -6,8 +6,6 @@ import { Serializer } from '../serializer/Serializer';
 import { ParserResult } from '../workers/ParserWorker';
 import { BvhManager } from '../../components/BvhManager';
 import { DBOperation, IndexedDatabase } from '../../indexedDB/IndexedDatabase';
-import { Matrix4 } from 'three';
-import {MaterialIndices} from "../../BaseDefinitions";
 
 export class ParserHandler implements ParserAPI {
 
@@ -29,7 +27,7 @@ export class ParserHandler implements ParserAPI {
         };
         this.handler.serializeHandlers[this.handler.requestID] = async (result: ParserResult) => {
             this.updateState(result.modelID);
-            await this.getItems(result.modelID);
+            // await this.getItems(result.modelID);
             return this.getModel();
         };
         return this.handler.request(this.API, WorkerActions.parse, {buffer, coordinationMatrix});
@@ -42,17 +40,15 @@ export class ParserHandler implements ParserAPI {
         this.handler.state.models[modelID] = {
             modelID: modelID,
             mesh: {} as any,
-            items: {},
             types: {},
-            map: new Map<number, MaterialIndices>(),
             jsonData: {}
         };
     }
 
-    private async getItems(modelID: number) {
-        const items = await this.IDB.load(DBOperation.transferIndividualItems);
-        this.handler.state.models[modelID].items = this.serializer.reconstructGeometriesByMaterials(items);
-    }
+    // private async getItems(modelID: number) {
+    //     const items = await this.IDB.load(DBOperation.transferIndividualItems);
+    //     this.handler.state.models[modelID].items = this.serializer.reconstructGeometriesByMaterials(items);
+    // }
 
     private async getModel() {
         const serializedModel = await this.IDB.load(DBOperation.transferIfcModel);

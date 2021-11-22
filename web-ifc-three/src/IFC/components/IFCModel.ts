@@ -64,9 +64,9 @@ export class IFCModel extends Mesh {
      * @geometry The geometry of the IFC model.
      * @faceIndex The index of the face of a geometry.You can easily get this index using the [Raycaster](https://threejs.org/docs/#api/en/core/Raycaster).
      */
-    getExpressId(geometry: BufferGeometry, faceIndex: number) {
+    getExpressId(modelID: number, faceIndex: number) {
         if (this.ifcManager === null) throw new Error(nullIfcManagerErrorMessage);
-        return this.ifcManager.getExpressId(geometry, faceIndex);
+        return this.ifcManager.getExpressId(modelID, faceIndex);
     }
 
     /**
