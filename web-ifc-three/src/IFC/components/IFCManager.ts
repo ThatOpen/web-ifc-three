@@ -8,7 +8,6 @@ import { HighlightConfigOfModel, IfcState, JSONObject } from '../BaseDefinitions
 import {BufferGeometry, Material, Matrix4, Object3D, Scene} from 'three';
 import { IFCModel } from './IFCModel';
 import { BvhManager } from './BvhManager';
-import { ItemsHider } from './ItemsHider';
 import { LoaderSettings } from 'web-ifc';
 import { IFCWorkerHandler } from '../web-workers/IFCWorkerHandler';
 import { PropertyManagerAPI } from './properties/BaseDefinitions';
@@ -29,7 +28,6 @@ export class IFCManager {
     private subsets = new SubsetManager(this.state, this.BVH);
     private properties: PropertyManagerAPI = new PropertyManager(this.state);
     private types = new TypeManager(this.state);
-    private hider = new ItemsHider(this.state);
     private worker?: IFCWorkerHandler;
 
     /**
@@ -310,57 +308,7 @@ export class IFCManager {
         return this.subsets.createSubset(config);
     }
 
-    /**
-     * Hides the selected items in the specified model
-     * @modelID ID of the IFC model.
-     * @ids Express ID of the elements.
-     */
-    hideItems(modelID: number, ids: number[]) {
-        this.hider.hideItems(modelID, ids);
-    }
-
-    /**
-     * Hides all the items of the specified model
-     * @modelID ID of the IFC model.
-     */
-    hideAllItems(modelID: number) {
-        this.hider.hideAllItems(modelID);
-    }
-
-    /**
-     * Shows all the items of the specified model
-     * @modelID ID of the IFC model.
-     * @ids Express ID of the elements.
-     */
-    showItems(modelID: number, ids: number[]) {
-        this.hider.showItems(modelID, ids);
-    }
-
-    /**
-     * Shows all the items of the specified model
-     * @modelID ID of the IFC model.
-     */
-    showAllItems(modelID: number) {
-        this.hider.showAllItems(modelID);
-    }
-
     // MISC - Miscelaneus logic for various purposes
-
-    /**
-     * Deletes all data, releasing all memory
-     * Work in progress: this doesn't remove all the memory
-     * Page reloading recommended to avoid heap overload
-     */
-    releaseAllMemory() {
-        // this.subsets.dispose();
-        this.hider.dispose();
-        // @ts-ignore
-        this.state.api = null;
-        // @ts-ignore
-        this.state.models = null;
-        // @ts-ignore
-        this.state = null;
-    }
 
     /**
      * Completely releases the WASM memory, thus drastically decreasing the memory use of the app.

@@ -71,6 +71,6 @@ export class IfcManager {
 
         const stop = window.performance.now()
 
-        console.log(`Time Taken to execute = ${(stop - start)/1000} seconds`);
+        console.log(`Time Taken to load = ${(stop - start)/1000} seconds`);
     }
 }

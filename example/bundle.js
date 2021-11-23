@@ -86681,30 +86681,6 @@ class IFCModel extends Mesh {
     return this.ifcManager.createSubset(modelConfig);
   }
 
-  hideItems(ids) {
-    if (this.ifcManager === null)
-      throw new Error(nullIfcManagerErrorMessage);
-    this.ifcManager.hideItems(this.modelID, ids);
-  }
-
-  hideAllItems() {
-    if (this.ifcManager === null)
-      throw new Error(nullIfcManagerErrorMessage);
-    this.ifcManager.hideAllItems(this.modelID);
-  }
-
-  showItems(ids) {
-    if (this.ifcManager === null)
-      throw new Error(nullIfcManagerErrorMessage);
-    this.ifcManager.showItems(this.modelID, ids);
-  }
-
-  showAllItems() {
-    if (this.ifcManager === null)
-      throw new Error(nullIfcManagerErrorMessage);
-    this.ifcManager.showAllItems(this.modelID);
-  }
-
 }
 
 class IFCParser {
@@ -88394,96 +88370,6 @@ class BvhManager {
 
 }
 
-class ItemsHider {
-
-  constructor(state) {
-    this.modelCoordinates = {};
-    this.expressIDCoordinatesMap = {};
-    this.state = state;
-  }
-
-  ;
-
-  dispose() {
-    this.modelCoordinates = {};
-    this.expressIDCoordinatesMap = {};
-  }
-
-  processCoordinates(modelID) {
-    const attributes = this.getAttributes(modelID);
-    const ids = Array.from(attributes.expressID.array);
-    this.expressIDCoordinatesMap[modelID] = {};
-    for (let i = 0; i < ids.length; i++) {
-      if (!this.expressIDCoordinatesMap[modelID][ids[i]]) {
-        this.expressIDCoordinatesMap[modelID][ids[i]] = [];
-      }
-      const current = this.expressIDCoordinatesMap[modelID];
-      current[ids[i]].push(3 * i);
-    }
-    this.initializeCoordinates(modelID);
-  }
-
-  hideItems(modelID, ids) {
-    this.editCoordinates(modelID, ids, true);
-  }
-
-  showItems(modelID, ids) {
-    this.editCoordinates(modelID, ids, false);
-  }
-
-  editCoordinates(modelID, ids, hide) {
-    const current = this.expressIDCoordinatesMap[modelID];
-    const indices = [];
-    ids.forEach((id) => {
-      if (current[id]) {
-        for (let i = 0; i < current[id].length; i++) {
-          indices.push(current[id][i]);
-        }
-      }
-    });
-    const coords = this.getCoordinates(modelID);
-    const initial = this.modelCoordinates[modelID];
-    if (hide)
-      indices.forEach(i => coords.set([0, 0, 0], i));
-    else
-      indices.forEach(i => coords.set([initial[i], initial[i + 1], initial[i + 2]], i));
-    this.getAttributes(modelID).position.needsUpdate = true;
-  }
-
-  showAllItems(modelID) {
-    if (this.modelCoordinates[modelID]) {
-      this.resetCoordinates(modelID);
-      this.getAttributes(modelID).position.needsUpdate = true;
-    }
-  }
-
-  hideAllItems(modelID) {
-    this.getCoordinates(modelID).fill(0);
-    this.getAttributes(modelID).position.needsUpdate = true;
-  }
-
-  initializeCoordinates(modelID) {
-    const coordinates = this.getCoordinates(modelID);
-    if (!this.modelCoordinates[modelID]) {
-      this.modelCoordinates[modelID] = new Float32Array(coordinates);
-    }
-  }
-
-  resetCoordinates(modelID) {
-    const initial = this.modelCoordinates[modelID];
-    this.getCoordinates(modelID).set(initial);
-  }
-
-  getCoordinates(modelID) {
-    return this.getAttributes(modelID).position.array;
-  }
-
-  getAttributes(modelID) {
-    return this.state.models[modelID].mesh.geometry.attributes;
-  }
-
-}
-
 var WorkerActions;
 (function(WorkerActions) {
   WorkerActions["updateStateUseJson"] = "updateStateUseJson";
@@ -89359,7 +89245,6 @@ class IFCManager {
     this.subsets = new SubsetManager(this.state, this.BVH);
     this.properties = new PropertyManager(this.state);
     this.types = new TypeManager(this.state);
-    this.hider = new ItemsHider(this.state);
   }
 
   get ifcAPI() {
@@ -89493,29 +89378,6 @@ class IFCManager {
 
   createSubset(config) {
     return this.subsets.createSubset(config);
-  }
-
-  hideItems(modelID, ids) {
-    this.hider.hideItems(modelID, ids);
-  }
-
-  hideAllItems(modelID) {
-    this.hider.hideAllItems(modelID);
-  }
-
-  showItems(modelID, ids) {
-    this.hider.showItems(modelID, ids);
-  }
-
-  showAllItems(modelID) {
-    this.hider.showAllItems(modelID);
-  }
-
-  releaseAllMemory() {
-    this.hider.dispose();
-    this.state.api = null;
-    this.state.models = null;
-    this.state = null;
   }
 
   async disposeMemory() {
@@ -93644,7 +93506,7 @@ class IfcManager {
 
         const stop = window.performance.now();
 
-        console.log(`Time Taken to execute = ${(stop - start)/1000} seconds`);
+        console.log(`Time Taken to load = ${(stop - start)/1000} seconds`);
     }
 }
 

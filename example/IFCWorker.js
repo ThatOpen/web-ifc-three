@@ -41864,26 +41864,6 @@ class IFCModel extends Mesh {
         const modelConfig = { ...config, modelID: this.modelID };
         return this.ifcManager.createSubset(modelConfig);
     }
-    hideItems(ids) {
-        if (this.ifcManager === null)
-            throw new Error(nullIfcManagerErrorMessage);
-        this.ifcManager.hideItems(this.modelID, ids);
-    }
-    hideAllItems() {
-        if (this.ifcManager === null)
-            throw new Error(nullIfcManagerErrorMessage);
-        this.ifcManager.hideAllItems(this.modelID);
-    }
-    showItems(ids) {
-        if (this.ifcManager === null)
-            throw new Error(nullIfcManagerErrorMessage);
-        this.ifcManager.showItems(this.modelID, ids);
-    }
-    showAllItems() {
-        if (this.ifcManager === null)
-            throw new Error(nullIfcManagerErrorMessage);
-        this.ifcManager.showAllItems(this.modelID);
-    }
 }
 
 class SerializedMaterial {
