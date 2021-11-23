@@ -41813,10 +41813,10 @@ class IFCModel extends Mesh {
             throw new Error(nullIfcManagerErrorMessage);
         this.ifcManager.close(this.modelID, scene);
     }
-    getExpressId(modelID, faceIndex) {
+    getExpressId(geometry, faceIndex) {
         if (this.ifcManager === null)
             throw new Error(nullIfcManagerErrorMessage);
-        return this.ifcManager.getExpressId(modelID, faceIndex);
+        return this.ifcManager.getExpressId(geometry, faceIndex);
     }
     getAllItemsOfType(type, verbose) {
         if (this.ifcManager === null)

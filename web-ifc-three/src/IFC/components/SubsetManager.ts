@@ -32,19 +32,12 @@ export class SubsetManager {
 
     private subsets: Subsets = {};
     private itemsMap: ItemsMap = {};
-    private expressIDMap: ExpressIDMap = {};
 
     private tempIndex: number[] = [];
 
     constructor(state: IfcState, BVH: BvhManager) {
         this.state = state;
         this.BVH = BVH;
-    }
-
-    getExpressID(modelID: number, _index: number) {
-        if (!this.itemsMap[modelID]) this.generateGeometryIndexMap(modelID);
-        const map = this.itemsMap[modelID];
-        return 0;
     }
 
     getSubset(modelID: number, material?: Material, customId?: string) {
@@ -135,9 +128,6 @@ export class SubsetManager {
 
         const items = this.itemsMap[modelID];
 
-        this.expressIDMap[modelID] = new Map<number, number>();
-        const idsMap = this.expressIDMap[modelID];
-
         for (const group of geometry.groups) {
 
             let prevExpressID = -1;
@@ -164,7 +154,6 @@ export class SubsetManager {
                 if (isEndOfMaterial) {
                     const store = this.getMaterialStore(items.map, expressID, materialIndex);
                     store.push(objectStart, materialEnd);
-                    idsMap.set(materialEnd, expressID);
                     break;
                 }
 
@@ -177,15 +166,12 @@ export class SubsetManager {
                 const store = this.getMaterialStore(items.map, prevExpressID, materialIndex);
                 objectEnd = i - 1;
                 store.push(objectStart, objectEnd);
-                idsMap.set(objectEnd, expressID);
 
                 // Get ready to process next object
                 prevExpressID = expressID;
                 objectStart = i;
             }
         }
-
-        console.log(this.expressIDMap);
     }
 
     private getSubsetID(modelID: number, material?: Material, customID = 'DEFAULT') {

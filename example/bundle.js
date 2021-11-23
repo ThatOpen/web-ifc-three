@@ -42143,7 +42143,7 @@ class ItemSelector {
         if (!this.currentModel) {
             throw new Error('The selected item doesn\'t belong to a model!');
         }
-        this.currentItemID = await this.currentModel.ifcManager.getExpressId(item.object.modelID, item.faceIndex);
+        this.currentItemID = await this.currentModel.ifcManager.getExpressId(item.object.geometry, item.faceIndex);
     }
 
     removePreviousSelection() {
@@ -86617,10 +86617,10 @@ class IFCModel extends Mesh {
     this.ifcManager.close(this.modelID, scene);
   }
 
-  getExpressId(modelID, faceIndex) {
+  getExpressId(geometry, faceIndex) {
     if (this.ifcManager === null)
       throw new Error(nullIfcManagerErrorMessage);
-    return this.ifcManager.getExpressId(modelID, faceIndex);
+    return this.ifcManager.getExpressId(geometry, faceIndex);
   }
 
   getAllItemsOfType(type, verbose) {
@@ -86867,16 +86867,9 @@ class SubsetManager {
   constructor(state, BVH) {
     this.subsets = {};
     this.itemsMap = {};
-    this.expressIDMap = {};
     this.tempIndex = [];
     this.state = state;
     this.BVH = BVH;
-  }
-
-  getExpressID(modelID, _index) {
-    if (!this.itemsMap[modelID])
-      this.generateGeometryIndexMap(modelID);
-    return 0;
   }
 
   getSubset(modelID, material, customId) {
@@ -86959,8 +86952,6 @@ class SubsetManager {
       map: new Map()
     };
     const items = this.itemsMap[modelID];
-    this.expressIDMap[modelID] = new Map();
-    const idsMap = this.expressIDMap[modelID];
     for (const group of geometry.groups) {
       let prevExpressID = -1;
       const materialIndex = group.materialIndex;
@@ -86979,7 +86970,6 @@ class SubsetManager {
         if (isEndOfMaterial) {
           const store = this.getMaterialStore(items.map, expressID, materialIndex);
           store.push(objectStart, materialEnd);
-          idsMap.set(materialEnd, expressID);
           break;
         }
         if (prevExpressID === expressID)
@@ -86987,12 +86977,10 @@ class SubsetManager {
         const store = this.getMaterialStore(items.map, prevExpressID, materialIndex);
         objectEnd = i - 1;
         store.push(objectStart, objectEnd);
-        idsMap.set(objectEnd, expressID);
         prevExpressID = expressID;
         objectStart = i;
       }
     }
-    console.log(this.expressIDMap);
   }
 
   getSubsetID(modelID, material, customID = 'DEFAULT') {
@@ -89383,7 +89371,6 @@ class IFCManager {
     const model = await this.parser.parse(buffer, (_a = this.state.coordinationMatrix) === null || _a === void 0 ? void 0 : _a.toArray());
     model.setIFCManager(this);
     this.state.useJSON ? await this.disposeMemory() : await this.types.getAllTypes(this.worker);
-    console.log(model);
     return model;
   }
 
@@ -89463,8 +89450,8 @@ class IFCManager {
     delete this.state.models[modelID];
   }
 
-  getExpressId(modelID, faceIndex) {
-    return this.subsets.getExpressID(modelID, faceIndex);
+  getExpressId(geometry, faceIndex) {
+    return this.properties.getExpressId(geometry, faceIndex);
   }
 
   getAllItemsOfType(modelID, type, verbose) {
@@ -91708,7 +91695,7 @@ function intersectClosestTri( geo, side, ray, offset, count ) {
 
 // converts the given BVH raycast intersection to align with the three.js raycast
 // structure (include object, world space distance and point).
-function convertRaycastIntersect$1( hit, object, raycaster ) {
+function convertRaycastIntersect( hit, object, raycaster ) {
 
 	if ( hit === null ) {
 
@@ -93369,7 +93356,7 @@ MeshBVH.prototype.raycast = function ( ...args ) {
 		const results = originalRaycast.call( this, ray, mesh.material );
 		results.forEach( hit => {
 
-			hit = convertRaycastIntersect$1( hit, mesh, raycaster );
+			hit = convertRaycastIntersect( hit, mesh, raycaster );
 			if ( hit ) {
 
 				intersects.push( hit );
@@ -93398,7 +93385,7 @@ MeshBVH.prototype.raycastFirst = function ( ...args ) {
 			mesh, raycaster, ray,
 		] = args;
 
-		return convertRaycastIntersect$1( originalRaycastFirst.call( this, ray, mesh.material ), mesh, raycaster );
+		return convertRaycastIntersect( originalRaycastFirst.call( this, ray, mesh.material ), mesh, raycaster );
 
 	} else {
 
@@ -93528,32 +93515,6 @@ MeshBVH.prototype.refit = function ( ...args ) {
 	};
 
 } );
-
-// converts the given BVH raycast intersection to align with the three.js raycast
-// structure (include object, world space distance and point).
-function convertRaycastIntersect( hit, object, raycaster ) {
-
-	if ( hit === null ) {
-
-		return null;
-
-	}
-
-	hit.point.applyMatrix4( object.matrixWorld );
-	hit.distance = hit.point.distanceTo( raycaster.ray.origin );
-	hit.object = object;
-
-	if ( hit.distance < raycaster.near || hit.distance > raycaster.far ) {
-
-		return null;
-
-	} else {
-
-		return hit;
-
-	}
-
-}
 
 const ray = /* @__PURE__ */ new Ray();
 const tmpInverseMatrix = /* @__PURE__ */ new Matrix4();

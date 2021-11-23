@@ -185,11 +185,11 @@ export class IFCManager {
     /**
      * Gets the **Express ID** to which the given face belongs.
      * This ID uniquely identifies this entity within this IFC file.
-     * @modelID ID of the IFC model.
+     * @geometry The geometry IFC model.
      * @faceIndex The index of the face of a geometry.You can easily get this index using the [Raycaster](https://threejs.org/docs/#api/en/core/Raycaster).
      */
-    getExpressId(modelID: number, faceIndex: number) {
-        return this.subsets.getExpressID(modelID, faceIndex);
+    getExpressId(geometry: BufferGeometry, faceIndex: number) {
+        return this.properties.getExpressId(geometry, faceIndex);
     }
 
     /**

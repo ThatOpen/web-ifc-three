@@ -79,7 +79,7 @@ export class ItemSelector {
         if (!this.currentModel) {
             throw new Error('The selected item doesn\'t belong to a model!');
         }
-        this.currentItemID = await this.currentModel.ifcManager.getExpressId(item.object.modelID, item.faceIndex);
+        this.currentItemID = await this.currentModel.ifcManager.getExpressId(item.object.geometry, item.faceIndex);
     }
 
     removePreviousSelection() {
