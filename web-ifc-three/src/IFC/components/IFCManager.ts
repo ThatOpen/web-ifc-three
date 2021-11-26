@@ -308,6 +308,10 @@ export class IFCManager {
         return this.subsets.createSubset(config);
     }
 
+    removeFromSubset(modelID: number, ids: number[], customID?: string, material?: Material) {
+        return this.subsets.removeFromSubset(modelID, ids, customID, material);
+    }
+
     // MISC - Miscelaneus logic for various purposes
 
     /**

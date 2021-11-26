@@ -42086,13 +42086,22 @@ class ItemSelector {
         this.mapCache = {};
         this.indexCache = null;
 
+
         // Geometry Caching
         this.geomCacheEnabled = false;
         this.cacheThresold = 40000;
         this.geomCache = {};
 
+        window.addEventListener('keydown', (e) => {
+            if(e.code === "KeyK") {
+                this.delete = !this.delete;
+            }
+        });
+
         this.subsetSelection = [];
     }
+
+    delete = false;
 
     sleep(ms) {
         return new Promise(resolve => setTimeout(resolve, ms));
@@ -42113,13 +42122,18 @@ class ItemSelector {
     previousObject = null;
 
     highlightModel(removePrevious) {
-        this.currentModel.ifcManager.createSubset({
-            modelID: this.currentModel.modelID,
-            scene: this.currentModel,
-            ids: [this.currentItemID],
-            removePrevious: removePrevious,
-            material: this.material
-        });
+        if(this.delete) {
+            this.currentModel.ifcManager.removeFromSubset(0, [this.currentItemID]);
+            return;
+        }
+            this.currentModel.ifcManager.createSubset({
+                modelID: this.currentModel.modelID,
+                scene: this.currentModel,
+                ids: [this.currentItemID],
+                removePrevious: false
+                // material: this.material
+            });
+
     }
 
     async logTree() {
@@ -86865,9 +86879,6 @@ class SubsetManager {
   }
 
   createSubset(config) {
-    if (config.removePrevious) {
-      this.tempIndex.length = 0;
-    }
     if (!this.itemsMap[config.modelID])
       this.generateGeometryIndexMap(config.modelID);
     const model = this.state.models[config.modelID].mesh;
@@ -86877,7 +86888,15 @@ class SubsetManager {
       subsetGeom.setAttribute('position', model.geometry.attributes.position);
       subsetGeom.setAttribute('normal', model.geometry.attributes.normal);
       subsetGeom.setAttribute('expressID', model.geometry.attributes.expressID);
+      if (!config.material) {
+        subsetGeom.groups = JSON.parse(JSON.stringify(model.geometry.groups));
+        subsetGeom.groups.forEach((group) => {
+          group.start = 0;
+          group.count = 0;
+        });
+      }
       const mesh = new Mesh(subsetGeom, config.material || model.material);
+      mesh.position.x = 9;
       this.subsets[subsetID] = {
         ids: new Set(),
         mesh
@@ -86885,9 +86904,23 @@ class SubsetManager {
       model.add(mesh);
     }
     const items = this.itemsMap[config.modelID];
-    const geometry = this.subsets[subsetID].mesh.geometry;
+    const mesh = this.subsets[subsetID].mesh;
+    const geometry = mesh.geometry;
+    if (config.removePrevious) {
+      mesh.geometry.setIndex([]);
+      geometry.groups.forEach((group) => {
+        group.start = 0;
+        group.count = 0;
+      });
+    } else if (mesh.geometry.index) {
+      const previousIndices = mesh.geometry.index.array;
+      const previousIDs = this.subsets[subsetID].ids;
+      config.ids = config.ids.filter(id => !previousIDs.has(id));
+      this.tempIndex = Array.from(previousIndices);
+    }
+    let totalAmountOfNewIndices = 0;
     for (let i = 0; i < model.geometry.groups.length; i++) {
-      const start = this.tempIndex.length;
+      const indicesByGroup = [];
       for (const expressID of config.ids) {
         const entry = items.map.get(expressID);
         if (!entry)
@@ -86900,18 +86933,102 @@ class SubsetManager {
           const pairIndex = pair * 2;
           const start = value[pairIndex];
           const end = value[pairIndex + 1];
-          for (let i = start; i <= end; i++) {
-            this.tempIndex.push(items.indexCache[i]);
+          for (let j = start; j <= end; j++) {
+            indicesByGroup.push(items.indexCache[j]);
           }
         }
       }
       if (!config.material) {
-        const count = this.tempIndex.length - start;
-        geometry.addGroup(start, count, i);
+        const currentGroup = geometry.groups[i];
+        currentGroup.start += totalAmountOfNewIndices;
+        let newIndicesPosition = currentGroup.start + currentGroup.count;
+        totalAmountOfNewIndices += indicesByGroup.length;
+        if (indicesByGroup.length > 0) {
+          this.tempIndex.splice.apply(this.tempIndex, [newIndicesPosition, 0].concat(indicesByGroup));
+          currentGroup.count += indicesByGroup.length;
+        }
+      } else {
+        indicesByGroup.forEach(index => this.tempIndex.push(index));
       }
     }
+    config.ids.forEach(id => this.subsets[subsetID].ids.add(id));
     geometry.setIndex(this.tempIndex);
-    return this.subsets[subsetID].mesh;
+    this.tempIndex.length = 0;
+    return mesh;
+  }
+
+  removeFromSubset(modelID, ids, customID, material) {
+    const subsetID = this.getSubsetID(modelID, material, customID);
+    if (!this.subsets[subsetID])
+      return;
+    const model = this.state.models[modelID].mesh;
+    const items = this.itemsMap[modelID];
+    const subset = this.subsets[subsetID];
+    const mesh = subset.mesh;
+    const geometry = mesh.geometry;
+    if (!geometry.index)
+      throw new Error("The subset is not indexed");
+    ids = ids.filter(id => subset.ids.has(id));
+    if (ids.length === 0)
+      return;
+    let totalAmountOfRemovedIndices = 0;
+    let previousIndices = Array.from(geometry.index.array).toString();
+    for (let i = 0; i < model.geometry.groups.length; i++) {
+      let indicesByGroup = [];
+      for (const expressID of ids) {
+        const entry = items.map.get(expressID);
+        if (!entry)
+          continue;
+        const value = entry[i];
+        if (!value)
+          continue;
+        const pairs = value.length / 2;
+        for (let pair = 0; pair < pairs; pair++) {
+          const pairIndex = pair * 2;
+          const start = value[pairIndex];
+          const end = value[pairIndex + 1];
+          for (let j = start; j <= end; j++) {
+            if (!indicesByGroup[i])
+              indicesByGroup[i] = [];
+            indicesByGroup[i].push(items.indexCache[j]);
+          }
+        }
+      }
+      const indicesStringByGroup = indicesByGroup.map(indices => indices.toString());
+      indicesStringByGroup.forEach(indices => {
+        if (previousIndices.includes(indices))
+          previousIndices = previousIndices.replace(indices, '');
+      });
+      const commaAtStart = /^,/;
+      const commaAtEnd = /,$/;
+      if (commaAtStart.test(previousIndices))
+        previousIndices = previousIndices.replace(commaAtStart, '');
+      if (commaAtEnd.test(previousIndices))
+        previousIndices = previousIndices.replace(commaAtEnd, '');
+      if (previousIndices.includes(",,"))
+        previousIndices = previousIndices.replace(",,", ',');
+      if (!material) {
+        const currentGroup = geometry.groups[i];
+        currentGroup.start -= totalAmountOfRemovedIndices;
+        let removedIndicesAmount = 0;
+        indicesByGroup.forEach(indices => removedIndicesAmount += indices.length);
+        currentGroup.count -= removedIndicesAmount;
+        totalAmountOfRemovedIndices += removedIndicesAmount;
+      }
+    }
+    let parsedIndices;
+    if (previousIndices.length === 0) {
+      parsedIndices = [];
+    } else {
+      parsedIndices = previousIndices.split(',').map(string => parseInt(string, 10));
+    }
+    geometry.setIndex(parsedIndices);
+    ids.forEach(id => {
+      if (subset.ids.has(id))
+        subset.ids.delete(id);
+    });
+    console.log(geometry.index);
+    console.log(geometry.groups);
   }
 
   generateGeometryIndexMap(modelID) {
@@ -89378,6 +89495,10 @@ class IFCManager {
 
   createSubset(config) {
     return this.subsets.createSubset(config);
+  }
+
+  removeFromSubset(modelID, ids, customID, material) {
+    return this.subsets.removeFromSubset(modelID, ids, customID, material);
   }
 
   async disposeMemory() {
@@ -93494,6 +93615,7 @@ class IfcManager {
         });
 
         const ifcModel = await this.ifcLoader.loadAsync(ifcURL);
+        console.log(ifcModel);
 
         if(firstModel){
             const matrixArr = await this.ifcLoader.ifcManager.ifcAPI.GetCoordinationMatrix(ifcModel.modelID);

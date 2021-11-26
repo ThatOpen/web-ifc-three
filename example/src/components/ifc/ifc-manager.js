@@ -59,6 +59,7 @@ export class IfcManager {
         });
 
         const ifcModel = await this.ifcLoader.loadAsync(ifcURL);
+        console.log(ifcModel);
 
         if(firstModel){
             const matrixArr = await this.ifcLoader.ifcManager.ifcAPI.GetCoordinationMatrix(ifcModel.modelID);

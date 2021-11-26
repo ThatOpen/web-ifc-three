@@ -22,13 +22,22 @@ export class ItemSelector {
         this.mapCache = {}
         this.indexCache = null;
 
+
         // Geometry Caching
         this.geomCacheEnabled = false;
         this.cacheThresold = 40000;
-        this.geomCache = {}
+        this.geomCache = {};
 
-        this.subsetSelection = []
+        window.addEventListener('keydown', (e) => {
+            if(e.code === "KeyK") {
+                this.delete = !this.delete;
+            }
+        })
+
+        this.subsetSelection = [];
     }
+
+    delete = false;
 
     sleep(ms) {
         return new Promise(resolve => setTimeout(resolve, ms));
@@ -49,13 +58,18 @@ export class ItemSelector {
     previousObject = null;
 
     highlightModel(removePrevious) {
-        this.currentModel.ifcManager.createSubset({
-            modelID: this.currentModel.modelID,
-            scene: this.currentModel,
-            ids: [this.currentItemID],
-            removePrevious: removePrevious,
-            material: this.material
-        });
+        if(this.delete) {
+            this.currentModel.ifcManager.removeFromSubset(0, [this.currentItemID])
+            return;
+        }
+            this.currentModel.ifcManager.createSubset({
+                modelID: this.currentModel.modelID,
+                scene: this.currentModel,
+                ids: [this.currentItemID],
+                removePrevious: false
+                // material: this.material
+            });
+
     }
 
     async logTree() {
