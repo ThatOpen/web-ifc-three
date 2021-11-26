@@ -26,7 +26,7 @@ export interface HighlightConfig {
     customID?: string;
 }
 
-export interface HighlightConfigOfModel extends HighlightConfig {
+export interface SubsetConfig extends HighlightConfig {
     modelID: number;
 }
 

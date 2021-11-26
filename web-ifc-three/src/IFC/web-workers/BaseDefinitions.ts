@@ -1,4 +1,4 @@
-import { HighlightConfigOfModel, IfcState, WebIfcAPI } from '../BaseDefinitions';
+import { SubsetConfig, IfcState, WebIfcAPI } from '../BaseDefinitions';
 import { BvhManager } from '../components/BvhManager';
 import { Material, Object3D } from 'three';
 

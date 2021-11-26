@@ -1,10 +1,10 @@
 import * as WebIFC from 'web-ifc';
 import { IFCParser, ParserAPI, ParserProgress } from './IFCParser';
-import { SubsetManager } from './SubsetManager';
+import { SubsetManager } from './subsets/SubsetManager';
 import { PropertyManager } from './properties/PropertyManager';
 import { IfcElements } from './IFCElementsMap';
 import { TypeManager } from './TypeManager';
-import { HighlightConfigOfModel, IfcState, JSONObject } from '../BaseDefinitions';
+import { SubsetConfig, IfcState, JSONObject } from '../BaseDefinitions';
 import {BufferGeometry, Material, Matrix4, Object3D, Scene} from 'three';
 import { IFCModel } from './IFCModel';
 import { BvhManager } from './BvhManager';
@@ -304,7 +304,7 @@ export class IFCManager {
      * - **removePrevious**: wether to remove the previous subset of this model with this material.
      * - **material**: (optional) wether to apply a material to the subset
      */
-    createSubset(config: HighlightConfigOfModel) {
+    createSubset(config: SubsetConfig) {
         return this.subsets.createSubset(config);
     }
 

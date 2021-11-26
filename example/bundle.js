@@ -86852,148 +86852,259 @@ class IFCParser {
 
 }
 
-class SubsetManager {
+class ItemsMap {
 
-  constructor(state, BVH) {
-    this.subsets = {};
-    this.itemsMap = {};
-    this.tempIndex = [];
+  constructor(state) {
     this.state = state;
-    this.BVH = BVH;
+    this.map = {};
   }
 
-  getSubset(modelID, material, customId) {
-    const subsetID = this.getSubsetID(modelID, material, customId);
+  generateGeometryIndexMap(modelID) {
+    if (this.map[modelID])
+      return;
+    const geometry = this.getGeometry(modelID);
+    const items = this.newItemsMap(modelID, geometry);
+    for (const group of geometry.groups) {
+      this.fillItemsWithGroupInfo(group, geometry, items);
+    }
+  }
+
+  getSubsetID(modelID, material, customID = 'DEFAULT') {
+    const baseID = modelID;
+    const materialID = material ? material.uuid : 'DEFAULT';
+    return `${baseID} - ${materialID} - ${customID}`;
+  }
+
+  getGeometry(modelID) {
+    const geometry = this.state.models[modelID].mesh.geometry;
+    if (!geometry)
+      throw new Error('Model without geometry.');
+    if (!geometry.index)
+      throw new Error('Geometry must be indexed');
+    return geometry;
+  }
+
+  newItemsMap(modelID, geometry) {
+    const startIndices = geometry.index.array;
+    this.map[modelID] = {
+      indexCache: startIndices.slice(0, geometry.index.array.length),
+      map: new Map()
+    };
+    return this.map[modelID];
+  }
+
+  fillItemsWithGroupInfo(group, geometry, items) {
+    let prevExpressID = -1;
+    const materialIndex = group.materialIndex;
+    const materialStart = group.start;
+    const materialEnd = materialStart + group.count - 1;
+    let objectStart = -1;
+    let objectEnd = -1;
+    for (let i = materialStart; i <= materialEnd; i++) {
+      const index = geometry.index.array[i];
+      const expressID = geometry.attributes.expressID.array[index];
+      if (prevExpressID === -1) {
+        prevExpressID = expressID;
+        objectStart = i;
+      }
+      const isEndOfMaterial = i === materialEnd;
+      if (isEndOfMaterial) {
+        const store = this.getMaterialStore(items.map, expressID, materialIndex);
+        store.push(objectStart, materialEnd);
+        break;
+      }
+      if (prevExpressID === expressID)
+        continue;
+      const store = this.getMaterialStore(items.map, prevExpressID, materialIndex);
+      objectEnd = i - 1;
+      store.push(objectStart, objectEnd);
+      prevExpressID = expressID;
+      objectStart = i;
+    }
+  }
+
+  getMaterialStore(map, id, matIndex) {
+    if (map.get(id) === undefined) {
+      map.set(id, {});
+    }
+    const storedIfcItem = map.get(id);
+    if (storedIfcItem === undefined)
+      throw new Error('Geometry map generation error');
+    if (storedIfcItem[matIndex] === undefined) {
+      storedIfcItem[matIndex] = [];
+    }
+    return storedIfcItem[matIndex];
+  }
+
+}
+
+class SubsetUtils {
+
+  static getAllIndicesOfGroup(modelID, ids, materialIndex, items, flatten = true) {
+    const indicesByGroup = [];
+    for (const expressID of ids) {
+      const entry = items.map.get(expressID);
+      if (!entry)
+        continue;
+      const value = entry[materialIndex];
+      if (!value)
+        continue;
+      SubsetUtils.getIndexChunk(value, indicesByGroup, materialIndex, items, flatten);
+    }
+    return indicesByGroup;
+  }
+
+  static getIndexChunk(value, indicesByGroup, materialIndex, items, flatten) {
+    const pairs = value.length / 2;
+    for (let pair = 0; pair < pairs; pair++) {
+      const pairIndex = pair * 2;
+      const start = value[pairIndex];
+      const end = value[pairIndex + 1];
+      for (let j = start; j <= end; j++) {
+        if (flatten)
+          indicesByGroup.push(items.indexCache[j]);
+        else {
+          if (!indicesByGroup[materialIndex])
+            indicesByGroup[materialIndex] = [];
+          indicesByGroup[materialIndex].push(items.indexCache[j]);
+        }
+      }
+    }
+  }
+
+}
+
+class SubsetCreator {
+
+  constructor(state, items, subsets) {
+    this.state = state;
+    this.items = items;
+    this.subsets = subsets;
+    this.tempIndex = [];
+  }
+
+  createSubset(config, subsetID) {
+    if (!this.items.map[config.modelID])
+      this.items.generateGeometryIndexMap(config.modelID);
+    if (!this.subsets[subsetID])
+      this.initializeSubset(config, subsetID);
+    this.filterIndices(config, subsetID);
+    this.constructSubsetByMaterial(config, subsetID);
+    config.ids.forEach(id => this.subsets[subsetID].ids.add(id));
+    this.subsets[subsetID].mesh.geometry.setIndex(this.tempIndex);
+    this.tempIndex.length = 0;
     return this.subsets[subsetID].mesh;
   }
 
-  removeSubset(modelID, parent, material, customId) {
-    const subsetID = this.getSubsetID(modelID, material, customId);
-    const subset = this.subsets[subsetID];
-    if (!subset)
-      throw new Error('The subset to delete does not exist.');
-    subset.mesh.geometry.dispose();
-    if (material)
-      material.dispose();
-    delete this.subsets[subsetID];
-  }
-
-  createSubset(config) {
-    if (!this.itemsMap[config.modelID])
-      this.generateGeometryIndexMap(config.modelID);
+  initializeSubset(config, subsetID) {
     const model = this.state.models[config.modelID].mesh;
-    const subsetID = this.getSubsetID(config.modelID, config.material, config.customID);
-    if (!this.subsets[subsetID]) {
-      const subsetGeom = new BufferGeometry();
-      subsetGeom.setAttribute('position', model.geometry.attributes.position);
-      subsetGeom.setAttribute('normal', model.geometry.attributes.normal);
-      subsetGeom.setAttribute('expressID', model.geometry.attributes.expressID);
-      if (!config.material) {
-        subsetGeom.groups = JSON.parse(JSON.stringify(model.geometry.groups));
-        subsetGeom.groups.forEach((group) => {
-          group.start = 0;
-          group.count = 0;
-        });
-      }
-      const mesh = new Mesh(subsetGeom, config.material || model.material);
-      mesh.position.x = 9;
-      this.subsets[subsetID] = {
-        ids: new Set(),
-        mesh
-      };
-      model.add(mesh);
-    }
-    const items = this.itemsMap[config.modelID];
-    const mesh = this.subsets[subsetID].mesh;
-    const geometry = mesh.geometry;
-    if (config.removePrevious) {
-      mesh.geometry.setIndex([]);
-      geometry.groups.forEach((group) => {
-        group.start = 0;
-        group.count = 0;
-      });
-    } else if (mesh.geometry.index) {
-      const previousIndices = mesh.geometry.index.array;
-      const previousIDs = this.subsets[subsetID].ids;
-      config.ids = config.ids.filter(id => !previousIDs.has(id));
-      this.tempIndex = Array.from(previousIndices);
-    }
-    let totalAmountOfNewIndices = 0;
-    for (let i = 0; i < model.geometry.groups.length; i++) {
-      const indicesByGroup = [];
-      for (const expressID of config.ids) {
-        const entry = items.map.get(expressID);
-        if (!entry)
-          continue;
-        const value = entry[i];
-        if (!value)
-          continue;
-        const pairs = value.length / 2;
-        for (let pair = 0; pair < pairs; pair++) {
-          const pairIndex = pair * 2;
-          const start = value[pairIndex];
-          const end = value[pairIndex + 1];
-          for (let j = start; j <= end; j++) {
-            indicesByGroup.push(items.indexCache[j]);
-          }
-        }
-      }
-      if (!config.material) {
-        const currentGroup = geometry.groups[i];
-        currentGroup.start += totalAmountOfNewIndices;
-        let newIndicesPosition = currentGroup.start + currentGroup.count;
-        totalAmountOfNewIndices += indicesByGroup.length;
-        if (indicesByGroup.length > 0) {
-          this.tempIndex.splice.apply(this.tempIndex, [newIndicesPosition, 0].concat(indicesByGroup));
-          currentGroup.count += indicesByGroup.length;
-        }
-      } else {
-        indicesByGroup.forEach(index => this.tempIndex.push(index));
-      }
-    }
-    config.ids.forEach(id => this.subsets[subsetID].ids.add(id));
-    geometry.setIndex(this.tempIndex);
-    this.tempIndex.length = 0;
-    return mesh;
+    const subsetGeom = new BufferGeometry();
+    this.initializeSubsetAttributes(subsetGeom, model);
+    if (!config.material)
+      this.initializeSubsetGroups(subsetGeom, model);
+    const mesh = new Mesh(subsetGeom, config.material || model.material);
+    mesh.position.x = 9;
+    this.subsets[subsetID] = {
+      ids: new Set(),
+      mesh
+    };
+    model.add(mesh);
   }
 
-  removeFromSubset(modelID, ids, customID, material) {
-    const subsetID = this.getSubsetID(modelID, material, customID);
+  initializeSubsetAttributes(subsetGeom, model) {
+    subsetGeom.setAttribute('position', model.geometry.attributes.position);
+    subsetGeom.setAttribute('normal', model.geometry.attributes.normal);
+    subsetGeom.setAttribute('expressID', model.geometry.attributes.expressID);
+    subsetGeom.setIndex([]);
+  }
+
+  initializeSubsetGroups(subsetGeom, model) {
+    subsetGeom.groups = JSON.parse(JSON.stringify(model.geometry.groups));
+    this.resetGroups(subsetGeom);
+  }
+
+  filterIndices(config, subsetID) {
+    const geometry = this.subsets[subsetID].mesh.geometry;
+    if (config.removePrevious) {
+      geometry.setIndex([]);
+      return this.resetGroups(geometry);
+    }
+    const previousIndices = geometry.index.array;
+    const previousIDs = this.subsets[subsetID].ids;
+    config.ids = config.ids.filter(id => !previousIDs.has(id));
+    this.tempIndex = Array.from(previousIndices);
+  }
+
+  constructSubsetByMaterial(config, subsetID) {
+    const model = this.state.models[config.modelID].mesh;
+    const newIndices = {
+      count: 0
+    };
+    for (let i = 0; i < model.geometry.groups.length; i++) {
+      this.insertNewIndices(config, subsetID, i, newIndices);
+    }
+  }
+
+  insertNewIndices(config, subsetID, materialIndex, newIndices) {
+    const items = this.items.map[config.modelID];
+    const indicesOfOneMaterial = SubsetUtils.getAllIndicesOfGroup(config.modelID, config.ids, materialIndex, items);
+    if (!config.material) {
+      this.insertIndicesAtGroup(subsetID, indicesOfOneMaterial, materialIndex, newIndices);
+    } else {
+      indicesOfOneMaterial.forEach(index => this.tempIndex.push(index));
+    }
+  }
+
+  insertIndicesAtGroup(subsetID, indicesByGroup, index, newIndices) {
+    const currentGroup = this.getCurrentGroup(subsetID, index);
+    currentGroup.start += newIndices.count;
+    let newIndicesPosition = currentGroup.start + currentGroup.count;
+    newIndices.count += indicesByGroup.length;
+    if (indicesByGroup.length > 0) {
+      this.tempIndex.splice.apply(this.tempIndex, [newIndicesPosition, 0].concat(indicesByGroup));
+      currentGroup.count += indicesByGroup.length;
+    }
+  }
+
+  getCurrentGroup(subsetID, groupIndex) {
+    const geometry = this.subsets[subsetID].mesh.geometry;
+    return geometry.groups[groupIndex];
+  }
+
+  resetGroups(geometry) {
+    geometry.groups.forEach((group) => {
+      group.start = 0;
+      group.count = 0;
+    });
+  }
+
+}
+
+class SubsetItemsRemover {
+
+  constructor(state, items, subsets) {
+    this.state = state;
+    this.items = items;
+    this.subsets = subsets;
+  }
+
+  removeFromSubset(modelID, ids, subsetID, customID, material) {
     if (!this.subsets[subsetID])
       return;
     const model = this.state.models[modelID].mesh;
-    const items = this.itemsMap[modelID];
     const subset = this.subsets[subsetID];
     const mesh = subset.mesh;
     const geometry = mesh.geometry;
     if (!geometry.index)
-      throw new Error("The subset is not indexed");
+      throw new Error('The subset is not indexed');
     ids = ids.filter(id => subset.ids.has(id));
     if (ids.length === 0)
       return;
     let totalAmountOfRemovedIndices = 0;
     let previousIndices = Array.from(geometry.index.array).toString();
     for (let i = 0; i < model.geometry.groups.length; i++) {
-      let indicesByGroup = [];
-      for (const expressID of ids) {
-        const entry = items.map.get(expressID);
-        if (!entry)
-          continue;
-        const value = entry[i];
-        if (!value)
-          continue;
-        const pairs = value.length / 2;
-        for (let pair = 0; pair < pairs; pair++) {
-          const pairIndex = pair * 2;
-          const start = value[pairIndex];
-          const end = value[pairIndex + 1];
-          for (let j = start; j <= end; j++) {
-            if (!indicesByGroup[i])
-              indicesByGroup[i] = [];
-            indicesByGroup[i].push(items.indexCache[j]);
-          }
-        }
-      }
+      const items = this.items.map[modelID];
+      const indicesByGroup = SubsetUtils.getAllIndicesOfGroup(modelID, ids, i, items, false);
       const indicesStringByGroup = indicesByGroup.map(indices => indices.toString());
       indicesStringByGroup.forEach(indices => {
         if (previousIndices.includes(indices))
@@ -87005,8 +87116,8 @@ class SubsetManager {
         previousIndices = previousIndices.replace(commaAtStart, '');
       if (commaAtEnd.test(previousIndices))
         previousIndices = previousIndices.replace(commaAtEnd, '');
-      if (previousIndices.includes(",,"))
-        previousIndices = previousIndices.replace(",,", ',');
+      if (previousIndices.includes(',,'))
+        previousIndices = previousIndices.replace(',,', ',');
       if (!material) {
         const currentGroup = geometry.groups[i];
         currentGroup.start -= totalAmountOfRemovedIndices;
@@ -87027,72 +87138,51 @@ class SubsetManager {
       if (subset.ids.has(id))
         subset.ids.delete(id);
     });
-    console.log(geometry.index);
-    console.log(geometry.groups);
   }
 
-  generateGeometryIndexMap(modelID) {
-    if (this.itemsMap[modelID])
-      return;
-    const geometry = this.state.models[modelID].mesh.geometry;
-    if (!geometry)
-      throw new Error('Model without geometry.');
-    if (!geometry.index)
-      throw new Error('Geometry must be indexed');
-    const startIndices = geometry.index.array;
-    this.itemsMap[modelID] = {
-      indexCache: startIndices.slice(0, geometry.index.array.length),
-      map: new Map()
-    };
-    const items = this.itemsMap[modelID];
-    for (const group of geometry.groups) {
-      let prevExpressID = -1;
-      const materialIndex = group.materialIndex;
-      const materialStart = group.start;
-      const materialEnd = materialStart + group.count - 1;
-      let objectStart = -1;
-      let objectEnd = -1;
-      for (let i = materialStart; i <= materialEnd; i++) {
-        const index = geometry.index.array[i];
-        const expressID = geometry.attributes.expressID.array[index];
-        if (prevExpressID === -1) {
-          prevExpressID = expressID;
-          objectStart = i;
-        }
-        const isEndOfMaterial = i === materialEnd;
-        if (isEndOfMaterial) {
-          const store = this.getMaterialStore(items.map, expressID, materialIndex);
-          store.push(objectStart, materialEnd);
-          break;
-        }
-        if (prevExpressID === expressID)
-          continue;
-        const store = this.getMaterialStore(items.map, prevExpressID, materialIndex);
-        objectEnd = i - 1;
-        store.push(objectStart, objectEnd);
-        prevExpressID = expressID;
-        objectStart = i;
-      }
-    }
+}
+
+class SubsetManager {
+
+  constructor(state, BVH) {
+    this.subsets = {};
+    this.state = state;
+    this.items = new ItemsMap(state);
+    this.BVH = BVH;
+    this.subsetCreator = new SubsetCreator(state, this.items, this.subsets);
+    this.subsetItemsRemover = new SubsetItemsRemover(state, this.items, this.subsets);
+  }
+
+  getSubset(modelID, material, customId) {
+    const subsetID = this.getSubsetID(modelID, material, customId);
+    return this.subsets[subsetID].mesh;
+  }
+
+  removeSubset(modelID, parent, material, customId) {
+    const subsetID = this.getSubsetID(modelID, material, customId);
+    const subset = this.subsets[subsetID];
+    if (!subset)
+      throw new Error('The subset to delete does not exist.');
+    subset.mesh.geometry.dispose();
+    if (material)
+      material.dispose();
+    delete this.subsets[subsetID];
+  }
+
+  createSubset(config) {
+    const subsetID = this.getSubsetID(config.modelID, config.material, config.customID);
+    return this.subsetCreator.createSubset(config, subsetID);
+  }
+
+  removeFromSubset(modelID, ids, customID, material) {
+    const subsetID = this.getSubsetID(modelID, material, customID);
+    this.subsetItemsRemover.removeFromSubset(modelID, ids, subsetID, customID, material);
   }
 
   getSubsetID(modelID, material, customID = 'DEFAULT') {
     const baseID = modelID;
     const materialID = material ? material.uuid : 'DEFAULT';
     return `${baseID} - ${materialID} - ${customID}`;
-  }
-
-  getMaterialStore(map, id, matIndex) {
-    if (map.get(id) === undefined) {
-      map.set(id, {});
-    }
-    const storedIfcItem = map.get(id);
-    if (storedIfcItem === undefined)
-      throw new Error('Geometry map generation error');
-    if (storedIfcItem[matIndex] === undefined) {
-      storedIfcItem[matIndex] = [];
-    }
-    return storedIfcItem[matIndex];
   }
 
 }
@@ -91678,7 +91768,7 @@ function intersectClosestTri( geo, side, ray, offset, count ) {
 
 // converts the given BVH raycast intersection to align with the three.js raycast
 // structure (include object, world space distance and point).
-function convertRaycastIntersect( hit, object, raycaster ) {
+function convertRaycastIntersect$1( hit, object, raycaster ) {
 
 	if ( hit === null ) {
 
@@ -93339,7 +93429,7 @@ MeshBVH.prototype.raycast = function ( ...args ) {
 		const results = originalRaycast.call( this, ray, mesh.material );
 		results.forEach( hit => {
 
-			hit = convertRaycastIntersect( hit, mesh, raycaster );
+			hit = convertRaycastIntersect$1( hit, mesh, raycaster );
 			if ( hit ) {
 
 				intersects.push( hit );
@@ -93368,7 +93458,7 @@ MeshBVH.prototype.raycastFirst = function ( ...args ) {
 			mesh, raycaster, ray,
 		] = args;
 
-		return convertRaycastIntersect( originalRaycastFirst.call( this, ray, mesh.material ), mesh, raycaster );
+		return convertRaycastIntersect$1( originalRaycastFirst.call( this, ray, mesh.material ), mesh, raycaster );
 
 	} else {
 
@@ -93498,6 +93588,32 @@ MeshBVH.prototype.refit = function ( ...args ) {
 	};
 
 } );
+
+// converts the given BVH raycast intersection to align with the three.js raycast
+// structure (include object, world space distance and point).
+function convertRaycastIntersect( hit, object, raycaster ) {
+
+	if ( hit === null ) {
+
+		return null;
+
+	}
+
+	hit.point.applyMatrix4( object.matrixWorld );
+	hit.distance = hit.point.distanceTo( raycaster.ray.origin );
+	hit.object = object;
+
+	if ( hit.distance < raycaster.near || hit.distance > raycaster.far ) {
+
+		return null;
+
+	} else {
+
+		return hit;
+
+	}
+
+}
 
 const ray = /* @__PURE__ */ new Ray();
 const tmpInverseMatrix = /* @__PURE__ */ new Matrix4();

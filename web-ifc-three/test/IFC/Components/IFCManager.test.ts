@@ -1,5 +1,5 @@
 import {IFCManager} from "../../../src/IFC/components/IFCManager";
-import {SubsetManager} from '../../../src/IFC/components/SubsetManager';
+import {SubsetManager} from '../../../src/IFC/components/subsets/SubsetManager';
 import {PropertyManager} from '../../../src/IFC/components/properties/PropertyManager';
 import {IFCParser} from "../../../src/IFC/components/IFCParser";
 import {HighlightConfig, IfcMesh} from "../../../src/IFC/BaseDefinitions";
