@@ -87091,53 +87091,91 @@ class SubsetItemsRemover {
   removeFromSubset(modelID, ids, subsetID, customID, material) {
     if (!this.subsets[subsetID])
       return;
-    const model = this.state.models[modelID].mesh;
-    const subset = this.subsets[subsetID];
-    const mesh = subset.mesh;
-    const geometry = mesh.geometry;
-    if (!geometry.index)
-      throw new Error('The subset is not indexed');
-    ids = ids.filter(id => subset.ids.has(id));
+    ids = this.filterIndices(subsetID, ids);
     if (ids.length === 0)
       return;
-    let totalAmountOfRemovedIndices = 0;
-    let previousIndices = Array.from(geometry.index.array).toString();
+    const geometry = this.getGeometry(subsetID);
+    let previous = {
+      indices: Array.from(geometry.index.array).toString()
+    };
+    this.subtractIndicesByMaterial(modelID, subsetID, ids, previous, material != undefined);
+    this.updateIndices(subsetID, previous);
+    this.updateIDs(subsetID, ids);
+  }
+
+  getGeometry(subsetID) {
+    const geometry = this.subsets[subsetID].mesh.geometry;
+    if (!geometry.index)
+      throw new Error('The subset is not indexed');
+    return geometry;
+  }
+
+  filterIndices(subsetID, ids) {
+    const previousIDs = this.subsets[subsetID].ids;
+    return ids.filter(id => previousIDs.has(id));
+  }
+
+  subtractIndicesByMaterial(modelID, subsetID, ids, previous, material) {
+    let removedIndices = {
+      amount: 0
+    };
+    const model = this.state.models[modelID].mesh;
     for (let i = 0; i < model.geometry.groups.length; i++) {
       const items = this.items.map[modelID];
       const indicesByGroup = SubsetUtils.getAllIndicesOfGroup(modelID, ids, i, items, false);
-      const indicesStringByGroup = indicesByGroup.map(indices => indices.toString());
-      indicesStringByGroup.forEach(indices => {
-        if (previousIndices.includes(indices))
-          previousIndices = previousIndices.replace(indices, '');
-      });
-      const commaAtStart = /^,/;
-      const commaAtEnd = /,$/;
-      if (commaAtStart.test(previousIndices))
-        previousIndices = previousIndices.replace(commaAtStart, '');
-      if (commaAtEnd.test(previousIndices))
-        previousIndices = previousIndices.replace(commaAtEnd, '');
-      if (previousIndices.includes(',,'))
-        previousIndices = previousIndices.replace(',,', ',');
-      if (!material) {
-        const currentGroup = geometry.groups[i];
-        currentGroup.start -= totalAmountOfRemovedIndices;
-        let removedIndicesAmount = 0;
-        indicesByGroup.forEach(indices => removedIndicesAmount += indices.length);
-        currentGroup.count -= removedIndicesAmount;
-        totalAmountOfRemovedIndices += removedIndicesAmount;
-      }
+      this.removeIndices(indicesByGroup, previous);
+      this.cleanUpResult(previous);
+      if (!material)
+        this.updateGroups(subsetID, i, removedIndices, indicesByGroup);
     }
-    let parsedIndices;
-    if (previousIndices.length === 0) {
-      parsedIndices = [];
-    } else {
-      parsedIndices = previousIndices.split(',').map(string => parseInt(string, 10));
-    }
+  }
+
+  removeIndices(indicesByGroup, previous) {
+    const indicesStringByGroup = indicesByGroup.map(indices => indices.toString());
+    indicesStringByGroup.forEach(indices => {
+      if (previous.indices.includes(indices))
+        previous.indices = previous.indices.replace(indices, '');
+    });
+  }
+
+  cleanUpResult(previous) {
+    const commaAtStart = /^,/;
+    const commaAtEnd = /,$/;
+    if (commaAtStart.test(previous.indices))
+      previous.indices = previous.indices.replace(commaAtStart, '');
+    if (commaAtEnd.test(previous.indices))
+      previous.indices = previous.indices.replace(commaAtEnd, '');
+    if (previous.indices.includes(',,'))
+      previous.indices = previous.indices.replace(',,', ',');
+  }
+
+  updateGroups(subsetID, index, removedIndices, indicesByGroup) {
+    const geometry = this.getGeometry(subsetID);
+    const currentGroup = geometry.groups[index];
+    currentGroup.start -= removedIndices.amount;
+    let removedIndicesAmount = 0;
+    indicesByGroup.forEach(indices => removedIndicesAmount += indices.length);
+    currentGroup.count -= removedIndicesAmount;
+    removedIndices.amount += removedIndicesAmount;
+  }
+
+  updateIndices(subsetID, previous) {
+    const geometry = this.getGeometry(subsetID);
+    const noIndicesFound = previous.indices.length === 0;
+    let parsedIndices = noIndicesFound ? [] : this.parseIndices(previous);
     geometry.setIndex(parsedIndices);
+  }
+
+  updateIDs(subsetID, ids) {
+    const subset = this.subsets[subsetID];
     ids.forEach(id => {
       if (subset.ids.has(id))
         subset.ids.delete(id);
     });
+  }
+
+  parseIndices(previous) {
+    return previous.indices.split(',').map((text) => parseInt(text, 10));
   }
 
 }
@@ -91768,7 +91806,7 @@ function intersectClosestTri( geo, side, ray, offset, count ) {
 
 // converts the given BVH raycast intersection to align with the three.js raycast
 // structure (include object, world space distance and point).
-function convertRaycastIntersect$1( hit, object, raycaster ) {
+function convertRaycastIntersect( hit, object, raycaster ) {
 
 	if ( hit === null ) {
 
@@ -93429,7 +93467,7 @@ MeshBVH.prototype.raycast = function ( ...args ) {
 		const results = originalRaycast.call( this, ray, mesh.material );
 		results.forEach( hit => {
 
-			hit = convertRaycastIntersect$1( hit, mesh, raycaster );
+			hit = convertRaycastIntersect( hit, mesh, raycaster );
 			if ( hit ) {
 
 				intersects.push( hit );
@@ -93458,7 +93496,7 @@ MeshBVH.prototype.raycastFirst = function ( ...args ) {
 			mesh, raycaster, ray,
 		] = args;
 
-		return convertRaycastIntersect$1( originalRaycastFirst.call( this, ray, mesh.material ), mesh, raycaster );
+		return convertRaycastIntersect( originalRaycastFirst.call( this, ray, mesh.material ), mesh, raycaster );
 
 	} else {
 
@@ -93588,32 +93626,6 @@ MeshBVH.prototype.refit = function ( ...args ) {
 	};
 
 } );
-
-// converts the given BVH raycast intersection to align with the three.js raycast
-// structure (include object, world space distance and point).
-function convertRaycastIntersect( hit, object, raycaster ) {
-
-	if ( hit === null ) {
-
-		return null;
-
-	}
-
-	hit.point.applyMatrix4( object.matrixWorld );
-	hit.distance = hit.point.distanceTo( raycaster.ray.origin );
-	hit.object = object;
-
-	if ( hit.distance < raycaster.near || hit.distance > raycaster.far ) {
-
-		return null;
-
-	} else {
-
-		return hit;
-
-	}
-
-}
 
 const ray = /* @__PURE__ */ new Ray();
 const tmpInverseMatrix = /* @__PURE__ */ new Matrix4();
