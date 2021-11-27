@@ -28,9 +28,30 @@ export class ItemSelector {
         this.cacheThresold = 40000;
         this.geomCache = {};
 
-        window.addEventListener('keydown', (e) => {
+        window.addEventListener('keydown', async (e) => {
             if(e.code === "KeyK") {
                 this.delete = !this.delete;
+            }
+            if(e.code === "KeyA"){
+                const ids = [];
+
+                const collectIDs = (node) => {
+                    ids.push(node.expressID)
+                    if(node.children) node.children.forEach(collectIDs)
+                }
+                const structure = await this.currentModel.ifcManager.getSpatialStructure(0);
+                collectIDs(structure);
+
+                const t0 = performance.now();
+                this.currentModel.ifcManager.createSubset({
+                    modelID: this.currentModel.modelID,
+                    scene: this.currentModel,
+                    ids: ids,
+                    removePrevious: true
+                    // material: this.material
+                });
+                const t1 = performance.now();
+                console.log(`Subset took ${t1 - t0} milliseconds.`);
             }
         })
 
@@ -66,7 +87,7 @@ export class ItemSelector {
                 modelID: this.currentModel.modelID,
                 scene: this.currentModel,
                 ids: [this.currentItemID],
-                removePrevious: false
+                removePrevious: true
                 // material: this.material
             });
 

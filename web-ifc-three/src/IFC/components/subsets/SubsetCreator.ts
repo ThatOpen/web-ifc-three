@@ -87,8 +87,13 @@ export class SubsetCreator {
         let newIndicesPosition = currentGroup.start + currentGroup.count;
         newIndices.count += indicesByGroup.length;
         if (indicesByGroup.length > 0) {
-            // @ts-ignore
-            this.tempIndex.splice.apply(this.tempIndex, [newIndicesPosition, 0].concat(indicesByGroup));
+            let position = newIndicesPosition;
+            const batchSize = 125052;
+            for(let i = 0, x = 0; i < indicesByGroup.length; i += batchSize, x++){
+                const offset = x * batchSize;
+                this.tempIndex.splice(position, 0, ...(indicesByGroup.slice(offset, offset + batchSize)));
+                position += batchSize;
+            }
             currentGroup.count += indicesByGroup.length;
         }
     }
