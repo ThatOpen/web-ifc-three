@@ -1,16 +1,14 @@
 import * as WebIFC from 'web-ifc';
 import { IFCParser, ParserAPI, ParserProgress } from './IFCParser';
-import { SubsetManager } from './SubsetManager';
+import { SubsetManager } from './subsets/SubsetManager';
 import { PropertyManager } from './properties/PropertyManager';
 import { IfcElements } from './IFCElementsMap';
 import { TypeManager } from './TypeManager';
-import { HighlightConfigOfModel, IfcState, JSONObject } from '../BaseDefinitions';
+import { SubsetConfig, IfcState, JSONObject } from '../BaseDefinitions';
 import {BufferGeometry, Material, Matrix4, Object3D, Scene} from 'three';
 import { IFCModel } from './IFCModel';
 import { BvhManager } from './BvhManager';
-import { ItemsHider } from './ItemsHider';
 import { LoaderSettings } from 'web-ifc';
-import { MemoryCleaner } from './MemoryCleaner';
 import { IFCWorkerHandler } from '../web-workers/IFCWorkerHandler';
 import { PropertyManagerAPI } from './properties/BaseDefinitions';
 
@@ -30,8 +28,6 @@ export class IFCManager {
     private subsets = new SubsetManager(this.state, this.BVH);
     private properties: PropertyManagerAPI = new PropertyManager(this.state);
     private types = new TypeManager(this.state);
-    private hider = new ItemsHider(this.state);
-    private cleaner = new MemoryCleaner(this.state);
     private worker?: IFCWorkerHandler;
 
     /**
@@ -47,7 +43,7 @@ export class IFCManager {
         const model = await this.parser.parse(buffer, this.state.coordinationMatrix?.toArray()) as IFCModel;
         model.setIFCManager(this);
         this.state.useJSON ? await this.disposeMemory() : await this.types.getAllTypes(this.worker);
-        this.hider.processCoordinates(model.modelID);
+        // this.hider.processCoordinates(model.modelID);
         return model;
     }
 
@@ -187,7 +183,7 @@ export class IFCManager {
     /**
      * Gets the **Express ID** to which the given face belongs.
      * This ID uniquely identifies this entity within this IFC file.
-     * @geometry The geometry of the IFC model.
+     * @geometry The geometry IFC model.
      * @faceIndex The index of the face of a geometry.You can easily get this index using the [Raycaster](https://threejs.org/docs/#api/en/core/Raycaster).
      */
     getExpressId(geometry: BufferGeometry, faceIndex: number) {
@@ -308,62 +304,15 @@ export class IFCManager {
      * - **removePrevious**: wether to remove the previous subset of this model with this material.
      * - **material**: (optional) wether to apply a material to the subset
      */
-    createSubset(config: HighlightConfigOfModel) {
+    createSubset(config: SubsetConfig) {
         return this.subsets.createSubset(config);
     }
 
-    /**
-     * Hides the selected items in the specified model
-     * @modelID ID of the IFC model.
-     * @ids Express ID of the elements.
-     */
-    hideItems(modelID: number, ids: number[]) {
-        this.hider.hideItems(modelID, ids);
-    }
-
-    /**
-     * Hides all the items of the specified model
-     * @modelID ID of the IFC model.
-     */
-    hideAllItems(modelID: number) {
-        this.hider.hideAllItems(modelID);
-    }
-
-    /**
-     * Shows all the items of the specified model
-     * @modelID ID of the IFC model.
-     * @ids Express ID of the elements.
-     */
-    showItems(modelID: number, ids: number[]) {
-        this.hider.showItems(modelID, ids);
-    }
-
-    /**
-     * Shows all the items of the specified model
-     * @modelID ID of the IFC model.
-     */
-    showAllItems(modelID: number) {
-        this.hider.showAllItems(modelID);
+    removeFromSubset(modelID: number, ids: number[], customID?: string, material?: Material) {
+        return this.subsets.removeFromSubset(modelID, ids, customID, material);
     }
 
     // MISC - Miscelaneus logic for various purposes
-
-    /**
-     * Deletes all data, releasing all memory
-     * Work in progress: this doesn't remove all the memory
-     * Page reloading recommended to avoid heap overload
-     */
-    releaseAllMemory() {
-        this.subsets.dispose();
-        this.hider.dispose();
-        this.cleaner.releaseAllModels();
-        // @ts-ignore
-        this.state.api = null;
-        // @ts-ignore
-        this.state.models = null;
-        // @ts-ignore
-        this.state = null;
-    }
 
     /**
      * Completely releases the WASM memory, thus drastically decreasing the memory use of the app.

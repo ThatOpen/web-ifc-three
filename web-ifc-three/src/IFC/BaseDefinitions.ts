@@ -17,61 +17,31 @@ export const IdAttrName = 'expressID';
 export type IdAttributeByMaterial = { [id: number]: number };
 export type IdAttributesByMaterials = { [materialID: string]: IdAttributeByMaterial };
 
-export const merge = (geoms: BufferGeometry[], createGroups = false) => {
-    // @ts-ignore
-    return mergeBufferGeometries(geoms, createGroups);
-};
-
-export const newFloatAttr = (data: any[], size: number) => {
-    return new BufferAttribute(new Float32Array(data), size);
-};
-
-export const newIntAttr = (data: any[], size: number) => {
-    return new BufferAttribute(new Uint32Array(data), size);
-};
-
 //TODO: Rename "scene" to "parent" in the next major release
 export interface HighlightConfig {
     scene: Object3D;
     ids: number[];
     removePrevious: boolean;
     material?: Material;
-    customId?: string;
+    customID?: string;
 }
 
-export interface HighlightConfigOfModel extends HighlightConfig {
+export interface SubsetConfig extends HighlightConfig {
     modelID: number;
 }
 
 export const DEFAULT = 'default';
 
-export type SelectedItems = {
-    [matID: string]: { ids: Set<number>; mesh: Mesh };
-};
-
 export type MapFaceindexID = { [key: number]: number };
-
-export type IdGeometries = {
-    [expressID: number]: BufferGeometry;
-};
-
-export type GeometriesByMaterial = {
-    material: Material;
-    geometries: IdGeometries;
-};
-
-export interface GeometriesByMaterials {
-    [materialID: string]: GeometriesByMaterial;
-}
 
 export interface TypesMap {
     [key: number]: number;
 }
 
+
 export interface IfcModel {
     modelID: number;
     mesh: IfcMesh;
-    items: GeometriesByMaterials;
     types: TypesMap;
     jsonData: { [id: number]: JSONObject };
 }

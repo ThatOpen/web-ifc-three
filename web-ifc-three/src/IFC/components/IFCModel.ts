@@ -193,46 +193,4 @@ export class IFCModel extends Mesh {
         const modelConfig = { ...config, modelID: this.modelID };
         return this.ifcManager.createSubset(modelConfig);
     }
-
-    /**
-     * @deprecated Use `IfcModel.ifcManager.hideItems` instead.
-     *
-     * Hides the selected items in the specified model
-     * @ids Express ID of the elements.
-     */
-    hideItems(ids: number[]) {
-        if (this.ifcManager === null) throw new Error(nullIfcManagerErrorMessage);
-        this.ifcManager.hideItems(this.modelID, ids);
-    }
-
-    /**
-     * @deprecated Use `IfcModel.ifcManager.hideAllItems` instead.
-     *
-     * Hides all the items of the specified model
-     */
-    hideAllItems() {
-        if (this.ifcManager === null) throw new Error(nullIfcManagerErrorMessage);
-        this.ifcManager.hideAllItems(this.modelID);
-    }
-
-    /**
-     * @deprecated Use `IfcModel.ifcManager.showItems` instead.
-     *
-     * Hides all the items of the specified model
-     * @ids Express ID of the elements.
-     */
-    showItems(ids: number[]) {
-        if (this.ifcManager === null) throw new Error(nullIfcManagerErrorMessage);
-        this.ifcManager.showItems(this.modelID, ids);
-    }
-
-    /**
-     * @deprecated Use `IfcModel.ifcManager.showAllItems` instead.
-     *
-     * Shows all the items of the specified model
-     */
-    showAllItems() {
-        if (this.ifcManager === null) throw new Error(nullIfcManagerErrorMessage);
-        this.ifcManager.showAllItems(this.modelID);
-    }
 }

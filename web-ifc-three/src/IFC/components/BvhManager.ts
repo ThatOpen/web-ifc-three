@@ -1,4 +1,3 @@
-import { IfcState, SelectedItems } from '../BaseDefinitions';
 import { BufferGeometry, Mesh } from 'three';
 
 export class BvhManager {
