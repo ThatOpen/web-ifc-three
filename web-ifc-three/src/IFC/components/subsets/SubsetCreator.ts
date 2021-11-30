@@ -28,7 +28,6 @@ export class SubsetCreator {
         this.initializeSubsetAttributes(subsetGeom, model);
         if (!config.material) this.initializeSubsetGroups(subsetGeom, model);
         const mesh = new Mesh(subsetGeom, config.material || model.material);
-        mesh.position.x = 9;
         this.subsets[subsetID] = { ids: new Set<number>(), mesh };
         model.add(mesh);
     }

@@ -13,15 +13,14 @@ export class ItemSelector {
 
         this.geom = new BufferGeometry();
 
-        this.material = new MeshBasicMaterial({ color: "red", depthTest: false, transparent: true });
-        const cube = new Mesh( this.geom , this.material );
+        this.material = new MeshBasicMaterial({ color: 'red', depthTest: false, transparent: true });
+        const cube = new Mesh(this.geom, this.material);
         this.cube = cube;
         this.previousObject = cube;
         this.scene.add(cube);
 
-        this.mapCache = {}
+        this.mapCache = {};
         this.indexCache = null;
-
 
         // Geometry Caching
         this.geomCacheEnabled = false;
@@ -29,23 +28,20 @@ export class ItemSelector {
         this.geomCache = {};
 
         window.addEventListener('keydown', async (e) => {
-            if(e.code === "KeyK") {
-                this.delete = !this.delete;
-            }
-            if(e.code === "KeyA"){
+            if (e.code === 'KeyA') {
                 const ids = [];
 
                 const collectIDs = (node) => {
-                    ids.push(node.expressID)
-                    if(node.children) node.children.forEach(collectIDs)
-                }
-                const structure = await this.currentModel.ifcManager.getSpatialStructure(0);
+                    ids.push(node.expressID);
+                    if (node.children) node.children.forEach(collectIDs);
+                };
+                const structure = await this.ifcModels[0].ifcManager.getSpatialStructure(0);
                 collectIDs(structure);
 
                 const t0 = performance.now();
-                this.currentModel.ifcManager.createSubset({
-                    modelID: this.currentModel.modelID,
-                    scene: this.currentModel,
+                this.ifcModels[0].ifcManager.createSubset({
+                    modelID: 0,
+                    scene: this.ifcModels[0],
                     ids: ids,
                     removePrevious: true
                     // material: this.material
@@ -53,12 +49,10 @@ export class ItemSelector {
                 const t1 = performance.now();
                 console.log(`Subset took ${t1 - t0} milliseconds.`);
             }
-        })
+        });
 
         this.subsetSelection = [];
     }
-
-    delete = false;
 
     sleep(ms) {
         return new Promise(resolve => setTimeout(resolve, ms));
@@ -79,18 +73,13 @@ export class ItemSelector {
     previousObject = null;
 
     highlightModel(removePrevious) {
-        if(this.delete) {
-            this.currentModel.ifcManager.removeFromSubset(0, [this.currentItemID])
-            return;
-        }
-            this.currentModel.ifcManager.createSubset({
-                modelID: this.currentModel.modelID,
-                scene: this.currentModel,
-                ids: [this.currentItemID],
-                removePrevious: true
-                // material: this.material
-            });
-
+        this.currentModel.ifcManager.createSubset({
+            modelID: this.currentModel.modelID,
+            scene: this.currentModel,
+            ids: [this.currentItemID],
+            removePrevious: removePrevious,
+            material: this.material
+        });
     }
 
     async logTree() {

@@ -9,6 +9,7 @@ import {
 import { IFCParser, ParserProgress } from '../../components/IFCParser';
 import { Serializer } from '../serializer/Serializer';
 import { DBOperation, IndexedDatabase } from '../../indexedDB/IndexedDatabase';
+import { IFCModel } from '../../components/IFCModel';
 
 export interface ParserResult {
     modelID: number;
@@ -42,9 +43,8 @@ export class ParserWorker implements ParserWorkerAPI {
         this.initializeParser();
         if(this.parser === undefined) throw new Error(ErrorParserNotAvailable);
         if(this.worker.state) this.worker.state.onProgress = (event: ParserProgress) => this.onProgress(event, data);
-        const {serializedIfcModel} = await this.getResponse(data);
+        const serializedIfcModel = await this.getResponse(data);
         await this.IDB.save(serializedIfcModel, DBOperation.transferIfcModel);
-        // await this.IDB.save(serializedItems, DBOperation.transferIndividualItems);
         this.worker.post(data);
     }
 
@@ -56,38 +56,14 @@ export class ParserWorker implements ParserWorkerAPI {
         if (!this.parser) throw new Error(ErrorParserNotAvailable);
         const ifcModel = await this.parser.parse(data.args.buffer, data.args.coordinationMatrix);
         const serializedIfcModel = this.serializer.serializeIfcModel(ifcModel);
+        this.cleanUpGeometries(ifcModel);
         data.result = {modelID: ifcModel.modelID};
-        // const serializedItems = this.getSerializedItems(ifcModel);
-        return {serializedIfcModel};
+        return serializedIfcModel;
     }
 
-    // private getSerializedItems(ifcModel: IFCModel) {
-    //     const items = this.worker.state?.models[ifcModel.modelID].items;
-    //     if (items === undefined) throw new Error("Items are not defined in worker");
-    //     if (!this.worker.state) throw new Error(ErrorStateNotAvailable);
-    //     const serializedItems = this.serializer.serializeGeometriesByMaterials(items);
-    //     this.cleanUp(ifcModel.modelID);
-    //     // this.worker.state.models[ifcModel.modelID].items = {};
-    //     return serializedItems;
-    // }
-    //
-    // private cleanUp(modelID: number) {
-    //     const items = this.worker.state?.models[modelID].items;
-    //     if (!items) return;
-    //     Object.keys(items).forEach(matID => {
-    //         items[matID].material.dispose();
-    //         // @ts-ignore
-    //         delete items[matID].material;
-    //         this.cleanUpGeometries(items[matID].geometries);
-    //         // @ts-ignore
-    //         delete items[matID].geometries;
-    //     })
-    // }
-
-    // private cleanUpGeometries(geometries: IdGeometries) {
-    //     Object.keys(geometries).map(key => parseInt(key)).forEach(id => {
-    //         geometries[id].dispose();
-    //         delete geometries[id];
-    //     });
-    // }
+    private cleanUpGeometries(model: IFCModel) {
+        model.geometry.dispose();
+        if(Array.isArray(model.material)) model.material.forEach(mat => mat.dispose());
+        else model.material.dispose();
+    }
 }

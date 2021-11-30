@@ -1,7 +1,6 @@
-import { MeshLambertMaterial, Matrix4 } from 'three';
+import { Matrix4 } from 'three';
 import { IFCLoader } from 'web-ifc-three/dist/IFCLoader';
 import { acceleratedRaycast, computeBoundsTree, disposeBoundsTree } from 'three-mesh-bvh';
-import { IFCSPACE } from 'web-ifc';
 
 export class IfcManager {
     constructor(scene, ifcModels) {

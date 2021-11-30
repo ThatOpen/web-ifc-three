@@ -1,6 +1,6 @@
 {
   "name": "web-ifc-three",
-  "version": "0.0.83",
+  "version": "0.0.85",
   "author": "IFC.js",
   "license": "Mozilla Public License Version 2.0",
   "description": "This library is the implementation of [web-ifc](https://github.com/tomvandig/web-ifc) for [THREE.js](https://github.com/mrdoob/three.js/). This is the official IFCLoader of Three.js.",
@@ -33,7 +33,6 @@
     "test": "jest"
   },
   "dependencies": {
-    "@types/three": "^0.134.0",
     "three-mesh-bvh": "^0.5.2",
     "web-ifc": "^0.0.29"
   },
@@ -45,6 +44,7 @@
     "@rollup/plugin-node-resolve": "^11.2.0",
     "@rollup/plugin-typescript": "^8.2.0",
     "@types/jest": "^26.0.23",
+    "@types/three": "^0.134.0",
     "babel-jest": "^27.0.6",
     "cpy-cli": "^3.1.1",
     "del-cli": "^3.0.1",
@@ -61,6 +61,6 @@
     "typescript": "^4.3.2"
   },
   "peerDependencies": {
-    "three": "^0.132.2"
+    "three": "^0.135.0"
   }
 }
