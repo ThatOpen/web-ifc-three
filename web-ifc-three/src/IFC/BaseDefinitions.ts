@@ -18,7 +18,7 @@ export type IdAttributeByMaterial = { [id: number]: number };
 export type IdAttributesByMaterials = { [materialID: string]: IdAttributeByMaterial };
 
 //TODO: Rename "scene" to "parent" in the next major release
-export interface HighlightConfig {
+export interface BaseSubsetConfig {
     scene: Object3D;
     ids: number[];
     removePrevious: boolean;
@@ -26,7 +26,7 @@ export interface HighlightConfig {
     customID?: string;
 }
 
-export interface SubsetConfig extends HighlightConfig {
+export interface SubsetConfig extends BaseSubsetConfig {
     modelID: number;
 }
 

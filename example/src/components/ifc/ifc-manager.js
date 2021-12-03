@@ -19,8 +19,7 @@ export class IfcManager {
     }
 
     async setupIfcLoader() {
-        // await this.ifcLoader.ifcManager.useWebWorkers(true, 'IFCWorker.js');
-
+        await this.ifcLoader.ifcManager.useWebWorkers(true, 'IFCWorker.js');
         this.setupThreeMeshBVH();
         this.setupFileOpener();
     }

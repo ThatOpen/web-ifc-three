@@ -37,8 +37,11 @@ export class SubsetManager {
     removeSubset(modelID: number, parent?: Object3D, material?: Material, customId?: string) {
         const subsetID = this.getSubsetID(modelID, material, customId);
         const subset = this.subsets[subsetID];
-        if (!subset) throw new Error('The subset to delete does not exist.');
+        if (!subset) return;
         subset.mesh.geometry.dispose();
+        if(subset.mesh.parent) subset.mesh.removeFromParent();
+        // @ts-ignore
+        subset.mesh.geometry = null;
         if (material) material.dispose();
         delete this.subsets[subsetID];
     }

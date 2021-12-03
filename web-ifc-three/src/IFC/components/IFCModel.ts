@@ -1,6 +1,6 @@
 import { BufferGeometry, Material, Mesh, Object3D, Scene } from 'three';
 import { IFCManager } from './IFCManager';
-import { HighlightConfig } from '../BaseDefinitions';
+import { BaseSubsetConfig } from '../BaseDefinitions';
 
 let modelIdCounter = 0;
 const nullIfcManagerErrorMessage = 'IfcManager is null!';
@@ -188,7 +188,7 @@ export class IFCModel extends Mesh {
      * - **removePrevious**: Wether to remove the previous subset of this model with this material.
      * - **material**: (optional) Wether to apply a material to the subset
      */
-    createSubset(config: HighlightConfig) {
+    createSubset(config: BaseSubsetConfig) {
         if (this.ifcManager === null) throw new Error(nullIfcManagerErrorMessage);
         const modelConfig = { ...config, modelID: this.modelID };
         return this.ifcManager.createSubset(modelConfig);

@@ -2,7 +2,7 @@ import {IFCManager} from "../../../src/IFC/components/IFCManager";
 import {SubsetManager} from '../../../src/IFC/components/subsets/SubsetManager';
 import {PropertyManager} from '../../../src/IFC/components/properties/PropertyManager';
 import {IFCParser} from "../../../src/IFC/components/IFCParser";
-import {HighlightConfig, IfcMesh} from "../../../src/IFC/BaseDefinitions";
+import {BaseSubsetConfig, IfcMesh} from "../../../src/IFC/BaseDefinitions";
 import * as WebIFC from "web-ifc";
 import {BufferGeometry, Material, Scene} from "three";
 
@@ -157,7 +157,7 @@ describe("IFCManager", () => {
 
         const spyCreateSubset = jest.spyOn(SubsetManager.prototype, 'createSubset').mockImplementation();
 
-        const highlightConfig: HighlightConfig = {
+        const highlightConfig: BaseSubsetConfig = {
             scene: new Scene(),
             modelID: 10,
             ids: [1],

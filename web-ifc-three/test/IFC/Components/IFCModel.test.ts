@@ -1,7 +1,7 @@
 import {IFCManager} from "../../../src/IFC/components/IFCManager";
 import {BufferGeometry, Material, Mesh, Scene} from "three";
 import {IFCModel} from "../../../src/IFC/components/IFCModel";
-import {HighlightConfig} from "../../../src/IFC/BaseDefinitions";
+import {BaseSubsetConfig} from "../../../src/IFC/BaseDefinitions";
 
 describe("IFCModel", () => {
 
@@ -158,7 +158,7 @@ describe("IFCModel", () => {
         const scene = new Scene();
         const material = new Material();
 
-        let config: HighlightConfig = {
+        let config: BaseSubsetConfig = {
             scene: scene,
             ids: [1,2,3,4],
             material: material,
