@@ -16,7 +16,7 @@ import { PropertyManagerAPI } from './properties/BaseDefinitions';
  * Contains all the logic to work with the loaded IFC files (select, edit, etc).
  */
 export class IFCManager {
-    private state: IfcState = {
+    state: IfcState = {
         models: [],
         api: new WebIFC.IfcAPI(),
         useJSON: false,
