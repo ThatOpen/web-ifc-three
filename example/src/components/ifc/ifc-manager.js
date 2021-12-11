@@ -8,6 +8,12 @@ export class IfcManager {
         this.ifcModels = ifcModels;
         this.ifcLoader = new IFCLoader();
         this.setupIfcLoader();
+
+        window.addEventListener('keydown', (event) => {
+            if(event.code === 'KeyA') {
+
+            }
+        })
     }
 
     setupThreeMeshBVH() {

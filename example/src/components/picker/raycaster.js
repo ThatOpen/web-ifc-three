@@ -13,7 +13,6 @@ export class RayCaster {
         this.mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
         this.mouse.y = -(event.clientY / window.innerHeight) * 2 + 1;
         this.raycaster.setFromCamera(this.mouse, this.camera);
-        const geometries = this.ifcModels.map(model => model.mesh);
-        return this.raycaster.intersectObjects(geometries);
+        return this.raycaster.intersectObjects(this.ifcModels);
     }
 }

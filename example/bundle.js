@@ -42451,8 +42451,7 @@ class RayCaster {
         this.mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
         this.mouse.y = -(event.clientY / window.innerHeight) * 2 + 1;
         this.raycaster.setFromCamera(this.mouse, this.camera);
-        const geometries = this.ifcModels.map(model => model.mesh);
-        return this.raycaster.intersectObjects(geometries);
+        return this.raycaster.intersectObjects(this.ifcModels);
     }
 }
 
@@ -42529,12 +42528,13 @@ class ItemSelector {
     previousObject = null;
 
     highlightModel(removePrevious) {
-        this.currentModel.ifcManager.createSubset({
+         this.currentModel.ifcManager.createSubset({
             modelID: this.currentModel.modelID,
             scene: this.currentModel,
             ids: [this.currentItemID],
             removePrevious: removePrevious,
-            material: this.material
+            material: this.material,
+             applyBVH: true
         });
     }
 
@@ -87614,10 +87614,11 @@ class SubsetUtils {
 
 class SubsetCreator {
 
-  constructor(state, items, subsets) {
+  constructor(state, items, subsets, BVH) {
     this.state = state;
     this.items = items;
     this.subsets = subsets;
+    this.BVH = BVH;
     this.tempIndex = [];
   }
 
@@ -87631,6 +87632,9 @@ class SubsetCreator {
     config.ids.forEach(id => this.subsets[subsetID].ids.add(id));
     this.subsets[subsetID].mesh.geometry.setIndex(this.tempIndex);
     this.tempIndex.length = 0;
+    const subset = this.subsets[subsetID].mesh;
+    if (config.applyBVH)
+      this.BVH.applyThreeMeshBVH(subset.geometry);
     return this.subsets[subsetID].mesh;
   }
 
@@ -87641,9 +87645,12 @@ class SubsetCreator {
     if (!config.material)
       this.initializeSubsetGroups(subsetGeom, model);
     const mesh = new Mesh(subsetGeom, config.material || model.material);
+    mesh.modelID = config.modelID;
+    const bvh = Boolean(config.applyBVH);
     this.subsets[subsetID] = {
       ids: new Set(),
-      mesh
+      mesh,
+      bvh
     };
     model.add(mesh);
   }
@@ -87723,106 +87730,6 @@ class SubsetCreator {
 
 }
 
-class SubsetItemsRemover {
-
-  constructor(state, items, subsets) {
-    this.state = state;
-    this.items = items;
-    this.subsets = subsets;
-  }
-
-  removeFromSubset(modelID, ids, subsetID, customID, material) {
-    if (!this.subsets[subsetID])
-      return;
-    ids = this.filterIndices(subsetID, ids);
-    if (ids.length === 0)
-      return;
-    const geometry = this.getGeometry(subsetID);
-    let previous = {
-      indices: Array.from(geometry.index.array).toString()
-    };
-    this.subtractIndicesByMaterial(modelID, subsetID, ids, previous, material != undefined);
-    this.updateIndices(subsetID, previous);
-    this.updateIDs(subsetID, ids);
-  }
-
-  getGeometry(subsetID) {
-    const geometry = this.subsets[subsetID].mesh.geometry;
-    if (!geometry.index)
-      throw new Error('The subset is not indexed');
-    return geometry;
-  }
-
-  filterIndices(subsetID, ids) {
-    const previousIDs = this.subsets[subsetID].ids;
-    return ids.filter(id => previousIDs.has(id));
-  }
-
-  subtractIndicesByMaterial(modelID, subsetID, ids, previous, material) {
-    let removedIndices = {
-      amount: 0
-    };
-    const model = this.state.models[modelID].mesh;
-    for (let i = 0; i < model.geometry.groups.length; i++) {
-      const items = this.items.map[modelID];
-      const indicesByGroup = SubsetUtils.getAllIndicesOfGroup(modelID, ids, i, items, false);
-      this.removeIndices(indicesByGroup, previous);
-      this.cleanUpResult(previous);
-      if (!material)
-        this.updateGroups(subsetID, i, removedIndices, indicesByGroup);
-    }
-  }
-
-  removeIndices(indicesByGroup, previous) {
-    const indicesStringByGroup = indicesByGroup.map(indices => indices.toString());
-    indicesStringByGroup.forEach(indices => {
-      if (previous.indices.includes(indices))
-        previous.indices = previous.indices.replace(indices, '');
-    });
-  }
-
-  cleanUpResult(previous) {
-    const commaAtStart = /^,/;
-    const commaAtEnd = /,$/;
-    if (commaAtStart.test(previous.indices))
-      previous.indices = previous.indices.replace(commaAtStart, '');
-    if (commaAtEnd.test(previous.indices))
-      previous.indices = previous.indices.replace(commaAtEnd, '');
-    if (previous.indices.includes(',,'))
-      previous.indices = previous.indices.replace(',,', ',');
-  }
-
-  updateGroups(subsetID, index, removedIndices, indicesByGroup) {
-    const geometry = this.getGeometry(subsetID);
-    const currentGroup = geometry.groups[index];
-    currentGroup.start -= removedIndices.amount;
-    let removedIndicesAmount = 0;
-    indicesByGroup.forEach(indices => removedIndicesAmount += indices.length);
-    currentGroup.count -= removedIndicesAmount;
-    removedIndices.amount += removedIndicesAmount;
-  }
-
-  updateIndices(subsetID, previous) {
-    const geometry = this.getGeometry(subsetID);
-    const noIndicesFound = previous.indices.length === 0;
-    let parsedIndices = noIndicesFound ? [] : this.parseIndices(previous);
-    geometry.setIndex(parsedIndices);
-  }
-
-  updateIDs(subsetID, ids) {
-    const subset = this.subsets[subsetID];
-    ids.forEach(id => {
-      if (subset.ids.has(id))
-        subset.ids.delete(id);
-    });
-  }
-
-  parseIndices(previous) {
-    return previous.indices.split(',').map((text) => parseInt(text, 10));
-  }
-
-}
-
 class SubsetManager {
 
   constructor(state, BVH) {
@@ -87830,8 +87737,7 @@ class SubsetManager {
     this.state = state;
     this.items = new ItemsMap(state);
     this.BVH = BVH;
-    this.subsetCreator = new SubsetCreator(state, this.items, this.subsets);
-    this.subsetItemsRemover = new SubsetItemsRemover(state, this.items, this.subsets);
+    this.subsetCreator = new SubsetCreator(state, this.items, this.subsets, this.BVH);
   }
 
   getSubset(modelID, material, customId) {
@@ -87860,7 +87766,22 @@ class SubsetManager {
 
   removeFromSubset(modelID, ids, customID, material) {
     const subsetID = this.getSubsetID(modelID, material, customID);
-    this.subsetItemsRemover.removeFromSubset(modelID, ids, subsetID, customID, material);
+    if (!this.subsets[subsetID])
+      return;
+    const previousIDs = this.subsets[subsetID].ids;
+    ids.forEach((id) => {
+      if (previousIDs.has(id))
+        previousIDs.delete(id);
+    });
+    return this.createSubset({
+      modelID,
+      removePrevious: true,
+      material,
+      customID,
+      applyBVH: this.subsets[subsetID].bvh,
+      ids: Array.from(previousIDs),
+      scene: this.subsets[subsetID].mesh.parent
+    });
   }
 
   getSubsetID(modelID, material, customID = 'DEFAULT') {
@@ -92408,7 +92329,7 @@ function intersectClosestTri( geo, side, ray, offset, count ) {
 
 // converts the given BVH raycast intersection to align with the three.js raycast
 // structure (include object, world space distance and point).
-function convertRaycastIntersect( hit, object, raycaster ) {
+function convertRaycastIntersect$1( hit, object, raycaster ) {
 
 	if ( hit === null ) {
 
@@ -94069,7 +93990,7 @@ MeshBVH.prototype.raycast = function ( ...args ) {
 		const results = originalRaycast.call( this, ray, mesh.material );
 		results.forEach( hit => {
 
-			hit = convertRaycastIntersect( hit, mesh, raycaster );
+			hit = convertRaycastIntersect$1( hit, mesh, raycaster );
 			if ( hit ) {
 
 				intersects.push( hit );
@@ -94098,7 +94019,7 @@ MeshBVH.prototype.raycastFirst = function ( ...args ) {
 			mesh, raycaster, ray,
 		] = args;
 
-		return convertRaycastIntersect( originalRaycastFirst.call( this, ray, mesh.material ), mesh, raycaster );
+		return convertRaycastIntersect$1( originalRaycastFirst.call( this, ray, mesh.material ), mesh, raycaster );
 
 	} else {
 
@@ -94229,6 +94150,32 @@ MeshBVH.prototype.refit = function ( ...args ) {
 
 } );
 
+// converts the given BVH raycast intersection to align with the three.js raycast
+// structure (include object, world space distance and point).
+function convertRaycastIntersect( hit, object, raycaster ) {
+
+	if ( hit === null ) {
+
+		return null;
+
+	}
+
+	hit.point.applyMatrix4( object.matrixWorld );
+	hit.distance = hit.point.distanceTo( raycaster.ray.origin );
+	hit.object = object;
+
+	if ( hit.distance < raycaster.near || hit.distance > raycaster.far ) {
+
+		return null;
+
+	} else {
+
+		return hit;
+
+	}
+
+}
+
 const ray = /* @__PURE__ */ new Ray();
 const tmpInverseMatrix = /* @__PURE__ */ new Matrix4();
 const origMeshRaycastFunc = Mesh.prototype.raycast;
@@ -94295,6 +94242,10 @@ class IfcManager {
         this.ifcModels = ifcModels;
         this.ifcLoader = new IFCLoader();
         this.setupIfcLoader();
+
+        window.addEventListener('keydown', (event) => {
+            if(event.code === 'KeyA') ;
+        });
     }
 
     setupThreeMeshBVH() {

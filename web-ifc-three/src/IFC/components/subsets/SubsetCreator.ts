@@ -1,14 +1,15 @@
 import { BufferGeometry, Mesh } from 'three';
 import { IfcState, SubsetConfig } from '../../BaseDefinitions';
 import { IndexedGeometry, ItemsMap } from './ItemsMap';
-import { Subsets } from './SubsetManager';
+import { Subset, Subsets } from './SubsetManager';
 import { SubsetUtils } from './SubsetUtils';
+import { BvhManager } from '../BvhManager';
 
 export class SubsetCreator {
 
     private tempIndex: number[] = [];
 
-    constructor(private state: IfcState, private items: ItemsMap, private subsets: Subsets) {
+    constructor(private state: IfcState, private items: ItemsMap, private subsets: Subsets, private BVH: BvhManager) {
     }
 
     createSubset(config: SubsetConfig, subsetID: string) {
@@ -19,6 +20,8 @@ export class SubsetCreator {
         config.ids.forEach(id => this.subsets[subsetID].ids.add(id));
         this.subsets[subsetID].mesh.geometry.setIndex(this.tempIndex);
         this.tempIndex.length = 0;
+        const subset = this.subsets[subsetID].mesh;
+        if(config.applyBVH) this.BVH.applyThreeMeshBVH(subset.geometry);
         return this.subsets[subsetID].mesh;
     }
 
@@ -27,8 +30,10 @@ export class SubsetCreator {
         const subsetGeom = new BufferGeometry();
         this.initializeSubsetAttributes(subsetGeom, model);
         if (!config.material) this.initializeSubsetGroups(subsetGeom, model);
-        const mesh = new Mesh(subsetGeom, config.material || model.material);
-        this.subsets[subsetID] = { ids: new Set<number>(), mesh };
+        const mesh = new Mesh(subsetGeom, config.material || model.material) as Subset;
+        mesh.modelID = config.modelID;
+        const bvh = Boolean(config.applyBVH);
+        this.subsets[subsetID] = { ids: new Set<number>(), mesh, bvh };
         model.add(mesh);
     }
 

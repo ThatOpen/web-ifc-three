@@ -1,12 +1,15 @@
 import { Material, Mesh, Object3D } from 'three';
 import { SubsetConfig, IfcState } from '../../BaseDefinitions';
 import { BvhManager } from '../BvhManager';
-import { ItemsMap } from './ItemsMap';
+import { IndexedGeometry, ItemsMap } from './ItemsMap';
 import { SubsetCreator } from './SubsetCreator';
-import { SubsetItemsRemover } from './SubsetItemsRemover';
+
+export interface Subset extends Mesh {
+    modelID: number;
+}
 
 export type Subsets = {
-    [subsetID: string]: { ids: Set<number>; mesh: Mesh };
+    [subsetID: string]: { ids: Set<number>, mesh: Subset, bvh: boolean };
 };
 
 /**
@@ -15,18 +18,16 @@ export type Subsets = {
  */
 export class SubsetManager {
     private readonly items: ItemsMap;
+    private readonly BVH: BvhManager;
     private state: IfcState;
-    private BVH: BvhManager;
     private subsets: Subsets = {};
     private subsetCreator: SubsetCreator;
-    private subsetItemsRemover: SubsetItemsRemover;
 
     constructor(state: IfcState, BVH: BvhManager) {
         this.state = state;
         this.items = new ItemsMap(state);
         this.BVH = BVH;
-        this.subsetCreator = new SubsetCreator(state, this.items, this.subsets);
-        this.subsetItemsRemover = new SubsetItemsRemover(state, this.items, this.subsets);
+        this.subsetCreator = new SubsetCreator(state, this.items, this.subsets, this.BVH);
     }
 
     getSubset(modelID: number, material?: Material, customId?: string) {
@@ -39,7 +40,7 @@ export class SubsetManager {
         const subset = this.subsets[subsetID];
         if (!subset) return;
         subset.mesh.geometry.dispose();
-        if(subset.mesh.parent) subset.mesh.removeFromParent();
+        if (subset.mesh.parent) subset.mesh.removeFromParent();
         // @ts-ignore
         subset.mesh.geometry = null;
         if (material) material.dispose();
@@ -53,8 +54,24 @@ export class SubsetManager {
 
     removeFromSubset(modelID: number, ids: number[], customID?: string, material?: Material) {
         const subsetID = this.getSubsetID(modelID, material, customID);
-        this.subsetItemsRemover.removeFromSubset(modelID, ids, subsetID, customID, material);
+        if (!this.subsets[subsetID]) return;
+
+        const previousIDs = this.subsets[subsetID].ids;
+        ids.forEach((id) => {
+            if(previousIDs.has(id)) previousIDs.delete(id);
+        })
+
+        return this.createSubset({
+            modelID,
+            removePrevious: true,
+            material,
+            customID,
+            applyBVH: this.subsets[subsetID].bvh,
+            ids: Array.from(previousIDs),
+            scene: this.subsets[subsetID].mesh.parent as Object3D
+        });
     }
+
 
     private getSubsetID(modelID: number, material?: Material, customID = 'DEFAULT') {
         const baseID = modelID;

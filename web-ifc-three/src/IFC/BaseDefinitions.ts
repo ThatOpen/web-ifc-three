@@ -24,6 +24,7 @@ export interface BaseSubsetConfig {
     removePrevious: boolean;
     material?: Material;
     customID?: string;
+    applyBVH?: boolean;
 }
 
 export interface SubsetConfig extends BaseSubsetConfig {
