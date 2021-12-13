@@ -19,7 +19,7 @@ export type IdAttributesByMaterials = { [materialID: string]: IdAttributeByMater
 
 //TODO: Rename "scene" to "parent" in the next major release
 export interface BaseSubsetConfig {
-    scene: Object3D;
+    scene?: Object3D;
     ids: number[];
     removePrevious: boolean;
     material?: Material;
