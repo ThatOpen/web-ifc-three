@@ -291,8 +291,8 @@ export class IFCManager {
      * @parent The parent where the subset is (can be any `THREE.Object3D`).
      * @material Material assigned to the subset, if any.
      */
-    removeSubset(modelID: number, parent?: Object3D, material?: Material, customId?: string) {
-        this.subsets.removeSubset(modelID, parent, material, customId);
+    removeSubset(modelID: number, material?: Material, customID?: string) {
+        this.subsets.removeSubset(modelID, material, customID);
     }
 
     /**

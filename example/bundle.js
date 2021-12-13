@@ -42528,13 +42528,12 @@ class ItemSelector {
     previousObject = null;
 
     highlightModel(removePrevious) {
-         this.currentModel.ifcManager.createSubset({
+        this.currentModel.ifcManager.createSubset({
             modelID: this.currentModel.modelID,
             scene: this.currentModel,
             ids: [this.currentItemID],
             removePrevious: removePrevious,
-            material: this.material,
-             applyBVH: true
+            material: this.material
         });
     }
 
@@ -87315,10 +87314,10 @@ class IFCModel extends Mesh {
     return this.ifcManager.getSubset(this.modelID, material);
   }
 
-  removeSubset(parent, material) {
+  removeSubset(material, customID) {
     if (this.ifcManager === null)
       throw new Error(nullIfcManagerErrorMessage);
-    this.ifcManager.removeSubset(this.modelID, parent, material);
+    this.ifcManager.removeSubset(this.modelID, material, customID);
   }
 
   createSubset(config) {
@@ -87745,8 +87744,8 @@ class SubsetManager {
     return this.subsets[subsetID].mesh;
   }
 
-  removeSubset(modelID, parent, material, customId) {
-    const subsetID = this.getSubsetID(modelID, material, customId);
+  removeSubset(modelID, material, customID) {
+    const subsetID = this.getSubsetID(modelID, material, customID);
     const subset = this.subsets[subsetID];
     if (!subset)
       return;
@@ -90140,8 +90139,8 @@ class IFCManager {
     return this.subsets.getSubset(modelID, material, customId);
   }
 
-  removeSubset(modelID, parent, material, customId) {
-    this.subsets.removeSubset(modelID, parent, material, customId);
+  removeSubset(modelID, material, customID) {
+    this.subsets.removeSubset(modelID, material, customID);
   }
 
   createSubset(config) {

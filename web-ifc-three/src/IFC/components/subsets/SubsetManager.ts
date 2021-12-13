@@ -35,8 +35,8 @@ export class SubsetManager {
         return this.subsets[subsetID].mesh;
     }
 
-    removeSubset(modelID: number, parent?: Object3D, material?: Material, customId?: string) {
-        const subsetID = this.getSubsetID(modelID, material, customId);
+    removeSubset(modelID: number, material?: Material, customID?: string) {
+        const subsetID = this.getSubsetID(modelID, material, customID);
         const subset = this.subsets[subsetID];
         if (!subset) return;
         subset.mesh.geometry.dispose();

@@ -173,9 +173,9 @@ export class IFCModel extends Mesh {
      * @parent The parent where the subset is (can be any `THREE.Object3D`).
      * @material Material assigned to the subset, if any.
      */
-    removeSubset(parent?: Object3D, material?: Material) {
+    removeSubset(material?: Material, customID?: string) {
         if (this.ifcManager === null) throw new Error(nullIfcManagerErrorMessage);
-        this.ifcManager.removeSubset(this.modelID, parent, material);
+        this.ifcManager.removeSubset(this.modelID, material, customID);
     }
 
     /**
