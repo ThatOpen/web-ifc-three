@@ -87634,6 +87634,8 @@ class SubsetCreator {
     const subset = this.subsets[subsetID].mesh;
     if (config.applyBVH)
       this.BVH.applyThreeMeshBVH(subset.geometry);
+    if (config.scene)
+      config.scene.add(subset);
     return this.subsets[subsetID].mesh;
   }
 

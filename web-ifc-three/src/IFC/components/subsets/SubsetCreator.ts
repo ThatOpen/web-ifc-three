@@ -22,6 +22,7 @@ export class SubsetCreator {
         this.tempIndex.length = 0;
         const subset = this.subsets[subsetID].mesh;
         if(config.applyBVH) this.BVH.applyThreeMeshBVH(subset.geometry);
+        if(config.scene) config.scene.add(subset);
         return this.subsets[subsetID].mesh;
     }
 
