@@ -87751,12 +87751,12 @@ class SubsetManager {
     const subset = this.subsets[subsetID];
     if (!subset)
       return;
-    subset.mesh.geometry.dispose();
     if (subset.mesh.parent)
       subset.mesh.removeFromParent();
+    subset.mesh.geometry.attributes = {};
+    subset.mesh.geometry.index = null;
+    subset.mesh.geometry.dispose();
     subset.mesh.geometry = null;
-    if (material)
-      material.dispose();
     delete this.subsets[subsetID];
   }
 
