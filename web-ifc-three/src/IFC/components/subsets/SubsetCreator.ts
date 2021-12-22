@@ -21,8 +21,8 @@ export class SubsetCreator {
         this.subsets[subsetID].mesh.geometry.setIndex(this.tempIndex);
         this.tempIndex.length = 0;
         const subset = this.subsets[subsetID].mesh;
-        if(config.applyBVH) this.BVH.applyThreeMeshBVH(subset.geometry);
-        if(config.scene) config.scene.add(subset);
+        if (config.applyBVH) this.BVH.applyThreeMeshBVH(subset.geometry);
+        if (config.scene) config.scene.add(subset);
         return this.subsets[subsetID].mesh;
     }
 
@@ -57,7 +57,8 @@ export class SubsetCreator {
         const geometry = this.subsets[subsetID].mesh.geometry as IndexedGeometry;
         if (config.removePrevious) {
             geometry.setIndex([]);
-            return this.resetGroups(geometry);
+            this.resetGroups(geometry);
+            return;
         }
         const previousIndices = geometry.index.array;
         const previousIDs = this.subsets[subsetID].ids;
@@ -67,7 +68,7 @@ export class SubsetCreator {
 
     private constructSubsetByMaterial(config: SubsetConfig, subsetID: string) {
         const model = this.state.models[config.modelID].mesh;
-        const newIndices = {count: 0}
+        const newIndices = { count: 0 };
         for (let i = 0; i < model.geometry.groups.length; i++) {
             this.insertNewIndices(config, subsetID, i, newIndices);
         }
@@ -80,7 +81,7 @@ export class SubsetCreator {
         const indicesOfOneMaterial = SubsetUtils.getAllIndicesOfGroup(config.modelID, config.ids, materialIndex, items) as number[];
 
         if (!config.material) {
-            this.insertIndicesAtGroup(subsetID, indicesOfOneMaterial, materialIndex, newIndices)
+            this.insertIndicesAtGroup(subsetID, indicesOfOneMaterial, materialIndex, newIndices);
         } else {
             indicesOfOneMaterial.forEach(index => this.tempIndex.push(index));
         }
@@ -93,12 +94,9 @@ export class SubsetCreator {
         newIndices.count += indicesByGroup.length;
         if (indicesByGroup.length > 0) {
             let position = newIndicesPosition;
-            const batchSize = 125052;
-            for(let i = 0, x = 0; i < indicesByGroup.length; i += batchSize, x++){
-                const offset = x * batchSize;
-                this.tempIndex.splice(position, 0, ...(indicesByGroup.slice(offset, offset + batchSize)));
-                position += batchSize;
-            }
+            const start = this.tempIndex.slice(0, position);
+            const end = this.tempIndex.slice(position);
+            this.tempIndex = Array.prototype.concat.apply([], [start, indicesByGroup, end]);
             currentGroup.count += indicesByGroup.length;
         }
     }

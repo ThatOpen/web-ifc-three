@@ -87672,7 +87672,8 @@ class SubsetCreator {
     const geometry = this.subsets[subsetID].mesh.geometry;
     if (config.removePrevious) {
       geometry.setIndex([]);
-      return this.resetGroups(geometry);
+      this.resetGroups(geometry);
+      return;
     }
     const previousIndices = geometry.index.array;
     const previousIDs = this.subsets[subsetID].ids;
@@ -87707,12 +87708,9 @@ class SubsetCreator {
     newIndices.count += indicesByGroup.length;
     if (indicesByGroup.length > 0) {
       let position = newIndicesPosition;
-      const batchSize = 125052;
-      for (let i = 0, x = 0; i < indicesByGroup.length; i += batchSize, x++) {
-        const offset = x * batchSize;
-        this.tempIndex.splice(position, 0, ...(indicesByGroup.slice(offset, offset + batchSize)));
-        position += batchSize;
-      }
+      const start = this.tempIndex.slice(0, position);
+      const end = this.tempIndex.slice(position);
+      this.tempIndex = Array.prototype.concat.apply([], [start, indicesByGroup, end]);
       currentGroup.count += indicesByGroup.length;
     }
   }
@@ -94244,9 +94242,28 @@ class IfcManager {
         this.ifcLoader = new IFCLoader();
         this.setupIfcLoader();
 
-        window.addEventListener('keydown', (event) => {
-            if(event.code === 'KeyA') ;
+        window.addEventListener('keydown', async (event) => {
+            if(event.code === 'KeyX') {
+               this.remove = !this.remove;
+            }
+            if(event.code === 'KeyB') {
+                await this.editSubset(IFCWALLSTANDARDCASE);
+            }
+            if(event.code === 'KeyC') {
+                await this.editSubset(IFCSLAB);
+            }
+            if(event.code === 'KeyD') {
+                await this.editSubset(IFCWINDOW);
+            }
         });
+    }
+
+    remove = false;
+
+    async editSubset(type) {
+        const ids = await this.ifcLoader.ifcManager.getAllItemsOfType(0, type, false);
+        if(this.remove) this.ifcLoader.ifcManager.removeFromSubset(0, ids);
+        else this.ifcLoader.ifcManager.createSubset({modelID: 0, ids, applyBVH: false, removePrevious: false });
     }
 
     setupThreeMeshBVH() {
@@ -94281,6 +94298,8 @@ class IfcManager {
         this.ifcLoader.ifcManager.disposeMemory();
     }
 
+    subset = {};
+
     async loadIFC(changed) {
 
         const start = window.performance.now();
@@ -94304,8 +94323,24 @@ class IfcManager {
             this.ifcLoader.ifcManager.setupCoordinationMatrix(matrix);
         }
 
-        this.ifcModels.push(ifcModel);
-        this.scene.add(ifcModel);
+        ifcModel.removeFromParent();
+
+        const ids = [...new Set(ifcModel.geometry.attributes.expressID.array)];
+        this.subset = this.ifcLoader.ifcManager.createSubset({
+            modelID: 0,
+            ids,
+            applyBVH: true,
+            scene: this.scene,
+            removePrevious: true
+        });
+
+        this.subset.ifcManager = this.ifcLoader.ifcManager;
+
+        this.scene.add(this.subset);
+        this.ifcModels.push(this.subset);
+
+        // this.ifcModels.push(ifcModel);
+        // this.scene.add(ifcModel);
 
         const stop = window.performance.now();
 
