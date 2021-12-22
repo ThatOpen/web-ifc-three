@@ -94323,24 +94323,8 @@ class IfcManager {
             this.ifcLoader.ifcManager.setupCoordinationMatrix(matrix);
         }
 
-        ifcModel.removeFromParent();
-
-        const ids = [...new Set(ifcModel.geometry.attributes.expressID.array)];
-        this.subset = this.ifcLoader.ifcManager.createSubset({
-            modelID: 0,
-            ids,
-            applyBVH: true,
-            scene: this.scene,
-            removePrevious: true
-        });
-
-        this.subset.ifcManager = this.ifcLoader.ifcManager;
-
-        this.scene.add(this.subset);
-        this.ifcModels.push(this.subset);
-
-        // this.ifcModels.push(ifcModel);
-        // this.scene.add(ifcModel);
+        this.ifcModels.push(ifcModel);
+        this.scene.add(ifcModel);
 
         const stop = window.performance.now();
 
