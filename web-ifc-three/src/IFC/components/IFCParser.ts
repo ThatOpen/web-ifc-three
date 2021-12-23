@@ -98,18 +98,11 @@ export class IFCParser implements ParserAPI {
 
     private async loadAllGeometry(modelID: number) {
 
+        this.addOptionalCategories(modelID);
 
         this.state.api.StreamAllMeshes(modelID, (mesh: FlatMesh) => {
             // only during the lifetime of this function call, the geometry is available in memory
-            const placedGeometries = mesh.geometries;
-            const size = placedGeometries.size();
-
-            for (let i = 0; i < size; i++) {
-                const placedGeometry = placedGeometries.get(i);
-                let itemMesh = this.getPlacedGeometry(modelID, mesh.expressID, placedGeometry);
-                let geom = itemMesh.geometry.applyMatrix4(itemMesh.matrix);
-                this.storeGeometryByMaterial(placedGeometry.color, geom);
-            }
+            this.streamMesh(modelID, mesh);
         });
 
         const geometries: BufferGeometry[] = [];
@@ -124,10 +117,39 @@ export class IFCParser implements ParserAPI {
 
         const combinedGeometry = mergeBufferGeometries(geometries, true);
         this.cleanUpGeometryMemory(geometries);
-        if(this.BVH) this.BVH.applyThreeMeshBVH(combinedGeometry);
+        if (this.BVH) this.BVH.applyThreeMeshBVH(combinedGeometry);
         const model = new IFCModel(combinedGeometry, materials);
         this.state.models[this.currentModelID].mesh = model;
         return model;
+    }
+
+    // Some categories (like IfcSpace and IfcOpeningElement) need to be set explicitly
+    private addOptionalCategories(modelID: number) {
+
+        const optionalTypes: number[] = [];
+
+        for (let key in this.optionalCategories) {
+            if (this.optionalCategories.hasOwnProperty(key)) {
+                const category = parseInt(key);
+                if (this.optionalCategories[category]) optionalTypes.push(category);
+            }
+        }
+
+        this.state.api.StreamAllMeshesWithTypes(this.currentWebIfcID, optionalTypes, (mesh: FlatMesh) => {
+            this.streamMesh(modelID, mesh);
+        });
+    }
+
+    private streamMesh(modelID: number, mesh: FlatMesh) {
+        const placedGeometries = mesh.geometries;
+        const size = placedGeometries.size();
+
+        for (let i = 0; i < size; i++) {
+            const placedGeometry = placedGeometries.get(i);
+            let itemMesh = this.getPlacedGeometry(modelID, mesh.expressID, placedGeometry);
+            let geom = itemMesh.geometry.applyMatrix4(itemMesh.matrix);
+            this.storeGeometryByMaterial(placedGeometry.color, geom);
+        }
     }
 
     private getPlacedGeometry(modelID: number, expressID: number, placedGeometry: PlacedGeometry) {

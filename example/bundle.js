@@ -87385,15 +87385,9 @@ class IFCParser {
   }
 
   async loadAllGeometry(modelID) {
+    this.addOptionalCategories(modelID);
     this.state.api.StreamAllMeshes(modelID, (mesh) => {
-      const placedGeometries = mesh.geometries;
-      const size = placedGeometries.size();
-      for (let i = 0; i < size; i++) {
-        const placedGeometry = placedGeometries.get(i);
-        let itemMesh = this.getPlacedGeometry(modelID, mesh.expressID, placedGeometry);
-        let geom = itemMesh.geometry.applyMatrix4(itemMesh.matrix);
-        this.storeGeometryByMaterial(placedGeometry.color, geom);
-      }
+      this.streamMesh(modelID, mesh);
     });
     const geometries = [];
     const materials = [];
@@ -87410,6 +87404,31 @@ class IFCParser {
     const model = new IFCModel(combinedGeometry, materials);
     this.state.models[this.currentModelID].mesh = model;
     return model;
+  }
+
+  addOptionalCategories(modelID) {
+    const optionalTypes = [];
+    for (let key in this.optionalCategories) {
+      if (this.optionalCategories.hasOwnProperty(key)) {
+        const category = parseInt(key);
+        if (this.optionalCategories[category])
+          optionalTypes.push(category);
+      }
+    }
+    this.state.api.StreamAllMeshesWithTypes(this.currentWebIfcID, optionalTypes, (mesh) => {
+      this.streamMesh(modelID, mesh);
+    });
+  }
+
+  streamMesh(modelID, mesh) {
+    const placedGeometries = mesh.geometries;
+    const size = placedGeometries.size();
+    for (let i = 0; i < size; i++) {
+      const placedGeometry = placedGeometries.get(i);
+      let itemMesh = this.getPlacedGeometry(modelID, mesh.expressID, placedGeometry);
+      let geom = itemMesh.geometry.applyMatrix4(itemMesh.matrix);
+      this.storeGeometryByMaterial(placedGeometry.color, geom);
+    }
   }
 
   getPlacedGeometry(modelID, expressID, placedGeometry) {
@@ -94275,7 +94294,7 @@ class IfcManager {
     }
 
     async setupIfcLoader() {
-        await this.ifcLoader.ifcManager.useWebWorkers(true, 'IFCWorker.js');
+        // await this.ifcLoader.ifcManager.useWebWorkers(true, 'IFCWorker.js');
         this.setupThreeMeshBVH();
         this.setupFileOpener();
     }
@@ -94314,6 +94333,11 @@ class IfcManager {
             USE_FAST_BOOLS: false
         });
 
+        await this.ifcLoader.ifcManager.parser.setupOptionalCategories({
+            [IFCSPACE]: true,
+            [IFCOPENINGELEMENT]: false
+        });
+
         const ifcModel = await this.ifcLoader.loadAsync(ifcURL);
         console.log(ifcModel);
 
@@ -94325,6 +94349,16 @@ class IfcManager {
 
         this.ifcModels.push(ifcModel);
         this.scene.add(ifcModel);
+
+        const ids = await this.ifcLoader.ifcManager.getAllItemsOfType(0, IFCSPACE, false);
+        this.ifcLoader.ifcManager.createSubset({
+            modelID: 0,
+            ids,
+            applyBVH: false,
+            removePrevious: true,
+            scene: this.scene,
+            material: new MeshBasicMaterial({color: 0xff00ff, depthTest: false})
+        });
 
         const stop = window.performance.now();
 

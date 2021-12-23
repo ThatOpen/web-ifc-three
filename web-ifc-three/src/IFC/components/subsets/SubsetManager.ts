@@ -17,7 +17,7 @@ export type Subsets = {
  * this can extract all the items in a specific IfcBuildingStorey and create a new Mesh.
  */
 export class SubsetManager {
-    private readonly items: ItemsMap;
+    readonly items: ItemsMap;
     private readonly BVH: BvhManager;
     private state: IfcState;
     private subsets: Subsets = {};

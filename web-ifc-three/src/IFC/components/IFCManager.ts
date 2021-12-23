@@ -25,7 +25,7 @@ export class IFCManager {
 
     private BVH = new BvhManager();
     parser: ParserAPI = new IFCParser(this.state, this.BVH);
-    private subsets = new SubsetManager(this.state, this.BVH);
+    subsets = new SubsetManager(this.state, this.BVH);
     private properties: PropertyManagerAPI = new PropertyManager(this.state);
     private types = new TypeManager(this.state);
     private worker?: IFCWorkerHandler;
