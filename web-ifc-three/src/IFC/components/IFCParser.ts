@@ -1,16 +1,11 @@
 //@ts-ignore
-import { PlacedGeometry, Color as ifcColor, IfcGeometry, IFCSPACE, FlatMesh, IFCOPENINGELEMENT } from 'web-ifc';
-import { IfcState, IfcMesh } from '../BaseDefinitions';
 import {
-    Color,
-    MeshLambertMaterial,
-    DoubleSide,
-    Matrix4,
-    BufferGeometry,
-    BufferAttribute,
-    Mesh
+  BufferAttribute, BufferGeometry, Color, DoubleSide,
+  Matrix4, Mesh, MeshLambertMaterial
 } from 'three';
 import { mergeBufferGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils';
+import { Color as ifcColor, FlatMesh, IfcGeometry, IFCOPENINGELEMENT, IFCSPACE, PlacedGeometry } from 'web-ifc';
+import { IfcMesh, IfcState } from '../BaseDefinitions';
 import { BvhManager } from './BvhManager';
 import { IFCModel } from './IFCModel';
 
@@ -118,7 +113,7 @@ export class IFCParser implements ParserAPI {
         const combinedGeometry = mergeBufferGeometries(geometries, true);
         this.cleanUpGeometryMemory(geometries);
         if (this.BVH) this.BVH.applyThreeMeshBVH(combinedGeometry);
-        const model = new IFCModel(combinedGeometry, materials);
+        const model = new IFCModel(this.currentModelID, combinedGeometry, materials);
         this.state.models[this.currentModelID].mesh = model;
         return model;
     }

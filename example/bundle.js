@@ -87238,14 +87238,13 @@ function mergeBufferAttributes( attributes ) {
 
 }
 
-let modelIdCounter = 0;
 const nullIfcManagerErrorMessage = 'IfcManager is null!';
 
 class IFCModel extends Mesh {
 
-  constructor() {
-    super(...arguments);
-    this.modelID = modelIdCounter++;
+  constructor(modelID, geometry, material) {
+    super(geometry, material);
+    this.modelID = modelID;
     this.ifcManager = null;
     this.mesh = this;
   }
@@ -87401,7 +87400,7 @@ class IFCParser {
     this.cleanUpGeometryMemory(geometries);
     if (this.BVH)
       this.BVH.applyThreeMeshBVH(combinedGeometry);
-    const model = new IFCModel(combinedGeometry, materials);
+    const model = new IFCModel(this.currentModelID, combinedGeometry, materials);
     this.state.models[this.currentModelID].mesh = model;
     return model;
   }
@@ -89326,28 +89325,6 @@ class FlatMeshVector {
 
 }
 
-class SerializedMaterial {
-
-  constructor(material) {
-    this.color = [material.color.r, material.color.g, material.color.b];
-    this.opacity = material.opacity;
-    this.transparent = material.transparent;
-  }
-
-}
-
-class MaterialReconstructor {
-
-  static new(material) {
-    return new MeshLambertMaterial({
-      color: new Color(material.color[0], material.color[1], material.color[2]),
-      opacity: material.opacity,
-      transparent: material.transparent
-    });
-  }
-
-}
-
 class SerializedGeometry {
 
   constructor(geometry) {
@@ -89384,6 +89361,28 @@ class GeometryReconstructor {
 
 }
 
+class SerializedMaterial {
+
+  constructor(material) {
+    this.color = [material.color.r, material.color.g, material.color.b];
+    this.opacity = material.opacity;
+    this.transparent = material.transparent;
+  }
+
+}
+
+class MaterialReconstructor {
+
+  static new(material) {
+    return new MeshLambertMaterial({
+      color: new Color(material.color[0], material.color[1], material.color[2]),
+      opacity: material.opacity,
+      transparent: material.transparent
+    });
+  }
+
+}
+
 class SerializedMesh {
 
   constructor(model) {
@@ -89404,9 +89403,7 @@ class SerializedMesh {
 class MeshReconstructor {
 
   static new(serialized) {
-    const model = new IFCModel();
-    model.modelID = serialized.modelID;
-    model.geometry = GeometryReconstructor.new(serialized.geometry);
+    const model = new IFCModel(serialized.modelID, GeometryReconstructor.new(serialized.geometry));
     MeshReconstructor.getMaterials(serialized, model);
     return model;
   }
@@ -92347,7 +92344,7 @@ function intersectClosestTri( geo, side, ray, offset, count ) {
 
 // converts the given BVH raycast intersection to align with the three.js raycast
 // structure (include object, world space distance and point).
-function convertRaycastIntersect$1( hit, object, raycaster ) {
+function convertRaycastIntersect( hit, object, raycaster ) {
 
 	if ( hit === null ) {
 
@@ -94008,7 +94005,7 @@ MeshBVH.prototype.raycast = function ( ...args ) {
 		const results = originalRaycast.call( this, ray, mesh.material );
 		results.forEach( hit => {
 
-			hit = convertRaycastIntersect$1( hit, mesh, raycaster );
+			hit = convertRaycastIntersect( hit, mesh, raycaster );
 			if ( hit ) {
 
 				intersects.push( hit );
@@ -94037,7 +94034,7 @@ MeshBVH.prototype.raycastFirst = function ( ...args ) {
 			mesh, raycaster, ray,
 		] = args;
 
-		return convertRaycastIntersect$1( originalRaycastFirst.call( this, ray, mesh.material ), mesh, raycaster );
+		return convertRaycastIntersect( originalRaycastFirst.call( this, ray, mesh.material ), mesh, raycaster );
 
 	} else {
 
@@ -94168,32 +94165,6 @@ MeshBVH.prototype.refit = function ( ...args ) {
 
 } );
 
-// converts the given BVH raycast intersection to align with the three.js raycast
-// structure (include object, world space distance and point).
-function convertRaycastIntersect( hit, object, raycaster ) {
-
-	if ( hit === null ) {
-
-		return null;
-
-	}
-
-	hit.point.applyMatrix4( object.matrixWorld );
-	hit.distance = hit.point.distanceTo( raycaster.ray.origin );
-	hit.object = object;
-
-	if ( hit.distance < raycaster.near || hit.distance > raycaster.far ) {
-
-		return null;
-
-	} else {
-
-		return hit;
-
-	}
-
-}
-
 const ray = /* @__PURE__ */ new Ray();
 const tmpInverseMatrix = /* @__PURE__ */ new Matrix4();
 const origMeshRaycastFunc = Mesh.prototype.raycast;
@@ -94294,7 +94265,7 @@ class IfcManager {
     }
 
     async setupIfcLoader() {
-        // await this.ifcLoader.ifcManager.useWebWorkers(true, 'IFCWorker.js');
+        await this.ifcLoader.ifcManager.useWebWorkers(true, 'IFCWorker.js');
         this.setupThreeMeshBVH();
         this.setupFileOpener();
     }
@@ -94333,11 +94304,6 @@ class IfcManager {
             USE_FAST_BOOLS: false
         });
 
-        await this.ifcLoader.ifcManager.parser.setupOptionalCategories({
-            [IFCSPACE]: true,
-            [IFCOPENINGELEMENT]: false
-        });
-
         const ifcModel = await this.ifcLoader.loadAsync(ifcURL);
         console.log(ifcModel);
 
@@ -94349,16 +94315,6 @@ class IfcManager {
 
         this.ifcModels.push(ifcModel);
         this.scene.add(ifcModel);
-
-        const ids = await this.ifcLoader.ifcManager.getAllItemsOfType(0, IFCSPACE, false);
-        this.ifcLoader.ifcManager.createSubset({
-            modelID: 0,
-            ids,
-            applyBVH: false,
-            removePrevious: true,
-            scene: this.scene,
-            material: new MeshBasicMaterial({color: 0xff00ff, depthTest: false})
-        });
 
         const stop = window.performance.now();
 

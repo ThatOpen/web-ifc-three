@@ -1,8 +1,7 @@
-import { BufferGeometry, Material, Mesh, Object3D, Scene } from 'three';
-import { IFCManager } from './IFCManager';
+import { BufferGeometry, Material, Mesh, Scene } from 'three';
 import { BaseSubsetConfig } from '../BaseDefinitions';
+import { IFCManager } from './IFCManager';
 
-let modelIdCounter = 0;
 const nullIfcManagerErrorMessage = 'IfcManager is null!';
 
 /**
@@ -12,7 +11,11 @@ const nullIfcManagerErrorMessage = 'IfcManager is null!';
  * @manager contains all the logic to work with IFC.
  */
 export class IFCModel extends Mesh {
-    modelID = modelIdCounter++;
+    constructor (public readonly modelID: number,
+      geometry?: BufferGeometry, material?: Material | Material[]) {
+      super(geometry, material);
+    }
+
     ifcManager: IFCManager | null = null;
 
     /**

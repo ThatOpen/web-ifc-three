@@ -42183,12 +42183,11 @@ if ( typeof window !== 'undefined' ) {
 
 }
 
-let modelIdCounter = 0;
 const nullIfcManagerErrorMessage = 'IfcManager is null!';
 class IFCModel extends Mesh {
-    constructor() {
-        super(...arguments);
-        this.modelID = modelIdCounter++;
+    constructor(modelID, geometry, material) {
+        super(geometry, material);
+        this.modelID = modelID;
         this.ifcManager = null;
         this.mesh = this;
     }
@@ -42258,23 +42257,6 @@ class IFCModel extends Mesh {
     }
 }
 
-class SerializedMaterial {
-    constructor(material) {
-        this.color = [material.color.r, material.color.g, material.color.b];
-        this.opacity = material.opacity;
-        this.transparent = material.transparent;
-    }
-}
-class MaterialReconstructor {
-    static new(material) {
-        return new MeshLambertMaterial({
-            color: new Color(material.color[0], material.color[1], material.color[2]),
-            opacity: material.opacity,
-            transparent: material.transparent
-        });
-    }
-}
-
 class SerializedGeometry {
     constructor(geometry) {
         var _a, _b, _c, _d;
@@ -42302,6 +42284,23 @@ class GeometryReconstructor {
     }
 }
 
+class SerializedMaterial {
+    constructor(material) {
+        this.color = [material.color.r, material.color.g, material.color.b];
+        this.opacity = material.opacity;
+        this.transparent = material.transparent;
+    }
+}
+class MaterialReconstructor {
+    static new(material) {
+        return new MeshLambertMaterial({
+            color: new Color(material.color[0], material.color[1], material.color[2]),
+            opacity: material.opacity,
+            transparent: material.transparent
+        });
+    }
+}
+
 class SerializedMesh {
     constructor(model) {
         this.materials = [];
@@ -42319,9 +42318,7 @@ class SerializedMesh {
 }
 class MeshReconstructor {
     static new(serialized) {
-        const model = new IFCModel();
-        model.modelID = serialized.modelID;
-        model.geometry = GeometryReconstructor.new(serialized.geometry);
+        const model = new IFCModel(serialized.modelID, GeometryReconstructor.new(serialized.geometry));
         MeshReconstructor.getMaterials(serialized, model);
         return model;
     }
@@ -87225,7 +87222,7 @@ class IFCParser {
         this.cleanUpGeometryMemory(geometries);
         if (this.BVH)
             this.BVH.applyThreeMeshBVH(combinedGeometry);
-        const model = new IFCModel(combinedGeometry, materials);
+        const model = new IFCModel(this.currentModelID, combinedGeometry, materials);
         this.state.models[this.currentModelID].mesh = model;
         return model;
     }

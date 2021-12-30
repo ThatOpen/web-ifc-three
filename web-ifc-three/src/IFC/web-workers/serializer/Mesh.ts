@@ -1,7 +1,7 @@
-import { IFCModel } from '../../components/IFCModel';
 import { Material, MeshLambertMaterial } from 'three';
-import { MaterialReconstructor, SerializedMaterial } from './Material';
+import { IFCModel } from '../../components/IFCModel';
 import { GeometryReconstructor, SerializedGeometry } from './Geometry';
+import { MaterialReconstructor, SerializedMaterial } from './Material';
 
 export class SerializedMesh {
 
@@ -25,9 +25,8 @@ export class SerializedMesh {
 export class MeshReconstructor {
 
     static new(serialized: SerializedMesh) {
-        const model = new IFCModel();
-        model.modelID = serialized.modelID;
-        model.geometry = GeometryReconstructor.new(serialized.geometry);
+        const model = new IFCModel(serialized.modelID,
+          GeometryReconstructor.new(serialized.geometry));
         MeshReconstructor.getMaterials(serialized, model);
         return model;
     }
