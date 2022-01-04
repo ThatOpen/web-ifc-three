@@ -87802,6 +87802,15 @@ class SubsetManager {
     });
   }
 
+  clearSubset(modelID, customID, material) {
+    const subsetID = this.getSubsetID(modelID, material, customID);
+    if (!this.subsets[subsetID])
+      return;
+    this.subsets[subsetID].ids.clear();
+    const subset = this.getSubset(modelID, material, customID);
+    subset.geometry.setIndex([]);
+  }
+
   getSubsetID(modelID, material, customID = 'DEFAULT') {
     const baseID = modelID;
     const materialID = material ? material.uuid : 'DEFAULT';
@@ -90168,6 +90177,10 @@ class IFCManager {
 
   removeFromSubset(modelID, ids, customID, material) {
     return this.subsets.removeFromSubset(modelID, ids, customID, material);
+  }
+
+  clearSubset(modelID, customID, material) {
+    return this.subsets.clearSubset(modelID, customID, material);
   }
 
   async disposeMemory() {
@@ -94294,7 +94307,7 @@ class IfcManager {
     }
 
     async setupIfcLoader() {
-        // await this.ifcLoader.ifcManager.useWebWorkers(true, 'IFCWorker.js');
+        await this.ifcLoader.ifcManager.useWebWorkers(true, 'IFCWorker.js');
         this.setupThreeMeshBVH();
         this.setupFileOpener();
     }
@@ -94333,11 +94346,6 @@ class IfcManager {
             USE_FAST_BOOLS: false
         });
 
-        await this.ifcLoader.ifcManager.parser.setupOptionalCategories({
-            [IFCSPACE]: true,
-            [IFCOPENINGELEMENT]: false
-        });
-
         const ifcModel = await this.ifcLoader.loadAsync(ifcURL);
         console.log(ifcModel);
 
@@ -94349,16 +94357,6 @@ class IfcManager {
 
         this.ifcModels.push(ifcModel);
         this.scene.add(ifcModel);
-
-        const ids = await this.ifcLoader.ifcManager.getAllItemsOfType(0, IFCSPACE, false);
-        this.ifcLoader.ifcManager.createSubset({
-            modelID: 0,
-            ids,
-            applyBVH: false,
-            removePrevious: true,
-            scene: this.scene,
-            material: new MeshBasicMaterial({color: 0xff00ff, depthTest: false})
-        });
 
         const stop = window.performance.now();
 

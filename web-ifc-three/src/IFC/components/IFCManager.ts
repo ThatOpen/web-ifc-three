@@ -302,14 +302,33 @@ export class IFCManager {
      * - **modelID**: ID of the model.
      * - **ids**: Express IDs of the items of the model that will conform the subset.
      * - **removePrevious**: wether to remove the previous subset of this model with this material.
-     * - **material**: (optional) wether to apply a material to the subset
+     * - **material**: (optional) wether to apply a material to the subset.
+     * - **customID**: (optional) custom identifier to distinguish subsets of the same model with the same material.
      */
     createSubset(config: SubsetConfig) {
         return this.subsets.createSubset(config);
     }
 
+    /**
+     * Removes the specified items from the geometry of a subset.
+     * @modelID ID of the IFC model.
+     * @ids Express IDs of the items of the model that will conform the subset.
+     * @material (optional) Material assigned to the subset, if any.
+     * @customID (optional) custom identifier to distinguish subsets of the same model with the same material.
+     */
     removeFromSubset(modelID: number, ids: number[], customID?: string, material?: Material) {
         return this.subsets.removeFromSubset(modelID, ids, customID, material);
+    }
+
+    /**
+     * Removes all the geometry of a subset.
+     * @modelID ID of the IFC model.
+     * @ids Express IDs of the items of the model that will conform the subset.
+     * @material (optional) Material assigned to the subset, if any.
+     * @customID (optional) custom identifier to distinguish subsets of the same model with the same material.
+     */
+    clearSubset(modelID: number, customID?: string, material?: Material) {
+        return this.subsets.clearSubset(modelID, customID, material);
     }
 
     // MISC - Miscelaneus logic for various purposes

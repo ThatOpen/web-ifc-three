@@ -73,6 +73,13 @@ export class SubsetManager {
         });
     }
 
+    clearSubset(modelID: number, customID?: string, material?: Material) {
+        const subsetID = this.getSubsetID(modelID, material, customID);
+        if (!this.subsets[subsetID]) return;
+        this.subsets[subsetID].ids.clear();
+        const subset = this.getSubset(modelID, material, customID);
+        subset.geometry.setIndex([]);
+    }
 
     private getSubsetID(modelID: number, material?: Material, customID = 'DEFAULT') {
         const baseID = modelID;
