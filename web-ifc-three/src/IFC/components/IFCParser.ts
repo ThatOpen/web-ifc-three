@@ -1,5 +1,13 @@
 //@ts-ignore
-import { PlacedGeometry, Color as ifcColor, IfcGeometry, IFCSPACE, FlatMesh, IFCOPENINGELEMENT } from 'web-ifc';
+import {
+    PlacedGeometry,
+    Color as ifcColor,
+    IfcGeometry,
+    IFCSPACE,
+    FlatMesh,
+    IFCOPENINGELEMENT,
+    IFCPRODUCTDEFINITIONSHAPE
+} from 'web-ifc';
 import { IfcState, IfcMesh } from '../BaseDefinitions';
 import {
     Color,
@@ -51,6 +59,12 @@ export class IFCParser implements ParserAPI {
 
     private geometriesByMaterials: GeometriesByMaterial = {};
 
+    private loadingState = {
+        total: 0,
+        current: 0,
+        step: 0.1
+    }
+
     // Represents the index of the model in webIfcAPI
     private currentWebIfcID = -1;
     // When using JSON data for optimization, webIfcAPI is reinitialized every time a model is loaded
@@ -97,14 +111,16 @@ export class IFCParser implements ParserAPI {
     }
 
     private async loadAllGeometry(modelID: number) {
-
         this.addOptionalCategories(modelID);
+        await this.initializeLoadingState(modelID);
 
         this.state.api.StreamAllMeshes(modelID, (mesh: FlatMesh) => {
+            this.updateLoadingState();
             // only during the lifetime of this function call, the geometry is available in memory
             this.streamMesh(modelID, mesh);
         });
 
+        this.notifyLoadingEnded();
         const geometries: BufferGeometry[] = [];
         const materials: MeshLambertMaterial[] = [];
 
@@ -121,6 +137,26 @@ export class IFCParser implements ParserAPI {
         const model = new IFCModel(combinedGeometry, materials);
         this.state.models[this.currentModelID].mesh = model;
         return model;
+    }
+
+    private async initializeLoadingState(modelID: number) {
+        const shapes = await this.state.api.GetLineIDsWithType(modelID, IFCPRODUCTDEFINITIONSHAPE);
+        this.loadingState.total = shapes.size();
+        this.loadingState.current = 0;
+        this.loadingState.step = 0.1;
+    }
+
+    private notifyLoadingEnded() {
+        this.notifyProgress(this.loadingState.total, this.loadingState.total);
+    }
+
+    private updateLoadingState() {
+        const realCurrentItem = Math.min(this.loadingState.current++, this.loadingState.total);
+        if(realCurrentItem / this.loadingState.total >= this.loadingState.step) {
+            const currentProgress = Math.ceil(this.loadingState.total * this.loadingState.step);
+            this.notifyProgress(currentProgress, this.loadingState.total);
+            this.loadingState.step += 0.1;
+        }
     }
 
     // Some categories (like IfcSpace and IfcOpeningElement) need to be set explicitly

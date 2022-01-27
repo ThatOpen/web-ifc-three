@@ -87343,6 +87343,11 @@ class IFCParser {
       [IFCOPENINGELEMENT]: false
     };
     this.geometriesByMaterials = {};
+    this.loadingState = {
+      total: 0,
+      current: 0,
+      step: 0.1
+    };
     this.currentWebIfcID = -1;
     this.currentModelID = -1;
   }
@@ -87386,9 +87391,12 @@ class IFCParser {
 
   async loadAllGeometry(modelID) {
     this.addOptionalCategories(modelID);
+    await this.initializeLoadingState(modelID);
     this.state.api.StreamAllMeshes(modelID, (mesh) => {
+      this.updateLoadingState();
       this.streamMesh(modelID, mesh);
     });
+    this.notifyLoadingEnded();
     const geometries = [];
     const materials = [];
     Object.keys(this.geometriesByMaterials).forEach((key) => {
@@ -87404,6 +87412,26 @@ class IFCParser {
     const model = new IFCModel(combinedGeometry, materials);
     this.state.models[this.currentModelID].mesh = model;
     return model;
+  }
+
+  async initializeLoadingState(modelID) {
+    const shapes = await this.state.api.GetLineIDsWithType(modelID, IFCPRODUCTDEFINITIONSHAPE);
+    this.loadingState.total = shapes.size();
+    this.loadingState.current = 0;
+    this.loadingState.step = 0.1;
+  }
+
+  notifyLoadingEnded() {
+    this.notifyProgress(this.loadingState.total, this.loadingState.total);
+  }
+
+  updateLoadingState() {
+    const realCurrentItem = Math.min(this.loadingState.current++, this.loadingState.total);
+    if (realCurrentItem / this.loadingState.total >= this.loadingState.step) {
+      const currentProgress = Math.ceil(this.loadingState.total * this.loadingState.step);
+      this.notifyProgress(currentProgress, this.loadingState.total);
+      this.loadingState.step += 0.1;
+    }
   }
 
   addOptionalCategories(modelID) {
@@ -92360,7 +92388,7 @@ function intersectClosestTri( geo, side, ray, offset, count ) {
 
 // converts the given BVH raycast intersection to align with the three.js raycast
 // structure (include object, world space distance and point).
-function convertRaycastIntersect$1( hit, object, raycaster ) {
+function convertRaycastIntersect( hit, object, raycaster ) {
 
 	if ( hit === null ) {
 
@@ -94021,7 +94049,7 @@ MeshBVH.prototype.raycast = function ( ...args ) {
 		const results = originalRaycast.call( this, ray, mesh.material );
 		results.forEach( hit => {
 
-			hit = convertRaycastIntersect$1( hit, mesh, raycaster );
+			hit = convertRaycastIntersect( hit, mesh, raycaster );
 			if ( hit ) {
 
 				intersects.push( hit );
@@ -94050,7 +94078,7 @@ MeshBVH.prototype.raycastFirst = function ( ...args ) {
 			mesh, raycaster, ray,
 		] = args;
 
-		return convertRaycastIntersect$1( originalRaycastFirst.call( this, ray, mesh.material ), mesh, raycaster );
+		return convertRaycastIntersect( originalRaycastFirst.call( this, ray, mesh.material ), mesh, raycaster );
 
 	} else {
 
@@ -94180,32 +94208,6 @@ MeshBVH.prototype.refit = function ( ...args ) {
 	};
 
 } );
-
-// converts the given BVH raycast intersection to align with the three.js raycast
-// structure (include object, world space distance and point).
-function convertRaycastIntersect( hit, object, raycaster ) {
-
-	if ( hit === null ) {
-
-		return null;
-
-	}
-
-	hit.point.applyMatrix4( object.matrixWorld );
-	hit.distance = hit.point.distanceTo( raycaster.ray.origin );
-	hit.object = object;
-
-	if ( hit.distance < raycaster.near || hit.distance > raycaster.far ) {
-
-		return null;
-
-	} else {
-
-		return hit;
-
-	}
-
-}
 
 const ray = /* @__PURE__ */ new Ray();
 const tmpInverseMatrix = /* @__PURE__ */ new Matrix4();
