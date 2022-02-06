@@ -34,7 +34,7 @@
   },
   "dependencies": {
     "three-mesh-bvh": "^0.5.2",
-    "web-ifc": "^0.0.32"
+    "web-ifc": "^0.0.33"
   },
   "devDependencies": {
     "@babel/core": "^7.13.8",

@@ -30,7 +30,7 @@
   "dependencies": {
     "stats.js": "^0.17.0",
     "three": "^0.135.0",
-    "web-ifc": "^0.0.32",
+    "web-ifc": "^0.0.33",
     "web-ifc-three": "0.0.103"
   },
   "devDependencies": {
