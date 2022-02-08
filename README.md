@@ -1,17 +1,57 @@
-# web-ifc-three
+<p align="center">
+  <a href="https://ifcjs.github.io/info/">ifc.js</a>
+  |
+  <a href="https://ifcjs.github.io/info/docs/Guide/web-ifc-three/Introduction">documentation</a>
+  |
+  <a href="https://ifcjs.github.io/web-ifc-three/example/">demo</a>
+  |
+  <a href="https://discord.com/invite/g7Uzn2KSwB">discord</a>
+  |
+  <a href="https://github.com/tomvandig/web-ifc/tree/main/examples/usage/src">usage examples</a>
+  |
+  <a href="https://www.npmjs.com/package/web-ifc-three">npm package</a>
+  |
+  <a href="https://github.com/IFCjs/web-ifc-three/blob/main/contributing.md">contributing</a>
+</p>
 
-This library is the implementation of [web-ifc](https://github.com/tomvandig/web-ifc) for [THREE.js](https://github.com/mrdoob/three.js/). This allows to parse and generate the Three.js geometry of IFC models in JavaScript, both in the browser and on a Node server, as well as query the IFC data and override it. 
+<img src="banner.png">
+<h1>web-ifc-three <img src="https://ifcjs.github.io/info/img/logo.svg" width="32"></h1>
 
-Note that you should use the IFCLoader of Three.js. Use this package only if you want to test the latest features that haven't been merged to three yet.
+![npm](https://img.shields.io/npm/dw/web-ifc-three)
+![opencollective](https://opencollective.com/ifcjs/tiers/badge.svg)
 
-[Try it here!](https://ifcjs.github.io/web-ifc-three/example/)
+This library is the implementation of [web-ifc](https://github.com/tomvandig/web-ifc) for [THREE.js](https://github.com/mrdoob/three.js/). This allows to parse and generate the Three.js geometry of IFC models in JavaScript, both in the browser and on a Node server, as well as query the IFC data and override it.
+
+This is [the official IFCLoader of Three.js](https://github.com/mrdoob/three.js/).
+
+## Status
+
+**web-ifc-three** creates efficient geometries that you can add to your Three.js scene. You can then use the methods provided in our API to work with that geometry, including efficient selection, visibility, subset generation, etc.
+
+Similarly to web-ifc, although it is quite stable and fast already, web-ifc-three is in **pre-alpha status** until ifc support matures. The list of currently supported ifc elements, or level of support for different ifc types, is an undocumented work in progress.
+
+## Documentation
+
+Check out [our official docs](https://ifcjs.github.io/info/docs/Guide/web-ifc-three/Introduction) for API reference, guides and tutorials.
+
+## Install
+
+`npm install web-ifc-three`
+
+## Quick setup
+
+To set up a project quickly, check out our [hello world example](https://ifcjs.github.io/info/docs/Hello%20world).
 
 ## Content
 
-this project consists of the following folders:
+This project consists of the following folders:
 
-- **web-ifc-three**: contains the implementation of the IfcLoader for THREE.
+- **web-ifc-three**: contains the source code.
 
 - **example**: contains one example of how to use the library.
 
-It should be noted that in both cases the web-ifc .WASM file will be required. This file cannot be included in the general build and has to be in the root folder; otherwise, you have to specify its path with `setWasmPath`. You can find a tutorial for this [here](https://ifcjs.github.io/info/docs/Hello%20world). The correct functioning of this library with compressors like uglify or terser is not yet guaranteed.
+## Contributing
+
+Want to help out? Great!
+
+Please checkout [our contribution suggestsions](https://github.com/IFCjs/web-ifc-three/blob/main/contributing.md) or speak to us directly in [Discord](https://discord.gg/FXfyR4XrKT).
