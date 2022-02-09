@@ -7,7 +7,7 @@
   |
   <a href="https://discord.gg/FXfyR4XrKT">discord</a>
   |
-  <a href="https://github.com/tomvandig/web-ifc/tree/main/examples/usage/src">usage examples</a>
+  <a href="https://github.com/IFCjs/web-ifc-three/tree/master/example">usage example</a>
   |
   <a href="https://www.npmjs.com/package/web-ifc-three">npm package</a>
   |
