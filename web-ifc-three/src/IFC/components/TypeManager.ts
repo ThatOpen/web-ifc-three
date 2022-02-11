@@ -13,12 +13,14 @@ export class TypeManager {
     }
 
     async getAllTypes(worker?: IFCWorkerHandler){
-        for(let modelID in this.state.models){
-            const types = this.state.models[modelID].types;
-            if(Object.keys(types).length == 0) {
-                await this.getAllTypesOfModel(parseInt(modelID), worker);
-            }
-        }
+		for (let modelID in this.state.models) {
+			if (this.state.models.hasOwnProperty(modelID)) {
+				const types = this.state.models[modelID].types;
+				if (Object.keys(types).length == 0) {
+					await this.getAllTypesOfModel(parseInt(modelID), worker);
+				}
+			}
+		}
     }
 
     async getAllTypesOfModel(modelID: number, worker?: IFCWorkerHandler) {
