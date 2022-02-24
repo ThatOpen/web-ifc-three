@@ -54,4 +54,4 @@ This project consists of the following folders:
 
 Want to help out? Great!
 
-Please checkout [our contribution suggestsions](https://github.com/IFCjs/web-ifc-three/blob/main/contributing.md) or speak to us directly in [Discord](https://discord.gg/FXfyR4XrKT).
+Please checkout [our contribution suggestions](https://github.com/IFCjs/web-ifc-three/blob/main/CONTRIBUTING.md) or speak to us directly in [Discord](https://discord.gg/FXfyR4XrKT).
