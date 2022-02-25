@@ -34,9 +34,10 @@ export class TypeManager {
             for (let i = 0; i < size; i++) result[lines.get(i)] = element;
         }
         if(this.state.worker.active && worker) {
+            // TODO: When using web workers, store the type information there and request it to the worker
+            // Otherwise the type data is stored in 2 different places at the same time
             await worker.workerState.updateModelStateTypes(modelID, result);
-        } else {
-            this.state.models[modelID].types = result;
         }
+        this.state.models[modelID].types = result;
     }
 }

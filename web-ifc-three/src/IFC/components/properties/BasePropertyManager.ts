@@ -68,6 +68,9 @@ export class BasePropertyManager {
 
     protected getRelated(rel: any, propNames: pName, IDs: number[]) {
         const element = rel[propNames.relating];
+        if(!element) {
+            return console.warn(`The object with ID ${rel.expressID} has a broken reference.`);
+        }
         if (!Array.isArray(element)) IDs.push(element.value);
         else element.forEach((ele) => IDs.push(ele.value));
     }
