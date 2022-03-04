@@ -87471,7 +87471,7 @@ class IFCParser {
     const geometry = this.state.api.GetGeometry(modelID, placedGeometry.geometryExpressID);
     const verts = this.state.api.GetVertexArray(geometry.GetVertexData(), geometry.GetVertexDataSize());
     const indices = this.state.api.GetIndexArray(geometry.GetIndexData(), geometry.GetIndexDataSize());
-    const buffer = this.ifcGeometryToBuffer(expressID, verts, indices);
+    const buffer = this.ifcGeometryToBuffer(placedGeometry.geometryExpressID, verts, indices);
     geometry.delete();
     return buffer;
   }

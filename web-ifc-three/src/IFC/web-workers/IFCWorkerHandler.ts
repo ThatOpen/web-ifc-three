@@ -50,6 +50,10 @@ export class IFCWorkerHandler {
         });
     }
 
+    terminate() {
+        this.ifcWorker.terminate();
+    }
+
     async Close(): Promise<void> {
         await this.request(WorkerAPIs.webIfc, WorkerActions.Close);
     }

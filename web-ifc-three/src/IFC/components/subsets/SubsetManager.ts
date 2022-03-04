@@ -81,6 +81,10 @@ export class SubsetManager {
         subset.geometry.setIndex([]);
     }
 
+    dispose() {
+
+    }
+
     private getSubsetID(modelID: number, material?: Material, customID = 'DEFAULT') {
         const baseID = modelID;
         const materialID = material ? material.uuid : 'DEFAULT';

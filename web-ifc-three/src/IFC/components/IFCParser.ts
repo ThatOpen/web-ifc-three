@@ -200,7 +200,7 @@ export class IFCParser implements ParserAPI {
         const geometry = this.state.api.GetGeometry(modelID, placedGeometry.geometryExpressID) as IfcGeometry;
         const verts = this.state.api.GetVertexArray(geometry.GetVertexData(), geometry.GetVertexDataSize()) as Float32Array;
         const indices = this.state.api.GetIndexArray(geometry.GetIndexData(), geometry.GetIndexDataSize()) as Uint32Array;
-        const buffer = this.ifcGeometryToBuffer(expressID, verts, indices);
+        const buffer = this.ifcGeometryToBuffer(placedGeometry.geometryExpressID, verts, indices);
         //@ts-ignore
         geometry.delete();
         return buffer;

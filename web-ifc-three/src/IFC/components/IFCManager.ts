@@ -43,7 +43,6 @@ export class IFCManager {
         const model = await this.parser.parse(buffer, this.state.coordinationMatrix?.toArray()) as IFCModel;
         model.setIFCManager(this);
         this.state.useJSON ? await this.disposeMemory() : await this.types.getAllTypes(this.worker);
-        // this.hider.processCoordinates(model.modelID);
         return model;
     }
 
@@ -334,6 +333,34 @@ export class IFCManager {
     // MISC - Miscelaneus logic for various purposes
 
     /**
+     * Disposes all memory used by the IFCLoader, including WASM memory and the web worker.
+     * Use this if you want to destroy the object completely.
+     * If you want to load an IFC later, you'll need to create a new instance.
+     */
+    async dispose() {
+        // @ts-ignore
+        this.state.api = null;
+        if(this.state.worker.active) {
+            await this.worker?.Close();
+            // Todo: release all Three.js resources in worker
+            this.worker.terminate();
+        }
+
+        Object.keys(this.state.models).forEach(modelID => {
+            const model = this.state.models[modelID];
+            model.mesh.removeFromParent();
+            model.mesh.geometry.dispose();
+            model.mesh.material.forEach(mat => mat.dispose());
+            model.mesh = null;
+            model.types = null;
+            model.jsonData = null;
+        });
+
+        this.state.models = null;
+        this.state = null;
+    }
+
+    /**
      * Completely releases the WASM memory, thus drastically decreasing the memory use of the app.
      * Only use this in the following scenarios:
      * - If you don't need to access the properties of the IFC
@@ -343,6 +370,7 @@ export class IFCManager {
         if (this.state.worker.active) {
             await this.worker?.Close();
         } else {
+            this.state.api.Close();
             // @ts-ignore
             this.state.api = null;
             this.state.api = new WebIFC.IfcAPI();
