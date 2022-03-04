@@ -1,4 +1,4 @@
-export const IfcTypesMap:  {[key: number]: string} = {
+export let IfcTypesMap:  {[key: number]: string} = {
     3821786052: "IFCACTIONREQUEST",
     2296667514: "IFCACTOR",
     3630933823: "IFCACTORROLE",
