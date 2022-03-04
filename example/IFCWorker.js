@@ -85438,7 +85438,13 @@ class WebIfcWorker {
     }
     GetLine(data) {
         const args = data.args;
-        data.result = this.webIFC.GetLine(args.modelID, args.expressID, args.flatten);
+        try {
+            data.result = this.webIFC.GetLine(args.modelID, args.expressID, args.flatten);
+        }
+        catch (e) {
+            console.log(`There was a problem getting the properties of the item ${args.expressID}`);
+            data.result = {};
+        }
         this.worker.post(data);
     }
     GetLineIDsWithType(data) {
@@ -85599,6 +85605,9 @@ class BasePropertyManager {
     }
     getRelated(rel, propNames, IDs) {
         const element = rel[propNames.relating];
+        if (!element) {
+            return console.warn(`The object with ID ${rel.expressID} has a broken reference.`);
+        }
         if (!Array.isArray(element))
             IDs.push(element.value);
         else

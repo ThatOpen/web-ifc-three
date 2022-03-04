@@ -80,7 +80,12 @@ export class WebIfcWorker implements WebIfcWorkerAPI {
 
     GetLine(data: IfcEventData) {
         const args = data.args;
-        data.result = this.webIFC.GetLine(args.modelID, args.expressID, args.flatten);
+        try {
+           data.result = this.webIFC.GetLine(args.modelID, args.expressID, args.flatten);
+        } catch (e) {
+            console.log(`There was a problem getting the properties of the item ${args.expressID}`);
+            data.result = {};
+        }
         this.worker.post(data);
     }
 

@@ -1,6 +1,6 @@
 {
   "name": "web-ifc-three",
-  "version": "0.0.103",
+  "version": "0.0.104",
   "author": "IFC.js",
   "license": "MIT",
   "description": "This library is the implementation of [web-ifc](https://github.com/tomvandig/web-ifc) for [THREE.js](https://github.com/mrdoob/three.js/). This is the official IFCLoader of Three.js.",
@@ -28,7 +28,7 @@
     "build-worker": "rollup -c config/rollup-worker.config.js",
     "clean": "esformatter --config config/esformatter.config.json dist/IFCLoader.js -i",
     "build-example": "rollup -c ../example/rollup.config.js && npm run copy-wasm",
-    "publish-repo": "npm run build && cpy config/package.json dist && cd dist && npm publish",
+    "publish-repo": "npm run build && cpy package.json dist && cd dist && npm publish",
     "watch": "rollup -c config/rollup.config.js -w",
     "test": "jest"
   },
