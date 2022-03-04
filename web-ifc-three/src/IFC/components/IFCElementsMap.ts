@@ -1,4 +1,4 @@
-export const IfcElements: {[key: number]: string} = {
+export let IfcElements: {[key: number]: string} = {
   103090709: 'IFCPROJECT',
   4097777520: 'IFCSITE',
   4031249490: 'IFCBUILDING',

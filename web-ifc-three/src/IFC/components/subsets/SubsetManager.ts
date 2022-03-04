@@ -1,7 +1,7 @@
 import { Material, Mesh, Object3D } from 'three';
 import { SubsetConfig, IfcState } from '../../BaseDefinitions';
 import { BvhManager } from '../BvhManager';
-import { IndexedGeometry, ItemsMap } from './ItemsMap';
+import { ItemsMap } from './ItemsMap';
 import { SubsetCreator } from './SubsetCreator';
 
 export interface Subset extends Mesh {
@@ -81,8 +81,23 @@ export class SubsetManager {
         subset.geometry.setIndex([]);
     }
 
+    // Use this only for destroying the current IFCLoader instance
     dispose() {
+        this.items.dispose();
+        this.subsetCreator.dispose();
 
+        Object.values(this.subsets).forEach(subset => {
+            (subset.ids as any) = null;
+            subset.mesh.removeFromParent();
+            const mats = subset.mesh.material;
+            if(Array.isArray(mats)) mats.forEach(mat => mat.dispose());
+            else mats.dispose();
+            subset.mesh.geometry.dispose();
+            const geom = subset.mesh.geometry as any;
+            if(geom.disposeBoundsTree) geom.disposeBoundsTree();
+            (subset.mesh as any) = null;
+        });
+        (this.subsets as any) = null;
     }
 
     private getSubsetID(modelID: number, material?: Material, customID = 'DEFAULT') {

@@ -7,10 +7,12 @@ import {
     WorkerAPIs,
     WorkerStateAPI
 } from '../BaseDefinitions';
+import { MemoryCleaner } from '../../components/MemoryCleaner';
 
 export class StateWorker implements WorkerStateAPI {
 
     API = WorkerAPIs.workerState;
+    private cleaner?: MemoryCleaner;
 
     constructor(private worker: IfcWorkerAPI) {
     }
@@ -38,6 +40,13 @@ export class StateWorker implements WorkerStateAPI {
         if (!this.worker.state) throw new Error(ErrorRootStateNotAvailable);
         const model = this.getModel(data);
         model.types = data.args.types;
+        this.worker.post(data);
+    }
+
+    async dispose(data: IfcEventData): Promise<void> {
+        if(!this.worker.state) throw new Error("Error: no state was found in the worker");
+        if(!this.cleaner) this.cleaner = new MemoryCleaner(this.worker.state)
+        await this.cleaner!.dispose();
         this.worker.post(data);
     }
 

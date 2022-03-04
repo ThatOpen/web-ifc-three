@@ -9,6 +9,7 @@ export class IfcManager {
         this.ifcModels = ifcModels;
         this.ifcLoader = new IFCLoader();
         this.setupIfcLoader();
+        this.setupFileOpener();
 
         window.addEventListener('keydown', async (event) => {
             if(event.code === 'KeyX') {
@@ -22,6 +23,9 @@ export class IfcManager {
             }
             if(event.code === 'KeyD') {
                 await this.editSubset(IFCWINDOW);
+            }
+            if(event.code === 'KeyF') {
+                await this.releaseMemory();
             }
         })
     }
@@ -43,9 +47,8 @@ export class IfcManager {
     }
 
     async setupIfcLoader() {
-        await this.ifcLoader.ifcManager.useWebWorkers(true, 'IFCWorker.js');
+        // await this.ifcLoader.ifcManager.useWebWorkers(true, 'IFCWorker.js');
         this.setupThreeMeshBVH();
-        this.setupFileOpener();
     }
 
     setupFileOpener() {
@@ -54,16 +57,18 @@ export class IfcManager {
         input.addEventListener(
             'change',
             async (changed) => {
-                // await this.ifcLoader.ifcManager.useJSONData();
                 await this.loadIFC(changed);
             },
             false
         );
     }
 
-    // TODO: CleanUp() method to release webgl memory of IFCLoader
-    releaseMemory() {
-        this.ifcLoader.ifcManager.disposeMemory();
+    async releaseMemory() {
+        this.ifcModels.length = 0;
+        await this.ifcLoader.ifcManager.dispose();
+        this.ifcLoader = null;
+        this.ifcLoader = new IFCLoader();
+        await this.setupIfcLoader();
     }
 
     subset = {};
@@ -83,7 +88,7 @@ export class IfcManager {
         });
 
         const ifcModel = await this.ifcLoader.loadAsync(ifcURL);
-        console.log(ifcModel);
+        // console.log(ifcModel);
 
         if(firstModel){
             const matrixArr = await this.ifcLoader.ifcManager.ifcAPI.GetCoordinationMatrix(ifcModel.modelID);

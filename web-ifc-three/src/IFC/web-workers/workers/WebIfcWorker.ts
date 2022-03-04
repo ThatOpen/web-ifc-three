@@ -24,6 +24,11 @@ export class WebIfcWorker implements WebIfcWorkerAPI {
         this.worker.post(data);
     };
 
+    async DisposeWebIfc(data: IfcEventData) {
+        this.nullifyWebIfc();
+        this.worker.post(data);
+    }
+
     CloseModel(data: IfcEventData) {
         this.webIFC.CloseModel(data.args.modelID);
         this.worker.post(data);

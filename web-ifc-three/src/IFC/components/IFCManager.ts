@@ -11,6 +11,7 @@ import { BvhManager } from './BvhManager';
 import { LoaderSettings } from 'web-ifc';
 import { IFCWorkerHandler } from '../web-workers/IFCWorkerHandler';
 import { PropertyManagerAPI } from './properties/BaseDefinitions';
+import { MemoryCleaner } from './MemoryCleaner';
 
 /**
  * Contains all the logic to work with the loaded IFC files (select, edit, etc).
@@ -28,6 +29,7 @@ export class IFCManager {
     subsets = new SubsetManager(this.state, this.BVH);
     private properties: PropertyManagerAPI = new PropertyManager(this.state);
     private types = new TypeManager(this.state);
+    private cleaner = new MemoryCleaner(this.state);
     private worker?: IFCWorkerHandler;
 
     /**
@@ -42,7 +44,8 @@ export class IFCManager {
     async parse(buffer: ArrayBuffer) {
         const model = await this.parser.parse(buffer, this.state.coordinationMatrix?.toArray()) as IFCModel;
         model.setIFCManager(this);
-        this.state.useJSON ? await this.disposeMemory() : await this.types.getAllTypes(this.worker);
+        // this.state.useJSON ? await this.disposeMemory() : await this.types.getAllTypes(this.worker);
+        await this.types.getAllTypes(this.worker);
         return model;
     }
 
@@ -127,6 +130,7 @@ export class IFCManager {
     }
 
     /**
+     * @deprecated This approach had sense when the compute-heavy operations were blocking. If you are facing performance issues, you can either use webworkers or use the approach used in web-ifc-viewer to work with JSON and glTF. If you have any question regarding this, check out the docs or ask us direclty.
      * Enables the JSON mode (which consumes way less memory) and eliminates the WASM data.
      * Only use this in the following scenarios:
      * - If you don't need to access the properties of the IFC
@@ -141,6 +145,7 @@ export class IFCManager {
     }
 
     /**
+     * @deprecated This approach had sense when the compute-heavy operations were blocking. If you are facing performance issues, you can either use webworkers or use the approach used in web-ifc-viewer to work with JSON and glTF. If you have any question regarding this, check out the docs or ask us direclty.
      * Adds the properties of a model as JSON data. If you are using web workers, use
      * `loadJsonDataFromWorker()` instead to avoid overheads.
      * @modelID ID of the IFC model.
@@ -157,6 +162,7 @@ export class IFCManager {
     }
 
     /**
+     * @deprecated This approach had sense when the compute-heavy operations were blocking. If you are facing performance issues, you can either use webworkers or use the approach used in web-ifc-viewer to work with JSON and glTF. If you have any question regarding this, check out the docs or ask us direclty.
      * Loads the data of an IFC model from a JSON file directly from a web worker. If you are not using
      * web workers, use `addModelJSONData()` instead.
      * @modelID ID of the IFC model.
@@ -338,29 +344,14 @@ export class IFCManager {
      * If you want to load an IFC later, you'll need to create a new instance.
      */
     async dispose() {
-        // @ts-ignore
-        this.state.api = null;
-        if(this.state.worker.active) {
-            await this.worker?.Close();
-            // Todo: release all Three.js resources in worker
-            this.worker.terminate();
-        }
-
-        Object.keys(this.state.models).forEach(modelID => {
-            const model = this.state.models[modelID];
-            model.mesh.removeFromParent();
-            model.mesh.geometry.dispose();
-            model.mesh.material.forEach(mat => mat.dispose());
-            model.mesh = null;
-            model.types = null;
-            model.jsonData = null;
-        });
-
-        this.state.models = null;
-        this.state = null;
+        await this.cleaner.dispose();
+        this.subsets.dispose();
+        if(this.worker && this.state.worker.active) await this.worker.terminate();
+        (this.state as any) = null;
     }
 
     /**
+     * @deprecated This approach had sense when the compute-heavy operations were blocking. If you are facing performance issues, you can either use webworkers or use the approach used in web-ifc-viewer to work with JSON and glTF. If you have any question regarding this, check out the docs or ask us direclty.
      * Completely releases the WASM memory, thus drastically decreasing the memory use of the app.
      * Only use this in the following scenarios:
      * - If you don't need to access the properties of the IFC
@@ -370,9 +361,9 @@ export class IFCManager {
         if (this.state.worker.active) {
             await this.worker?.Close();
         } else {
-            this.state.api.Close();
             // @ts-ignore
-            this.state.api = null;
+            this.state.api.Close();
+            (this.state.api as any) = null;
             this.state.api = new WebIFC.IfcAPI();
         }
     }

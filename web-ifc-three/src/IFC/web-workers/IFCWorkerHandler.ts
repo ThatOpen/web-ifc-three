@@ -1,13 +1,12 @@
-import {IfcEventData, WorkerActions, WorkerAPIs} from './BaseDefinitions';
-import {Serializer} from './serializer/Serializer';
-import {PropertyHandler} from './handlers/PropertyHandler';
-import {WebIfcHandler} from './handlers/WebIfcHandler';
-import {IfcState} from '../BaseDefinitions';
-import {WorkerStateHandler} from './handlers/WorkerStateHandler';
-import {ParserHandler} from './handlers/ParserHandler';
-import {BVH} from 'three/examples/jsm/loaders/BVHLoader';
-import {BvhManager} from '../components/BvhManager';
-import {IndexedDatabase} from "../indexedDB/IndexedDatabase";
+import { IfcEventData, WorkerActions, WorkerAPIs } from './BaseDefinitions';
+import { Serializer } from './serializer/Serializer';
+import { PropertyHandler } from './handlers/PropertyHandler';
+import { WebIfcHandler } from './handlers/WebIfcHandler';
+import { IfcState } from '../BaseDefinitions';
+import { WorkerStateHandler } from './handlers/WorkerStateHandler';
+import { ParserHandler } from './handlers/ParserHandler';
+import { BvhManager } from '../components/BvhManager';
+import { IndexedDatabase } from '../indexedDB/IndexedDatabase';
 
 export class IFCWorkerHandler {
 
@@ -50,7 +49,9 @@ export class IFCWorkerHandler {
         });
     }
 
-    terminate() {
+    async terminate() {
+        await this.request(WorkerAPIs.workerState, WorkerActions.dispose);
+        await this.request(WorkerAPIs.webIfc, WorkerActions.DisposeWebIfc);
         this.ifcWorker.terminate();
     }
 
