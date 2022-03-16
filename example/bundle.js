@@ -90055,6 +90055,295 @@ class IFCWorkerHandler {
 
 }
 
+class IFCUtils {
+
+  constructor(state) {
+    this.state = state;
+    this.map = {};
+  }
+
+  getMapping() {
+    this.map = this.reverseElementMapping(IfcTypesMap);
+  }
+
+  releaseMapping() {
+    this.map = {};
+  }
+
+  reverseElementMapping(obj) {
+    let reverseElement = {};
+    Object.keys(obj).forEach(key => {
+      reverseElement[obj[key]] = key;
+    });
+    return reverseElement;
+  }
+
+  isA(entity, entity_class) {
+    var test = false;
+    if (entity_class) {
+      if (IfcTypesMap[entity.type] === entity_class.toUpperCase()) {
+        test = true;
+      }
+      return test;
+    } else {
+      return IfcTypesMap[entity.type];
+    }
+  }
+
+  async byId(modelID, id) {
+    return this.state.api.GetLine(modelID, id);
+  }
+
+  async idsByType(modelID, entity_class) {
+    this.getMapping();
+    let entities_ids = await this.state.api.GetLineIDsWithType(modelID, Number(this.map[entity_class.toUpperCase()]));
+    this.releaseMapping();
+    return entities_ids;
+  }
+
+  async byType(modelID, entity_class) {
+    let entities_ids = await this.idsByType(modelID, entity_class);
+    if (entities_ids !== null) {
+      this.getMapping();
+      let items = [];
+      for (let i = 0; i < entities_ids.size(); i++) {
+        let entity = await this.byId(modelID, entities_ids.get(i));
+        items.push(entity);
+      }
+      this.releaseMapping();
+      return items;
+    }
+  }
+
+}
+
+class Data {
+
+  constructor(state) {
+    this.state = state;
+    this.is_loaded = false;
+    this.work_plans = {};
+    this.workSchedules = {};
+    this.work_calendars = {};
+    this.work_times = {};
+    this.recurrence_patterns = {};
+    this.time_periods = {};
+    this.tasks = {};
+    this.task_times = {};
+    this.lag_times = {};
+    this.sequences = {};
+    this.utils = new IFCUtils(this.state);
+  }
+
+  async load(modelID) {
+    await this.loadTasks(modelID);
+    this.loadWorkSchedules(modelID);
+  }
+
+  async loadWorkSchedules(modelID) {
+    let workSchedules = await this.utils.byType(modelID, "IfcWorkSchedule");
+    for (let i = 0; i < workSchedules.length; i++) {
+      let workSchedule = workSchedules[i];
+      this.workSchedules[workSchedule.expressID] = {
+        "Id": workSchedule.expressID,
+        "Name": workSchedule.Name.value,
+        "Description": ((workSchedule.Description) ? workSchedule.Description.value : ""),
+        "Creators": [],
+        "CreationDate": ((workSchedule.CreationDate) ? workSchedule.CreationDate.value : ""),
+        "StartTime": ((workSchedule.StartTime) ? workSchedule.StartTime.value : ""),
+        "FinishTime": ((workSchedule.FinishTime) ? workSchedule.FinishTime.value : ""),
+        "TotalFloat": ((workSchedule.TotalFloat) ? workSchedule.TotalFloat.value : ""),
+        "RelatedObjects": [],
+      };
+    }
+    this.loadWorkScheduleRelatedObjects(modelID);
+  }
+
+  async loadWorkScheduleRelatedObjects(modelID) {
+    let relsControls = await this.utils.byType(modelID, "IfcRelAssignsToControl");
+    console.log("Rel Controls:", relsControls);
+    for (let i = 0; i < relsControls.length; i++) {
+      let relControls = relsControls[i];
+      let relatingControl = await this.utils.byId(modelID, relControls.RelatingControl.value);
+      let relatedObjects = relControls.RelatedObjects;
+      if (this.utils.isA(relatingControl, "IfcWorkSchedule")) {
+        for (var objectIndex = 0; objectIndex < relatedObjects.length; objectIndex++) {
+          this.workSchedules[relatingControl.expressID]["RelatedObjects"].push(relatedObjects[objectIndex].value);
+        }
+      }
+    }
+  }
+
+  async loadTasks(modelID) {
+    let tasks = await this.utils.byType(modelID, "IfcTask");
+    for (let i = 0; i < tasks.length; i++) {
+      let task = tasks[i];
+      this.tasks[task.expressID] = {
+        "Id": task.expressID,
+        "Name": task.Name.value,
+        "TaskTime": ((task.TaskTime) ? await this.utils.byId(modelID, task.TaskTime.value) : ""),
+        "Identification": task.Identification.value,
+        "IsMilestone": task.IsMilestone.value,
+        "IsPredecessorTo": [],
+        "IsSucessorFrom": [],
+        "Inputs": [],
+        "Resources": [],
+        "Outputs": [],
+        "Controls": [],
+        "Nests": [],
+        "IsNestedBy": [],
+        "OperatesOn": [],
+      };
+    }
+    await this.loadTaskSequence(modelID);
+    await this.loadTaskOutputs(modelID);
+    await this.loadTaskNesting(modelID);
+    await this.loadTaskOperations(modelID);
+  }
+
+  async loadTaskSequence(modelID) {
+    let relsSequence = await this.utils.idsByType(modelID, "IfcRelSequence");
+    for (let i = 0; i < relsSequence.size(); i++) {
+      let relSequenceId = relsSequence.get(i);
+      if (relSequenceId !== 0) {
+        let relSequence = await this.utils.byId(modelID, relSequenceId);
+        let related_process = relSequence.RelatedProcess.value;
+        let relatingProcess = relSequence.RelatingProcess.value;
+        this.tasks[relatingProcess]["IsPredecessorTo"].push(relSequence.expressID);
+        let successorData = {
+          "RelId": relSequence.expressID,
+          "Rel": relSequence
+        };
+        this.tasks[related_process]["IsSucessorFrom"].push(successorData);
+      }
+    }
+  }
+
+  async loadTaskOutputs(modelID) {
+    let rels_assigns_to_product = await this.utils.byType(modelID, "IfcRelAssignsToProduct");
+    for (let i = 0; i < rels_assigns_to_product.length; i++) {
+      let relAssignsToProduct = rels_assigns_to_product[i];
+      let relatingProduct = await this.utils.byId(modelID, relAssignsToProduct.RelatingProduct.value);
+      let relatedObject = await this.utils.byId(modelID, relAssignsToProduct.RelatedObjects[0].value);
+      if (this.utils.isA(relatedObject, "IfcTask")) {
+        this.tasks[relatedObject.expressID]["Outputs"].push(relatingProduct.expressID);
+      }
+    }
+  }
+
+  async loadTaskNesting(modelID) {
+    let rels_nests = await this.utils.byType(modelID, "IfcRelNests");
+    for (let i = 0; i < rels_nests.length; i++) {
+      let relNests = rels_nests[i];
+      let relating_object = await this.utils.byId(modelID, relNests.RelatingObject.value);
+      let relatedObjects = relNests.RelatedObjects;
+      if (this.utils.isA(relating_object, "IfcTask")) {
+        for (var object_index = 0; object_index < relatedObjects.length; object_index++) {
+          this.tasks[relating_object.expressID]["IsNestedBy"].push(relatedObjects[object_index].value);
+          this.tasks[relatedObjects[object_index].value]["Nests"].push(relating_object.expressID);
+        }
+      }
+    }
+  }
+
+  async loadTaskOperations(modelID) {
+    let relsAssignsToProcess = await this.utils.byType(modelID, "IfcRelAssignsToProcess");
+    for (let i = 0; i < relsAssignsToProcess.length; i++) {
+      let relAssignToProcess = relsAssignsToProcess[i];
+      let relatingProcess = await this.utils.byId(modelID, relAssignToProcess.RelatingProcess.value);
+      let relatedObjects = relAssignToProcess.RelatedObjects;
+      if (this.utils.isA(relatingProcess, "IfcTask")) {
+        for (var object_index = 0; object_index < relatedObjects.length; object_index++) {
+          this.tasks[relatingProcess.expressID]["OperatesOn"].push(relatedObjects[object_index].value);
+          console.log(relatingProcess.expressID);
+          console.log("Has Operations");
+        }
+      }
+    }
+  }
+
+}
+
+class IFC2JSGANTT {
+
+  constructor(workSchedule) {
+    this.workSchedule = workSchedule;
+    this.taskData = {};
+    this.jsWorkSchedule = [];
+    this.sequenceTypeMap = {};
+    this.data = {};
+    this.setTaskSource(workSchedule);
+  }
+
+  setTaskSource(source) {
+    this.workSchedule = source;
+  }
+
+  setSequenceTypeMap() {
+    this.sequenceTypeMap = {
+      null: "FS",
+      "START_START": "SS",
+      "START_FINISH": "SF",
+      "FINISH_START": "FS",
+      "FINISH_FINISH": "FF",
+      "USERDEFINED": "FS",
+      "NOTDEFINED": "FS",
+    };
+  }
+
+  async getJsGanttTaskJson() {
+    this.setSequenceTypeMap();
+    for (let taskID in this.workSchedule) {
+      await this.createNewTaskJson(this.workSchedule, taskID);
+    }
+    this.sequenceTypeMap = {};
+    return this.jsWorkSchedule;
+  }
+
+  async createNewTaskJson(scheduleData, taskID) {
+    let task = scheduleData[taskID];
+    this.data = {
+      "pID": task.Id.toString(),
+      "pName": task.Name,
+      "pStart": ((task.TaskTime !== "") ? task.TaskTime.ScheduleStart.value : ""),
+      "pEnd": ((task.TaskTime !== "") ? task.TaskTime.ScheduleFinish.value : ""),
+      "pPlanStart": ((task.TaskTime !== "") ? task.TaskTime.ScheduleStart.value : ""),
+      "pPlanEnd": ((task.TaskTime !== "") ? task.TaskTime.ScheduleFinish.value : ""),
+      "pComp": 0,
+      "pMile": ((task.IsMilestone == "T") ? 1 : 0),
+      "pGroup": ((task.IsNestedBy[0] > 0) ? 1 : 0),
+      "pParent": ((task.Nests[0] > 0) ? task.Nests[0] : 0),
+      "pOpen": 1,
+      "pCost": 1,
+    };
+    if (task.TaskTime != "" && task.TaskTime.IsCritical != null && task.TaskTime.IsCritical.value == 'T') {
+      this.data["pClass"] = "gtaskred";
+    } else if (this.data["pGroup"] == 1) {
+      this.data["pClass"] = "ggroupblack";
+    } else if (task.IsMilestone == "T") {
+      this.data["pClass"] = "gmilestone";
+    } else {
+      this.data["pClass"] = "gtaskblue";
+    }
+    if (task.IsSucessorFrom != null) {
+      for (let index in task.IsSucessorFrom) {
+        let relSequence = task.IsSucessorFrom[index].Rel;
+        let sequenceType = relSequence.SequenceType.value;
+        let relatingProcess = relSequence.RelatingProcess.value;
+        sequenceType = this.sequenceTypeMap[sequenceType];
+        let relData = relatingProcess.toString().concat(sequenceType);
+        this.data["pDepend"] = relData;
+      }
+    }
+    this.jsWorkSchedule.push(this.data);
+    for (let relatedObjectIndex in task.IsNestedBy) {
+      let taskID = task.IsNestedBy[relatedObjectIndex];
+      await this.createNewTaskJson(scheduleData, taskID);
+    }
+  }
+
+}
+
 class IFCManager {
 
   constructor() {
@@ -90070,6 +90359,8 @@ class IFCManager {
     this.BVH = new BvhManager();
     this.parser = new IFCParser(this.state, this.BVH);
     this.subsets = new SubsetManager(this.state, this.BVH);
+    this.utils = new IFCUtils(this.state);
+    this.sequenceData = new Data(this.state);
     this.properties = new PropertyManager(this.state);
     this.types = new TypeManager(this.state);
   }
@@ -90213,6 +90504,32 @@ class IFCManager {
 
   clearSubset(modelID, customID, material) {
     return this.subsets.clearSubset(modelID, customID, material);
+  }
+
+  async isA(entity, entity_class) {
+    return this.utils.isA(entity, entity_class);
+  }
+
+  async getSequenceData(modelID) {
+    await this.sequenceData.load(modelID);
+    return this.sequenceData;
+  }
+
+  async getJSGantt(taskData) {
+    let ifc2JSGantt = new IFC2JSGANTT(taskData);
+    return ifc2JSGantt.getJsGanttTaskJson();
+  }
+
+  async byType(modelID, entityClass) {
+    return this.utils.byType(modelID, entityClass);
+  }
+
+  async byId(modelID, id) {
+    return this.utils.byId(modelID, id);
+  }
+
+  async idsByType(modelID, entityClass) {
+    return this.utils.idsByType(modelID, entityClass);
   }
 
   async disposeMemory() {
@@ -90370,6 +90687,33 @@ function unionBounds( a, b, target ) {
 		aVal = a[ d3 ];
 		bVal = b[ d3 ];
 		target[ d3 ] = aVal > bVal ? aVal : bVal;
+
+	}
+
+}
+
+// expands the given bounds by the provided triangle bounds
+function expandByTriangleBounds( startIndex, triangleBounds, bounds ) {
+
+	for ( let d = 0; d < 3; d ++ ) {
+
+		const tCenter = triangleBounds[ startIndex + 2 * d ];
+		const tHalf = triangleBounds[ startIndex + 2 * d + 1 ];
+
+		const tMin = tCenter - tHalf;
+		const tMax = tCenter + tHalf;
+
+		if ( tMin < bounds[ d ] ) {
+
+			bounds[ d ] = tMin;
+
+		}
+
+		if ( tMax > bounds[ d + 3 ] ) {
+
+			bounds[ d + 3 ] = tMax;
+
+		}
 
 	}
 
@@ -90629,6 +90973,7 @@ function partition( index, triangleBounds, offset, count, split ) {
 }
 
 const BIN_COUNT = 32;
+const binsSort = ( a, b ) => a.candidate - b.candidate;
 const sahBins = new Array( BIN_COUNT ).fill().map( () => {
 
 	return {
@@ -90636,6 +90981,7 @@ const sahBins = new Array( BIN_COUNT ).fill().map( () => {
 		count: 0,
 		bounds: new Float32Array( 6 ),
 		rightCacheBounds: new Float32Array( 6 ),
+		leftCacheBounds: new Float32Array( 6 ),
 		candidate: 0,
 
 	};
@@ -90682,126 +91028,224 @@ function getOptimalSplit( nodeBoundingData, centroidBoundingData, triangleBounds
 			const axisLength = axisRight - axisLeft;
 			const binWidth = axisLength / BIN_COUNT;
 
-			// reset the bins
-			for ( let i = 0; i < BIN_COUNT; i ++ ) {
+			// If we have fewer triangles than we're planning to split then just check all
+			// the triangle positions because it will be faster.
+			if ( count < BIN_COUNT / 4 ) {
 
-				const bin = sahBins[ i ];
-				bin.count = 0;
-				bin.candidate = axisLeft + binWidth + i * binWidth;
+				// initialize the bin candidates
+				const truncatedBins = [ ...sahBins ];
+				truncatedBins.length = count;
 
-				const bounds = bin.bounds;
-				for ( let d = 0; d < 3; d ++ ) {
+				// set the candidates
+				let b = 0;
+				for ( let c = cStart; c < cEnd; c += 6, b ++ ) {
 
-					bounds[ d ] = Infinity;
-					bounds[ d + 3 ] = - Infinity;
+					const bin = truncatedBins[ b ];
+					bin.candidate = triangleBounds[ c + 2 * a ];
+					bin.count = 0;
 
-				}
+					const {
+						bounds,
+						leftCacheBounds,
+						rightCacheBounds,
+					} = bin;
+					for ( let d = 0; d < 3; d ++ ) {
 
-			}
+						rightCacheBounds[ d ] = Infinity;
+						rightCacheBounds[ d + 3 ] = - Infinity;
 
-			// iterate over all center positions
-			for ( let c = cStart; c < cEnd; c += 6 ) {
+						leftCacheBounds[ d ] = Infinity;
+						leftCacheBounds[ d + 3 ] = - Infinity;
 
-				const triCenter = triangleBounds[ c + 2 * a ];
-				const relativeCenter = triCenter - axisLeft;
-
-				// in the partition function if the centroid lies on the split plane then it is
-				// considered to be on the right side of the split
-				let binIndex = ~ ~ ( relativeCenter / binWidth );
-				if ( binIndex >= BIN_COUNT ) binIndex = BIN_COUNT - 1;
-
-				const bin = sahBins[ binIndex ];
-				bin.count ++;
-
-				const bounds = bin.bounds;
-				for ( let d = 0; d < 3; d ++ ) {
-
-					const tCenter = triangleBounds[ c + 2 * d ];
-					const tHalf = triangleBounds[ c + 2 * d + 1 ];
-
-					const tMin = tCenter - tHalf;
-					const tMax = tCenter + tHalf;
-
-					if ( tMin < bounds[ d ] ) {
-
-						bounds[ d ] = tMin;
+						bounds[ d ] = Infinity;
+						bounds[ d + 3 ] = - Infinity;
 
 					}
 
-					if ( tMax > bounds[ d + 3 ] ) {
-
-						bounds[ d + 3 ] = tMax;
-
-					}
+					expandByTriangleBounds( c, triangleBounds, bounds );
 
 				}
 
-			}
+				truncatedBins.sort( binsSort );
 
-			// cache the unioned bounds from right to left so we don't have to regenerate them each time
-			const lastBin = sahBins[ BIN_COUNT - 1 ];
-			copyBounds( lastBin.bounds, lastBin.rightCacheBounds );
-			for ( let i = BIN_COUNT - 2; i >= 0; i -- ) {
+				// remove redundant splits
+				let splitCount = count;
+				for ( let bi = 0; bi < splitCount; bi ++ ) {
 
-				const bin = sahBins[ i ];
-				const nextBin = sahBins[ i + 1 ];
-				unionBounds( bin.bounds, nextBin.rightCacheBounds, bin.rightCacheBounds );
+					const bin = truncatedBins[ bi ];
+					while ( bi + 1 < splitCount && truncatedBins[ bi + 1 ].candidate === bin.candidate ) {
 
-			}
-
-			let leftCount = 0;
-			for ( let i = 0; i < BIN_COUNT - 1; i ++ ) {
-
-				const bin = sahBins[ i ];
-				const binCount = bin.count;
-				const bounds = bin.bounds;
-
-				const nextBin = sahBins[ i + 1 ];
-				const rightBounds = nextBin.rightCacheBounds;
-
-				// dont do anything with the bounds if the new bounds have no triangles
-				if ( binCount !== 0 ) {
-
-					if ( leftCount === 0 ) {
-
-						copyBounds( bounds, leftBounds );
-
-					} else {
-
-						unionBounds( bounds, leftBounds, leftBounds );
+						truncatedBins.splice( bi + 1, 1 );
+						splitCount --;
 
 					}
 
 				}
 
-				leftCount += binCount;
+				// find the appropriate bin for each triangle and expand the bounds.
+				for ( let c = cStart; c < cEnd; c += 6 ) {
 
-				// check the cost of this split
-				let leftProb = 0;
-				let rightProb = 0;
+					const center = triangleBounds[ c + 2 * a ];
+					for ( let bi = 0; bi < splitCount; bi ++ ) {
 
-				if ( leftCount !== 0 ) {
+						const bin = truncatedBins[ bi ];
+						if ( center >= bin.candidate ) {
 
-					leftProb = computeSurfaceArea( leftBounds ) / rootSurfaceArea;
+							expandByTriangleBounds( c, triangleBounds, bin.rightCacheBounds );
+
+						} else {
+
+							expandByTriangleBounds( c, triangleBounds, bin.leftCacheBounds );
+							bin.count ++;
+
+						}
+
+					}
 
 				}
 
-				const rightCount = count - leftCount;
-				if ( rightCount !== 0 ) {
+				// expand all the bounds
+				for ( let bi = 0; bi < splitCount; bi ++ ) {
 
-					rightProb = computeSurfaceArea( rightBounds ) / rootSurfaceArea;
+					const bin = truncatedBins[ bi ];
+					const leftCount = bin.count;
+					const rightCount = count - bin.count;
+
+					// check the cost of this split
+					const leftBounds = bin.leftCacheBounds;
+					const rightBounds = bin.rightCacheBounds;
+
+					let leftProb = 0;
+					if ( leftCount !== 0 ) {
+
+						leftProb = computeSurfaceArea( leftBounds ) / rootSurfaceArea;
+
+					}
+
+					let rightProb = 0;
+					if ( rightCount !== 0 ) {
+
+						rightProb = computeSurfaceArea( rightBounds ) / rootSurfaceArea;
+
+					}
+
+					const cost = TRAVERSAL_COST + TRIANGLE_INTERSECT_COST * (
+						leftProb * leftCount + rightProb * rightCount
+					);
+
+					if ( cost < bestCost ) {
+
+						axis = a;
+						bestCost = cost;
+						pos = bin.candidate;
+
+					}
 
 				}
 
-				const cost = TRAVERSAL_COST + TRIANGLE_INTERSECT_COST * (
-					leftProb * leftCount + rightProb * rightCount
-				);
+			} else {
 
-				if ( cost < bestCost ) {
+				// reset the bins
+				for ( let i = 0; i < BIN_COUNT; i ++ ) {
 
-					axis = a;
-					bestCost = cost;
-					pos = bin.candidate;
+					const bin = sahBins[ i ];
+					bin.count = 0;
+					bin.candidate = axisLeft + binWidth + i * binWidth;
+
+					const bounds = bin.bounds;
+					for ( let d = 0; d < 3; d ++ ) {
+
+						bounds[ d ] = Infinity;
+						bounds[ d + 3 ] = - Infinity;
+
+					}
+
+				}
+
+				// iterate over all center positions
+				for ( let c = cStart; c < cEnd; c += 6 ) {
+
+					const triCenter = triangleBounds[ c + 2 * a ];
+					const relativeCenter = triCenter - axisLeft;
+
+					// in the partition function if the centroid lies on the split plane then it is
+					// considered to be on the right side of the split
+					let binIndex = ~ ~ ( relativeCenter / binWidth );
+					if ( binIndex >= BIN_COUNT ) binIndex = BIN_COUNT - 1;
+
+					const bin = sahBins[ binIndex ];
+					bin.count ++;
+
+					expandByTriangleBounds( c, triangleBounds, bin.bounds );
+
+				}
+
+				// cache the unioned bounds from right to left so we don't have to regenerate them each time
+				const lastBin = sahBins[ BIN_COUNT - 1 ];
+				copyBounds( lastBin.bounds, lastBin.rightCacheBounds );
+				for ( let i = BIN_COUNT - 2; i >= 0; i -- ) {
+
+					const bin = sahBins[ i ];
+					const nextBin = sahBins[ i + 1 ];
+					unionBounds( bin.bounds, nextBin.rightCacheBounds, bin.rightCacheBounds );
+
+				}
+
+				let leftCount = 0;
+				for ( let i = 0; i < BIN_COUNT - 1; i ++ ) {
+
+					const bin = sahBins[ i ];
+					const binCount = bin.count;
+					const bounds = bin.bounds;
+
+					const nextBin = sahBins[ i + 1 ];
+					const rightBounds = nextBin.rightCacheBounds;
+
+					// dont do anything with the bounds if the new bounds have no triangles
+					if ( binCount !== 0 ) {
+
+						if ( leftCount === 0 ) {
+
+							copyBounds( bounds, leftBounds );
+
+						} else {
+
+							unionBounds( bounds, leftBounds, leftBounds );
+
+						}
+
+					}
+
+					leftCount += binCount;
+
+					// check the cost of this split
+					let leftProb = 0;
+					let rightProb = 0;
+
+					if ( leftCount !== 0 ) {
+
+						leftProb = computeSurfaceArea( leftBounds ) / rootSurfaceArea;
+
+					}
+
+					const rightCount = count - leftCount;
+					if ( rightCount !== 0 ) {
+
+						rightProb = computeSurfaceArea( rightBounds ) / rootSurfaceArea;
+
+					}
+
+					const cost = TRAVERSAL_COST + TRIANGLE_INTERSECT_COST * (
+						leftProb * leftCount + rightProb * rightCount
+					);
+
+					if ( cost < bestCost ) {
+
+						axis = a;
+						bestCost = cost;
+						pos = bin.candidate;
+
+					}
 
 				}
 
@@ -90897,6 +91341,16 @@ function computeTriangleBounds( geo, fullBounds ) {
 
 function buildTree( geo, options ) {
 
+	function triggerProgress( trianglesProcessed ) {
+
+		if ( onProgress ) {
+
+			onProgress( trianglesProcessed / totalTriangles );
+
+		}
+
+	}
+
 	// either recursively splits the given node, creating left and right subtrees for it, or makes it a leaf node,
 	// recording the offset and count of its triangles and writing them into the reordered geometry index.
 	function splitNode( node, offset, count, centroidBoundingData = null, depth = 0 ) {
@@ -90916,6 +91370,7 @@ function buildTree( geo, options ) {
 		// early out if we've met our capacity
 		if ( count <= maxLeafTris || depth >= maxDepth ) {
 
+			triggerProgress( offset + count );
 			node.offset = offset;
 			node.count = count;
 			return node;
@@ -90926,6 +91381,7 @@ function buildTree( geo, options ) {
 		const split = getOptimalSplit( node.boundingData, centroidBoundingData, triangleBounds, offset, count, strategy );
 		if ( split.axis === - 1 ) {
 
+			triggerProgress( offset + count );
 			node.offset = offset;
 			node.count = count;
 			return node;
@@ -90937,6 +91393,7 @@ function buildTree( geo, options ) {
 		// create the two new child nodes
 		if ( splitOffset === offset || splitOffset === offset + count ) {
 
+			triggerProgress( offset + count );
 			node.offset = offset;
 			node.count = count;
 
@@ -90983,6 +91440,8 @@ function buildTree( geo, options ) {
 	const verbose = options.verbose;
 	const maxLeafTris = options.maxLeafTris;
 	const strategy = options.strategy;
+	const onProgress = options.onProgress;
+	const totalTriangles = geo.index.count / 3;
 	let reachedMaxDepth = false;
 
 	const roots = [];
@@ -93174,11 +93633,12 @@ class MeshBVH {
 			verbose: true,
 			useSharedArrayBuffer: false,
 			setBoundingBox: true,
+			onProgress: null,
 
 			// undocumented options
 
 			// Whether to skip generating the tree. Used for deserialization.
-			[ SKIP_GENERATION ]: false
+			[ SKIP_GENERATION ]: false,
 
 		}, options );
 
@@ -93624,20 +94084,24 @@ class MeshBVH {
 			intersectsTriangles,
 		} = callbacks;
 
-		const geometry = otherBvh.geometry;
-		const indexAttr = geometry.index;
-		const positionAttr = geometry.attributes.position;
+		const indexAttr = this.geometry.index;
+		const positionAttr = this.geometry.attributes.position;
+
+		const otherIndexAttr = otherBvh.geometry.index;
+		const otherPositionAttr = otherBvh.geometry.attributes.position;
 
 		tempMatrix.copy( matrixToLocal ).invert();
+
 		const triangle = trianglePool.getPrimitive();
 		const triangle2 = trianglePool.getPrimitive();
+
 		if ( intersectsTriangles ) {
 
 			function iterateOverDoubleTriangles( offset1, count1, offset2, count2, depth1, index1, depth2, index2 ) {
 
 				for ( let i2 = offset2, l2 = offset2 + count2; i2 < l2; i2 ++ ) {
 
-					setTriangle( triangle2, i2 * 3, indexAttr, positionAttr );
+					setTriangle( triangle2, i2 * 3, otherIndexAttr, otherPositionAttr );
 					triangle2.a.applyMatrix4( matrixToLocal );
 					triangle2.b.applyMatrix4( matrixToLocal );
 					triangle2.c.applyMatrix4( matrixToLocal );
@@ -94309,7 +94773,35 @@ class IfcManager {
         window.addEventListener('keydown', async (event) => {
             if(event.code === 'KeyX') {
                this.remove = !this.remove;
+            //    const start = window.performance.now()
+            //    let oldSlab = await this.ifcLoader.ifcManager.getAllItemsOfType(0,IFCSLAB)
+            //    const stop = window.performance.now()
+            //    console.log(`Time Taken to load from Old Function = ${(stop - start)/1000} seconds`,oldSlab);
+            //    const secondStart = window.performance.now()
+            //    let newSlab =await this.ifcLoader.ifcManager.idsByType(0, "IfcSlab")
+            //    const secondStop = window.performance.now()
+            //    console.log(`Time Taken to load From Utils= ${(secondStop - secondStart)/1000} seconds`, newSlab);
+                
+            let sequenceData = await this.ifcLoader.ifcManager.getSequenceData(0);
+            console.log("wORKsCHEDULES: ",sequenceData.workSchedules);
+            console.log("tasks: ",sequenceData.tasks);
+
+            for (let index in sequenceData.workSchedules) {
+                 let workschedule = sequenceData.workSchedules[index];
+                 console.log("workschedule: ",workschedule);
+                 if (!workschedule.RelatedObjects.length){
+                    console.log("rootedTask: There is no root Task");
+                 }
+                 else {
+                    let rootedTask = workschedule.RelatedObjects[0];
+                    console.log("rootedTask: ", rootedTask);
+                 }
             }
+
+            let jsGantt = await this.ifcLoader.ifcManager.getJSGantt(sequenceData.tasks);
+            console.log("JSGANTT HERE:", jsGantt);
+        }
+
             if(event.code === 'KeyB') {
                 await this.editSubset(IFCWALLSTANDARDCASE);
             }
@@ -94405,4 +94897,9 @@ class IfcManager {
 const ifcModels = [];
 const baseScene = new ThreeScene();
 new Picker(baseScene, ifcModels);
-new IfcManager(baseScene.scene, ifcModels);
+const loader = new IfcManager(baseScene.scene, ifcModels);
+
+const testButton = document.getElementById("test-button");
+testButton.onclick = async function (){ 
+    loader.ifcLoader.ifcManager.byId(0, "IfcTask");
+  };
