@@ -11,9 +11,10 @@ export class MemoryCleaner {
             const model = this.state.models[parseInt(modelID, 10)];
             model.mesh.removeFromParent();
             const geom = model.mesh.geometry as any;
-            if(geom.disposeBoundsTree) geom.disposeBoundsTree();
+            if (geom.disposeBoundsTree) geom.disposeBoundsTree();
             geom.dispose();
-            (model.mesh.material as Material[]).forEach(mat => mat.dispose());
+            if (!Array.isArray(model.mesh.material)) model.mesh.material.dispose();
+            else model.mesh.material.forEach(mat => mat.dispose());
             (model.mesh as any) = null;
             (model.types as any) = null;
             (model.jsonData as any) = null;
