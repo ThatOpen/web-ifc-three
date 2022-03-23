@@ -12,6 +12,7 @@ import { LoaderSettings } from 'web-ifc';
 import { IFCWorkerHandler } from '../web-workers/IFCWorkerHandler';
 import { PropertyManagerAPI } from './properties/BaseDefinitions';
 import { MemoryCleaner } from './MemoryCleaner';
+import { IfcTypesMap } from './IfcTypesMap';
 
 /**
  * Contains all the logic to work with the loaded IFC files (select, edit, etc).
@@ -27,6 +28,8 @@ export class IFCManager {
     private BVH = new BvhManager();
     parser: ParserAPI = new IFCParser(this.state, this.BVH);
     subsets = new SubsetManager(this.state, this.BVH);
+    typesMap = IfcTypesMap;
+
     private properties: PropertyManagerAPI = new PropertyManager(this.state);
     private types = new TypeManager(this.state);
     private cleaner = new MemoryCleaner(this.state);
@@ -65,6 +68,7 @@ export class IFCManager {
      */
     async setWasmPath(path: string) {
         this.state.api.SetWasmPath(path);
+        this.state.wasmPath = path;
     }
 
     /**
@@ -124,6 +128,8 @@ export class IFCManager {
             this.state.worker.active = active;
             this.state.worker.path = path;
             await this.initializeWorkers();
+            const wasm = this.state.wasmPath;
+            if(wasm) await this.setWasmPath(wasm);
         } else {
             this.state.api = new WebIFC.IfcAPI();
         }
@@ -344,6 +350,7 @@ export class IFCManager {
      * If you want to load an IFC later, you'll need to create a new instance.
      */
     async dispose() {
+        IFCModel.dispose();
         await this.cleaner.dispose();
         this.subsets.dispose();
         if(this.worker && this.state.worker.active) await this.worker.terminate();

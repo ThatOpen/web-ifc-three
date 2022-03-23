@@ -92,6 +92,7 @@ export class SubsetManager {
             const mats = subset.mesh.material;
             if(Array.isArray(mats)) mats.forEach(mat => mat.dispose());
             else mats.dispose();
+            subset.mesh.geometry.index = null;
             subset.mesh.geometry.dispose();
             const geom = subset.mesh.geometry as any;
             if(geom.disposeBoundsTree) geom.disposeBoundsTree();

@@ -12,9 +12,14 @@ export class Picker {
         this.setupPicking(base.threeCanvas);
     }
 
+    dispose() {
+        this.selector.dispose();
+        this.preSelector.dispose();
+    }
+
     setupPicking(threeCanvas){
         threeCanvas.ondblclick = (event) => this.selector.select(event, false, true);
-        // threeCanvas.onmousemove = (event) => this.preSelector.select(event);
+        threeCanvas.onmousemove = (event) => this.preSelector.select(event);
     }
 
     newMaterial(opacity, color){

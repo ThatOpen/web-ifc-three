@@ -42465,52 +42465,17 @@ class ItemSelector {
         this.material = highlightMaterial;
         this.currentItemID = -1;
         this.currentModel = null;
-
-        this.geom = new BufferGeometry();
-
         this.material = new MeshBasicMaterial({ color: 'red', depthTest: false, transparent: true });
-        const cube = new Mesh(this.geom, this.material);
-        this.cube = cube;
-        this.previousObject = cube;
-        this.scene.add(cube);
-
-        this.mapCache = {};
-        this.indexCache = null;
-
-        // Geometry Caching
-        this.geomCacheEnabled = false;
-        this.cacheThresold = 40000;
-        this.geomCache = {};
-
-        window.addEventListener('keydown', async (e) => {
-            if (e.code === 'KeyA') {
-                const ids = [];
-
-                const collectIDs = (node) => {
-                    ids.push(node.expressID);
-                    if (node.children) node.children.forEach(collectIDs);
-                };
-                const structure = await this.ifcModels[0].ifcManager.getSpatialStructure(0);
-                collectIDs(structure);
-
-                const t0 = performance.now();
-                this.ifcModels[0].ifcManager.createSubset({
-                    modelID: 0,
-                    scene: this.ifcModels[0],
-                    ids: ids,
-                    removePrevious: true
-                    // material: this.material
-                });
-                const t1 = performance.now();
-                console.log(`Subset took ${t1 - t0} milliseconds.`);
-            }
-        });
-
-        this.subsetSelection = [];
     }
 
     sleep(ms) {
         return new Promise(resolve => setTimeout(resolve, ms));
+    }
+
+    dispose() {
+        this.currentModel = null;
+        this.previousSelectedFace = null;
+        this.previousSelection = null;
     }
 
     async select(event, logTree = false, logProps = false, removePrevious = true) {
@@ -42580,9 +42545,14 @@ class Picker {
         this.setupPicking(base.threeCanvas);
     }
 
+    dispose() {
+        this.selector.dispose();
+        this.preSelector.dispose();
+    }
+
     setupPicking(threeCanvas){
         threeCanvas.ondblclick = (event) => this.selector.select(event, false, true);
-        // threeCanvas.onmousemove = (event) => this.preSelector.select(event);
+        threeCanvas.onmousemove = (event) => this.preSelector.select(event);
     }
 
     newMaterial(opacity, color){
@@ -87238,16 +87208,19 @@ function mergeBufferAttributes( attributes ) {
 
 }
 
-let modelIdCounter = 0;
 const nullIfcManagerErrorMessage = 'IfcManager is null!';
 
 class IFCModel extends Mesh {
 
   constructor() {
     super(...arguments);
-    this.modelID = modelIdCounter++;
+    this.modelID = IFCModel.modelIdCounter++;
     this.ifcManager = null;
     this.mesh = this;
+  }
+
+  static dispose() {
+    IFCModel.modelIdCounter = 0;
   }
 
   setIFCManager(manager) {
@@ -87331,6 +87304,8 @@ class IFCModel extends Mesh {
   }
 
 }
+
+IFCModel.modelIdCounter = 0;
 
 class IFCParser {
 
@@ -87862,6 +87837,7 @@ class SubsetManager {
         mats.forEach(mat => mat.dispose());
       else
         mats.dispose();
+      subset.mesh.geometry.index = null;
       subset.mesh.geometry.dispose();
       const geom = subset.mesh.geometry;
       if (geom.disposeBoundsTree)
@@ -90135,6 +90111,7 @@ class IFCManager {
     this.BVH = new BvhManager();
     this.parser = new IFCParser(this.state, this.BVH);
     this.subsets = new SubsetManager(this.state, this.BVH);
+    this.typesMap = IfcTypesMap;
     this.properties = new PropertyManager(this.state);
     this.types = new TypeManager(this.state);
     this.cleaner = new MemoryCleaner(this.state);
@@ -90154,6 +90131,7 @@ class IFCManager {
 
   async setWasmPath(path) {
     this.state.api.SetWasmPath(path);
+    this.state.wasmPath = path;
   }
 
   setupThreeMeshBVH(computeBoundsTree, disposeBoundsTree, acceleratedRaycast) {
@@ -90189,6 +90167,9 @@ class IFCManager {
       this.state.worker.active = active;
       this.state.worker.path = path;
       await this.initializeWorkers();
+      const wasm = this.state.wasmPath;
+      if (wasm)
+        await this.setWasmPath(wasm);
     } else {
       this.state.api = new IfcAPI2();
     }
@@ -90282,6 +90263,7 @@ class IFCManager {
   }
 
   async dispose() {
+    IFCModel.dispose();
     await this.cleaner.dispose();
     this.subsets.dispose();
     if (this.worker && this.state.worker.active)
@@ -94393,16 +94375,7 @@ class IfcManager {
                 await this.editSubset(IFCSLAB);
             }
             if(event.code === 'KeyD') {
-                const webIfc = this.ifcLoader.ifcManager.ifcAPI;
-                try {
-                    const test = await webIfc.GetLine(0, 38992);
-                    console.log(test);
-                } catch (e) {
-                    console.log(e);
-                }
-            }
-            if(event.code === 'KeyF') {
-                await this.releaseMemory();
+                await this.editSubset(IFCWINDOW);
             }
         });
     }
@@ -94440,7 +94413,7 @@ class IfcManager {
         );
     }
 
-    async releaseMemory() {
+    async dispose() {
         this.ifcModels.length = 0;
         await this.ifcLoader.ifcManager.dispose();
         this.ifcLoader = null;
@@ -94484,5 +94457,13 @@ class IfcManager {
 
 const ifcModels = [];
 const baseScene = new ThreeScene();
-new Picker(baseScene, ifcModels);
-new IfcManager(baseScene.scene, ifcModels);
+const picker = new Picker(baseScene, ifcModels);
+const loader = new IfcManager(baseScene.scene, ifcModels);
+
+// reset scene
+window.addEventListener('keydown', async (event) => {
+    if(event.code === 'KeyF') {
+        await loader.dispose();
+        await picker.dispose();
+    }
+});

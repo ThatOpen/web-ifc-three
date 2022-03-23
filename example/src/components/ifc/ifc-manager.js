@@ -1,4 +1,4 @@
-import { Matrix4, MeshBasicMaterial } from 'three';
+import { Matrix4 } from 'three';
 import { IFCLoader } from 'web-ifc-three/dist/IFCLoader';
 import { acceleratedRaycast, computeBoundsTree, disposeBoundsTree } from 'three-mesh-bvh';
 import { IFCWALLSTANDARDCASE, IFCSLAB, IFCWINDOW, IFCSPACE, IFCOPENINGELEMENT } from 'web-ifc';
@@ -23,9 +23,6 @@ export class IfcManager {
             }
             if(event.code === 'KeyD') {
                 await this.editSubset(IFCWINDOW);
-            }
-            if(event.code === 'KeyF') {
-                await this.releaseMemory();
             }
         })
     }
@@ -63,7 +60,7 @@ export class IfcManager {
         );
     }
 
-    async releaseMemory() {
+    async dispose() {
         this.ifcModels.length = 0;
         await this.ifcLoader.ifcManager.dispose();
         this.ifcLoader = null;
