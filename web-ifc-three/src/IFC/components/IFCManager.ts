@@ -13,7 +13,11 @@ import { IFCWorkerHandler } from '../web-workers/IFCWorkerHandler';
 import { PropertyManagerAPI } from './properties/BaseDefinitions';
 import { IFCUtils } from './IFCUtils';
 import {Data} from './sequence/Data'
+<<<<<<< Updated upstream
 // import {IFC2JSGANTT} from './sequence/IFC2JSGANTT'
+=======
+import {IFC2JSGANTT} from './sequence/IFC2JSGANTT'
+>>>>>>> Stashed changes
 
 
 /**
@@ -356,10 +360,17 @@ export class IFCManager {
         await this.sequenceData.load(modelID);
         return this.sequenceData;
     }
+<<<<<<< Updated upstream
     // async getJSGantt(scheduleData: {}) {
     //     let ifc2JSGantt = new IFC2JSGANTT(scheduleData)
     //     return ifc2JSGantt.getJsGanttTaskJson();
     // }
+=======
+    async getJSGantt(scheduleData: {}) {
+        let ifc2JSGantt = new IFC2JSGANTT(scheduleData)
+        return ifc2JSGantt.getJsGanttTaskJson();
+    }
+>>>>>>> Stashed changes
 
 
     /**
