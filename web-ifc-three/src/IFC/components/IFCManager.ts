@@ -11,19 +11,10 @@ import { BvhManager } from './BvhManager';
 import { LoaderSettings } from 'web-ifc';
 import { IFCWorkerHandler } from '../web-workers/IFCWorkerHandler';
 import { PropertyManagerAPI } from './properties/BaseDefinitions';
-<<<<<<< HEAD
+import { MemoryCleaner } from './MemoryCleaner';
 import { IFCUtils } from './IFCUtils';
 import {Data} from './sequence/Data'
-<<<<<<< Updated upstream
-// import {IFC2JSGANTT} from './sequence/IFC2JSGANTT'
-=======
 import {IFC2JSGANTT} from './sequence/IFC2JSGANTT'
->>>>>>> Stashed changes
-
-=======
-import { MemoryCleaner } from './MemoryCleaner';
-import { IfcTypesMap } from './IfcTypesMap';
->>>>>>> 3584911f0a620d3e2e7a671879c69f6a9f2b4de9
 
 /**
  * Contains all the logic to work with the loaded IFC files (select, edit, etc).
@@ -39,13 +30,8 @@ export class IFCManager {
     private BVH = new BvhManager();
     parser: ParserAPI = new IFCParser(this.state, this.BVH);
     subsets = new SubsetManager(this.state, this.BVH);
-<<<<<<< HEAD
     utils = new IFCUtils(this.state)
     sequenceData = new Data(this.state)
-=======
-    typesMap = IfcTypesMap;
-
->>>>>>> 3584911f0a620d3e2e7a671879c69f6a9f2b4de9
     private properties: PropertyManagerAPI = new PropertyManager(this.state);
     private types = new TypeManager(this.state);
     private cleaner = new MemoryCleaner(this.state);
@@ -377,17 +363,10 @@ export class IFCManager {
         await this.sequenceData.load(modelID);
         return this.sequenceData;
     }
-<<<<<<< Updated upstream
-    // async getJSGantt(scheduleData: {}) {
-    //     let ifc2JSGantt = new IFC2JSGANTT(scheduleData)
-    //     return ifc2JSGantt.getJsGanttTaskJson();
-    // }
-=======
     async getJSGantt(scheduleData: {}) {
         let ifc2JSGantt = new IFC2JSGANTT(scheduleData)
         return ifc2JSGantt.getJsGanttTaskJson();
     }
->>>>>>> Stashed changes
 
 
     /**
