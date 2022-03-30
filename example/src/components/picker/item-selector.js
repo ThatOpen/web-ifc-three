@@ -10,52 +10,17 @@ export class ItemSelector {
         this.material = highlightMaterial;
         this.currentItemID = -1;
         this.currentModel = null;
-
-        this.geom = new BufferGeometry();
-
         this.material = new MeshBasicMaterial({ color: 'red', depthTest: false, transparent: true });
-        const cube = new Mesh(this.geom, this.material);
-        this.cube = cube;
-        this.previousObject = cube;
-        this.scene.add(cube);
-
-        this.mapCache = {};
-        this.indexCache = null;
-
-        // Geometry Caching
-        this.geomCacheEnabled = false;
-        this.cacheThresold = 40000;
-        this.geomCache = {};
-
-        window.addEventListener('keydown', async (e) => {
-            if (e.code === 'KeyA') {
-                const ids = [];
-
-                const collectIDs = (node) => {
-                    ids.push(node.expressID);
-                    if (node.children) node.children.forEach(collectIDs);
-                };
-                const structure = await this.ifcModels[0].ifcManager.getSpatialStructure(0);
-                collectIDs(structure);
-
-                const t0 = performance.now();
-                this.ifcModels[0].ifcManager.createSubset({
-                    modelID: 0,
-                    scene: this.ifcModels[0],
-                    ids: ids,
-                    removePrevious: true
-                    // material: this.material
-                });
-                const t1 = performance.now();
-                console.log(`Subset took ${t1 - t0} milliseconds.`);
-            }
-        });
-
-        this.subsetSelection = [];
     }
 
     sleep(ms) {
         return new Promise(resolve => setTimeout(resolve, ms));
+    }
+
+    dispose() {
+        this.currentModel = null;
+        this.previousSelectedFace = null;
+        this.previousSelection = null;
     }
 
     async select(event, logTree = false, logProps = false, removePrevious = true) {

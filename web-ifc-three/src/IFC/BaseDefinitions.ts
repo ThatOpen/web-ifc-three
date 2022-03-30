@@ -65,7 +65,8 @@ export interface IfcState {
     worker: Worker;
     webIfcSettings?: LoaderSettings;
     onProgress?: (event: ParserProgress) => void;
-    coordinationMatrix?: Matrix4
+    coordinationMatrix?: Matrix4,
+    wasmPath?: string;
 }
 
 export interface IfcMesh extends Mesh {

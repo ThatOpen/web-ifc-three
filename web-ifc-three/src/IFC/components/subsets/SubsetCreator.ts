@@ -26,6 +26,10 @@ export class SubsetCreator {
         return this.subsets[subsetID].mesh;
     }
 
+    dispose() {
+        this.tempIndex = [];
+    }
+
     private initializeSubset(config: SubsetConfig, subsetID: string) {
         const model = this.state.models[config.modelID].mesh;
         const subsetGeom = new BufferGeometry();

@@ -42183,14 +42183,16 @@ if ( typeof window !== 'undefined' ) {
 
 }
 
-let modelIdCounter = 0;
 const nullIfcManagerErrorMessage = 'IfcManager is null!';
 class IFCModel extends Mesh {
     constructor() {
         super(...arguments);
-        this.modelID = modelIdCounter++;
+        this.modelID = IFCModel.modelIdCounter++;
         this.ifcManager = null;
         this.mesh = this;
+    }
+    static dispose() {
+        IFCModel.modelIdCounter = 0;
     }
     setIFCManager(manager) {
         this.ifcManager = manager;
@@ -42257,6 +42259,7 @@ class IFCModel extends Mesh {
         return this.ifcManager.createSubset(modelConfig);
     }
 }
+IFCModel.modelIdCounter = 0;
 
 class SerializedMaterial {
     constructor(material) {
@@ -42397,7 +42400,9 @@ var WorkerActions;
     WorkerActions["updateModelStateTypes"] = "updateModelStateTypes";
     WorkerActions["updateModelStateJsonData"] = "updateModelStateJsonData";
     WorkerActions["loadJsonDataFromWorker"] = "loadJsonDataFromWorker";
+    WorkerActions["dispose"] = "dispose";
     WorkerActions["Close"] = "Close";
+    WorkerActions["DisposeWebIfc"] = "DisposeWebIfc";
     WorkerActions["Init"] = "Init";
     WorkerActions["OpenModel"] = "OpenModel";
     WorkerActions["CreateModel"] = "CreateModel";
@@ -85392,6 +85397,10 @@ class WebIfcWorker {
         this.worker.post(data);
     }
     ;
+    async DisposeWebIfc(data) {
+        this.nullifyWebIfc();
+        this.worker.post(data);
+    }
     CloseModel(data) {
         this.webIFC.CloseModel(data.args.modelID);
         this.worker.post(data);
@@ -85638,7 +85647,7 @@ class BasePropertyManager {
     }
 }
 
-const IfcElements = {
+let IfcElements = {
     103090709: 'IFCPROJECT',
     4097777520: 'IFCSITE',
     4031249490: 'IFCBUILDING',
@@ -85835,7 +85844,7 @@ class WebIfcPropertyManager extends BasePropertyManager {
     }
 }
 
-const IfcTypesMap = {
+let IfcTypesMap = {
     3821786052: "IFCACTIONREQUEST",
     2296667514: "IFCACTOR",
     3630933823: "IFCACTORROLE",
@@ -86853,6 +86862,31 @@ class PropertyWorker {
     }
 }
 
+class MemoryCleaner {
+    constructor(state) {
+        this.state = state;
+    }
+    async dispose() {
+        Object.keys(this.state.models).forEach(modelID => {
+            const model = this.state.models[parseInt(modelID, 10)];
+            model.mesh.removeFromParent();
+            const geom = model.mesh.geometry;
+            if (geom.disposeBoundsTree)
+                geom.disposeBoundsTree();
+            geom.dispose();
+            if (!Array.isArray(model.mesh.material))
+                model.mesh.material.dispose();
+            else
+                model.mesh.material.forEach(mat => mat.dispose());
+            model.mesh = null;
+            model.types = null;
+            model.jsonData = null;
+        });
+        this.state.api = null;
+        this.state.models = null;
+    }
+}
+
 class StateWorker {
     constructor(worker) {
         this.worker = worker;
@@ -86882,6 +86916,14 @@ class StateWorker {
             throw new Error(ErrorRootStateNotAvailable);
         const model = this.getModel(data);
         model.types = data.args.types;
+        this.worker.post(data);
+    }
+    async dispose(data) {
+        if (!this.worker.state)
+            throw new Error("Error: no state was found in the worker");
+        if (!this.cleaner)
+            this.cleaner = new MemoryCleaner(this.worker.state);
+        await this.cleaner.dispose();
         this.worker.post(data);
     }
     async loadJsonDataFromWorker(data) {
