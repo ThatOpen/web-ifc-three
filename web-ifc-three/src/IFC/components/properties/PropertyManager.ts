@@ -6,7 +6,6 @@ import { BufferGeometry } from 'three';
 import { WebIfcPropertyManager } from './WebIfcPropertyManager';
 import { JSONPropertyManager } from './JSONPropertyManager';
 import { PropertyManagerAPI, PropertyAPI } from './BaseDefinitions';
-import { IfcElements } from '../IFCElementsMap';
 
 /**
  * Contains the logic to get the properties of the items within an IFC model.

@@ -11,10 +11,15 @@ import { BvhManager } from './BvhManager';
 import { LoaderSettings } from 'web-ifc';
 import { IFCWorkerHandler } from '../web-workers/IFCWorkerHandler';
 import { PropertyManagerAPI } from './properties/BaseDefinitions';
+<<<<<<< HEAD
 import { IFCUtils } from './IFCUtils';
 import {Data} from './sequence/Data'
 import {IFC2JSGANTT} from './sequence/IFC2JSGANTT'
 
+=======
+import { MemoryCleaner } from './MemoryCleaner';
+import { IfcTypesMap } from './IfcTypesMap';
+>>>>>>> 3584911f0a620d3e2e7a671879c69f6a9f2b4de9
 
 /**
  * Contains all the logic to work with the loaded IFC files (select, edit, etc).
@@ -30,10 +35,16 @@ export class IFCManager {
     private BVH = new BvhManager();
     parser: ParserAPI = new IFCParser(this.state, this.BVH);
     subsets = new SubsetManager(this.state, this.BVH);
+<<<<<<< HEAD
     utils = new IFCUtils(this.state)
     sequenceData = new Data(this.state)
+=======
+    typesMap = IfcTypesMap;
+
+>>>>>>> 3584911f0a620d3e2e7a671879c69f6a9f2b4de9
     private properties: PropertyManagerAPI = new PropertyManager(this.state);
     private types = new TypeManager(this.state);
+    private cleaner = new MemoryCleaner(this.state);
     private worker?: IFCWorkerHandler;
 
     /**
@@ -48,8 +59,8 @@ export class IFCManager {
     async parse(buffer: ArrayBuffer) {
         const model = await this.parser.parse(buffer, this.state.coordinationMatrix?.toArray()) as IFCModel;
         model.setIFCManager(this);
-        this.state.useJSON ? await this.disposeMemory() : await this.types.getAllTypes(this.worker);
-        // this.hider.processCoordinates(model.modelID);
+        // this.state.useJSON ? await this.disposeMemory() : await this.types.getAllTypes(this.worker);
+        await this.types.getAllTypes(this.worker);
         return model;
     }
 
@@ -69,6 +80,7 @@ export class IFCManager {
      */
     async setWasmPath(path: string) {
         this.state.api.SetWasmPath(path);
+        this.state.wasmPath = path;
     }
 
     /**
@@ -128,12 +140,15 @@ export class IFCManager {
             this.state.worker.active = active;
             this.state.worker.path = path;
             await this.initializeWorkers();
+            const wasm = this.state.wasmPath;
+            if(wasm) await this.setWasmPath(wasm);
         } else {
             this.state.api = new WebIFC.IfcAPI();
         }
     }
 
     /**
+     * @deprecated This approach had sense when the compute-heavy operations were blocking. If you are facing performance issues, you can either use webworkers or use the approach used in web-ifc-viewer to work with JSON and glTF. If you have any question regarding this, check out the docs or ask us direclty.
      * Enables the JSON mode (which consumes way less memory) and eliminates the WASM data.
      * Only use this in the following scenarios:
      * - If you don't need to access the properties of the IFC
@@ -148,6 +163,7 @@ export class IFCManager {
     }
 
     /**
+     * @deprecated This approach had sense when the compute-heavy operations were blocking. If you are facing performance issues, you can either use webworkers or use the approach used in web-ifc-viewer to work with JSON and glTF. If you have any question regarding this, check out the docs or ask us direclty.
      * Adds the properties of a model as JSON data. If you are using web workers, use
      * `loadJsonDataFromWorker()` instead to avoid overheads.
      * @modelID ID of the IFC model.
@@ -164,6 +180,7 @@ export class IFCManager {
     }
 
     /**
+     * @deprecated This approach had sense when the compute-heavy operations were blocking. If you are facing performance issues, you can either use webworkers or use the approach used in web-ifc-viewer to work with JSON and glTF. If you have any question regarding this, check out the docs or ask us direclty.
      * Loads the data of an IFC model from a JSON file directly from a web worker. If you are not using
      * web workers, use `addModelJSONData()` instead.
      * @modelID ID of the IFC model.
@@ -395,6 +412,20 @@ export class IFCManager {
     // MISC - Miscelaneus logic for various purposes
 
     /**
+     * Disposes all memory used by the IFCLoader, including WASM memory and the web worker.
+     * Use this if you want to destroy the object completely.
+     * If you want to load an IFC later, you'll need to create a new instance.
+     */
+    async dispose() {
+        IFCModel.dispose();
+        await this.cleaner.dispose();
+        this.subsets.dispose();
+        if(this.worker && this.state.worker.active) await this.worker.terminate();
+        (this.state as any) = null;
+    }
+
+    /**
+     * @deprecated This approach had sense when the compute-heavy operations were blocking. If you are facing performance issues, you can either use webworkers or use the approach used in web-ifc-viewer to work with JSON and glTF. If you have any question regarding this, check out the docs or ask us direclty.
      * Completely releases the WASM memory, thus drastically decreasing the memory use of the app.
      * Only use this in the following scenarios:
      * - If you don't need to access the properties of the IFC
@@ -405,7 +436,8 @@ export class IFCManager {
             await this.worker?.Close();
         } else {
             // @ts-ignore
-            this.state.api = null;
+            this.state.api.Close();
+            (this.state.api as any) = null;
             this.state.api = new WebIFC.IfcAPI();
         }
     }
