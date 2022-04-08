@@ -28,11 +28,12 @@
     "build-worker": "rollup -c config/rollup-worker.config.js",
     "clean": "esformatter --config config/esformatter.config.json dist/IFCLoader.js -i",
     "build-example": "rollup -c ../example/rollup.config.js && npm run copy-wasm",
-    "publish-repo": "npm run build && cpy package.json dist && cd dist && npm publish",
+    "publish-repo": "npm run build && copy package.json dist && cd dist && npm publish",
     "watch": "rollup -c config/rollup.config.js -w",
     "test": "jest"
   },
   "dependencies": {
+    "three": "^0.135.0",
     "three-mesh-bvh": "^0.5.2",
     "web-ifc": "^0.0.33"
   },

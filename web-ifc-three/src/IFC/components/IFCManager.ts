@@ -12,7 +12,9 @@ import { LoaderSettings } from 'web-ifc';
 import { IFCWorkerHandler } from '../web-workers/IFCWorkerHandler';
 import { PropertyManagerAPI } from './properties/BaseDefinitions';
 import { MemoryCleaner } from './MemoryCleaner';
-import { IfcTypesMap } from './IfcTypesMap';
+import { IFCUtils } from './IFCUtils';
+import {Data} from './sequence/Data'
+import {IFC2JSGANTT} from './sequence/IFC2JSGANTT'
 
 /**
  * Contains all the logic to work with the loaded IFC files (select, edit, etc).
@@ -28,8 +30,8 @@ export class IFCManager {
     private BVH = new BvhManager();
     parser: ParserAPI = new IFCParser(this.state, this.BVH);
     subsets = new SubsetManager(this.state, this.BVH);
-    typesMap = IfcTypesMap;
-
+    utils = new IFCUtils(this.state)
+    sequenceData = new Data(this.state)
     private properties: PropertyManagerAPI = new PropertyManager(this.state);
     private types = new TypeManager(this.state);
     private cleaner = new MemoryCleaner(this.state);
@@ -342,6 +344,61 @@ export class IFCManager {
         return this.subsets.clearSubset(modelID, customID, material);
     }
 
+
+
+
+    // UTILITIES - Miscelaneus logic for various purposes
+
+    /**
+    * Returns the IFC class name of an instance if the optional parameter is not provided.
+    * If an entit class is provided, it will check if an instance belongs to the class.
+    * @modelID ID of the IFC model.
+    * @entityClass IFC Class name. 
+    */
+    async isA(entity: any, entity_class: string) {
+        return this.utils.isA(entity, entity_class);
+    }
+    
+    async getSequenceData(modelID: number) {
+        await this.sequenceData.load(modelID);
+        return this.sequenceData;
+    }
+    async getJSGantt(scheduleData: {}) {
+        let ifc2JSGantt = new IFC2JSGANTT(scheduleData)
+        return ifc2JSGantt.getJsGanttTaskJson();
+    }
+
+
+    /**
+    * Returns the IFC objects filtered by IFC Type and wrapped with the entity_instance class.
+    * If an IFC type class has subclasses, all entities of those subclasses are also returned.
+    * @modelID ID of the IFC model.
+    * @entityClass IFC Class name. 
+    */
+    async byType(modelID: number, entityClass: string) {
+        return this.utils.byType(modelID, entityClass);
+    }
+
+    /**
+    * Returns the IFC objects filtered by IFC ID.
+    * @modelID ID of the IFC model.
+    * @id Express ID of the element.
+    */
+    async byId(modelID: number, id: number) {
+        return this.utils.byId(modelID, id);
+    }
+
+    /**
+    * Returns the IFC objects filtered by IFC Type and wrapped with the entity_instance class.
+    * If an IFC type class has subclasses, all entities of those subclasses are also returned.
+    * @modelID ID of the IFC model.
+    * @entityClass IFC Class name. 
+    */
+    async idsByType(modelID: number, entityClass: string) {
+        return this.utils.idsByType(modelID, entityClass);
+    }
+
+
     // MISC - Miscelaneus logic for various purposes
 
     /**
@@ -390,4 +447,6 @@ export class IFCManager {
         await this.worker.workerState.updateStateUseJson();
         await this.worker.workerState.updateStateWebIfcSettings();
     }
+
+
 }
