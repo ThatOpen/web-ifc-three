@@ -30,6 +30,10 @@ export class SubsetManager {
         this.subsetCreator = new SubsetCreator(state, this.items, this.subsets, this.BVH);
     }
 
+    getAllSubsets(){
+        return this.subsets
+    }
+
     getSubset(modelID: number, material?: Material, customId?: string) {
         const subsetID = this.getSubsetID(modelID, material, customId);
         return this.subsets[subsetID].mesh;
