@@ -85502,7 +85502,15 @@ class WebIfcWorker {
         this.webIFC.StreamAllMeshesWithTypes(args.modelID, args.types, callback);
     }
     WriteLine(data) {
-        this.webIFC.WriteLine(data.args.modelID, data.args.lineObject);
+        const modelID = data.args.modelID;
+        const serializedObject = data.args.lineObject;
+        const object = this.webIFC.GetLine(modelID, serializedObject.expressID);
+        Object.keys(serializedObject).forEach(propName => {
+            if (object[propName] !== undefined) {
+                object[propName] = serializedObject[propName];
+            }
+        });
+        this.webIFC.WriteLine(data.args.modelID, object);
         this.worker.post(data);
     }
     WriteRawLineData(data) {

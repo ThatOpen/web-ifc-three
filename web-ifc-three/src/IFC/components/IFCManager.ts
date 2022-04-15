@@ -14,7 +14,6 @@ import { PropertyManagerAPI } from './properties/BaseDefinitions';
 import { MemoryCleaner } from './MemoryCleaner';
 import { IFCUtils } from './IFCUtils';
 import {Data} from './sequence/Data'
-import {IFC2JSGANTT} from './sequence/IFC2JSGANTT'
 
 /**
  * Contains all the logic to work with the loaded IFC files (select, edit, etc).
@@ -362,10 +361,6 @@ export class IFCManager {
     async getSequenceData(modelID: number) {
         await this.sequenceData.load(modelID);
         return this.sequenceData;
-    }
-    async getJSGantt(scheduleData: {}) {
-        let ifc2JSGantt = new IFC2JSGANTT(scheduleData)
-        return ifc2JSGantt.getJsGanttTaskJson();
     }
 
 

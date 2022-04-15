@@ -150,7 +150,18 @@ export class WebIfcWorker implements WebIfcWorkerAPI {
     }
 
     WriteLine(data: IfcEventData) {
-        this.webIFC.WriteLine(data.args.modelID, data.args.lineObject);
+        const modelID = data.args.modelID;
+        const serializedObject = data.args.lineObject;
+
+        // This is necessary because of the serialization of the web worker
+        const object = this.webIFC.GetLine(modelID, serializedObject.expressID);
+        Object.keys(serializedObject).forEach(propName => {
+            if(object[propName] !== undefined) {
+                object[propName] = serializedObject[propName];
+            }
+        })
+
+        this.webIFC.WriteLine(data.args.modelID, object);
         this.worker.post(data);
     }
 
