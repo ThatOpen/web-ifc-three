@@ -10,7 +10,6 @@ export class IfcManager {
         this.ifcLoader = new IFCLoader();
         this.setupIfcLoader();
         this.setupFileOpener();
-        
     }
 
     remove = false;
@@ -30,6 +29,12 @@ export class IfcManager {
     }
 
     async setupIfcLoader() {
+
+        await this.ifcLoader.ifcManager.parser.setupOptionalCategories({
+            [IFCSPACE]: false,
+            [IFCOPENINGELEMENT]: false
+        });
+
         await this.ifcLoader.ifcManager.useWebWorkers(true, 'IFCWorker.js');
         this.setupThreeMeshBVH();
     }

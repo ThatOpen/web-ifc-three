@@ -37,6 +37,8 @@ export interface ParserAPI {
     getAndClearErrors(_modelId: number): void;
 
     setupOptionalCategories(config: OptionalCategories): void;
+
+    optionalCategories: OptionalCategories;
 }
 
 export interface GeometriesByMaterial {

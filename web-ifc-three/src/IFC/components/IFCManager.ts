@@ -438,6 +438,7 @@ export class IFCManager {
         this.worker = new IFCWorkerHandler(this.state, this.BVH);
         this.state.api = this.worker.webIfc;
         this.properties = this.worker.properties;
+        await this.worker.parser.setupOptionalCategories(this.parser.optionalCategories);
         this.parser = this.worker.parser;
         await this.worker.workerState.updateStateUseJson();
         await this.worker.workerState.updateStateWebIfcSettings();

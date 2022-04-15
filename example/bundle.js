@@ -89930,10 +89930,15 @@ class ParserHandler {
     this.serializer = serializer;
     this.BVH = BVH;
     this.IDB = IDB;
+    this.optionalCategories = {
+      [IFCSPACE]: true,
+      [IFCOPENINGELEMENT]: false
+    };
     this.API = WorkerAPIs.parser;
   }
 
   async setupOptionalCategories(config) {
+    this.optionalCategories = config;
     return this.handler.request(this.API, WorkerActions.setupOptionalCategories, {
       config
     });
@@ -90524,6 +90529,7 @@ class IFCManager {
     this.worker = new IFCWorkerHandler(this.state, this.BVH);
     this.state.api = this.worker.webIfc;
     this.properties = this.worker.properties;
+    await this.worker.parser.setupOptionalCategories(this.parser.optionalCategories);
     this.parser = this.worker.parser;
     await this.worker.workerState.updateStateUseJson();
     await this.worker.workerState.updateStateWebIfcSettings();
@@ -94571,58 +94577,6 @@ class IfcManager {
         this.ifcLoader = new IFCLoader();
         this.setupIfcLoader();
         this.setupFileOpener();
-
-        window.addEventListener('keydown', async (event) => {
-            if(event.code === 'KeyX') {
-               this.remove = !this.remove;
-            //    const start = window.performance.now()
-            //    let oldSlab = await this.ifcLoader.ifcManager.getAllItemsOfType(0,IFCSLAB)
-            //    const stop = window.performance.now()
-            //    console.log(`Time Taken to load from Old Function = ${(stop - start)/1000} seconds`,oldSlab);
-            //    const secondStart = window.performance.now()
-            //    let newSlab =await this.ifcLoader.ifcManager.idsByType(0, "IfcSlab")
-            //    const secondStop = window.performance.now()
-            //    console.log(`Time Taken to load From Utils= ${(secondStop - secondStart)/1000} seconds`, newSlab);
-                
-            let sequenceData = await this.ifcLoader.ifcManager.getSequenceData(0);
-            console.log("wORKsCHEDULES: ",sequenceData.workSchedules);
-            console.log("tasks: ",sequenceData.tasks);
-
-            for (let index in sequenceData.workSchedules) {
-                 let workschedule = sequenceData.workSchedules[index];
-                 console.log("workschedule: ",workschedule);
-                 if (!workschedule.RelatedObjects.length){
-                    console.log("rootedTask: There is no root Task");
-                 }
-                 else {
-                    let rootedTask = workschedule.RelatedObjects[0];
-                    console.log("rootedTask: ", rootedTask);
-                 }
-            }
-
-            let jsGantt = await this.ifcLoader.ifcManager.getJSGantt(sequenceData.tasks);
-            console.log("JSGANTT HERE:", jsGantt);
-        }
-
-            if(event.code === 'KeyB') {
-                const wall = await this.ifcLoader.ifcManager.ifcAPI.GetLine(0, 186);
-                console.log(wall);
-                wall.ObjectType.value = "hey hey";
-                await this.ifcLoader.ifcManager.ifcAPI.WriteLine(0, wall);
-
-                const data = await this.ifcLoader.ifcManager.ifcAPI.ExportFileAsIFC(0);
-                const blob = new Blob([data]);
-                const file = new File([blob], "modified.ifc");
-
-                const link = document.createElement('a');
-                link.download = 'modified.ifc';
-                link.href = URL.createObjectURL(file);
-                document.body.appendChild(link);
-                link.click();
-                link.remove();
-
-            }
-        });
     }
 
     remove = false;
@@ -94642,6 +94596,12 @@ class IfcManager {
     }
 
     async setupIfcLoader() {
+
+        await this.ifcLoader.ifcManager.parser.setupOptionalCategories({
+            [IFCSPACE]: false,
+            [IFCOPENINGELEMENT]: false
+        });
+
         await this.ifcLoader.ifcManager.useWebWorkers(true, 'IFCWorker.js');
         this.setupThreeMeshBVH();
     }

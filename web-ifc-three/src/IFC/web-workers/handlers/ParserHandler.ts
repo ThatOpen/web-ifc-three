@@ -6,8 +6,14 @@ import { Serializer } from '../serializer/Serializer';
 import { ParserResult } from '../workers/ParserWorker';
 import { BvhManager } from '../../components/BvhManager';
 import { DBOperation, IndexedDatabase } from '../../indexedDB/IndexedDatabase';
+import { IFCOPENINGELEMENT, IFCSPACE } from "web-ifc";
 
 export class ParserHandler implements ParserAPI {
+
+    optionalCategories: OptionalCategories = {
+        [IFCSPACE]: true,
+        [IFCOPENINGELEMENT]: false
+    };
 
     API = WorkerAPIs.parser;
 
@@ -18,6 +24,7 @@ export class ParserHandler implements ParserAPI {
     }
 
     async setupOptionalCategories(config: OptionalCategories) {
+        this.optionalCategories = config;
         return this.handler.request(this.API, WorkerActions.setupOptionalCategories, {config});
     }
 
