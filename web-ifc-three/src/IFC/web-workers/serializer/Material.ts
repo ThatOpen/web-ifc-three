@@ -1,4 +1,4 @@
-import { Color, MeshLambertMaterial } from 'three';
+import {Color, DoubleSide, MeshLambertMaterial} from 'three';
 
 export class SerializedMaterial {
     color: number[];
@@ -17,7 +17,8 @@ export class MaterialReconstructor {
         return new MeshLambertMaterial({
             color: new Color(material.color[0], material.color[1], material.color[2]),
             opacity: material.opacity,
-            transparent: material.transparent
+            transparent: material.transparent,
+            side: DoubleSide
         })
     }
 }

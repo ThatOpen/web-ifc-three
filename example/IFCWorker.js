@@ -42273,7 +42273,8 @@ class MaterialReconstructor {
         return new MeshLambertMaterial({
             color: new Color(material.color[0], material.color[1], material.color[2]),
             opacity: material.opacity,
-            transparent: material.transparent
+            transparent: material.transparent,
+            side: DoubleSide
         });
     }
 }
@@ -87494,6 +87495,7 @@ class ParserWorker {
         if (!this.parser)
             throw new Error(ErrorParserNotAvailable);
         const ifcModel = await this.parser.parse(data.args.buffer, data.args.coordinationMatrix);
+        ifcModel.geometry.computeVertexNormals();
         const serializedIfcModel = this.serializer.serializeIfcModel(ifcModel);
         this.cleanUpGeometries(ifcModel);
         data.result = { modelID: ifcModel.modelID };
