@@ -89936,7 +89936,6 @@ class ParserHandler {
       [IFCOPENINGELEMENT]: false
     };
     this.API = WorkerAPIs.parser;
-    this.optionalCategories = {};
   }
 
   async setupOptionalCategories(config) {
@@ -92691,7 +92690,7 @@ function intersectClosestTri( geo, side, ray, offset, count ) {
 
 // converts the given BVH raycast intersection to align with the three.js raycast
 // structure (include object, world space distance and point).
-function convertRaycastIntersect( hit, object, raycaster ) {
+function convertRaycastIntersect$1( hit, object, raycaster ) {
 
 	if ( hit === null ) {
 
@@ -94352,7 +94351,7 @@ MeshBVH.prototype.raycast = function ( ...args ) {
 		const results = originalRaycast.call( this, ray, mesh.material );
 		results.forEach( hit => {
 
-			hit = convertRaycastIntersect( hit, mesh, raycaster );
+			hit = convertRaycastIntersect$1( hit, mesh, raycaster );
 			if ( hit ) {
 
 				intersects.push( hit );
@@ -94381,7 +94380,7 @@ MeshBVH.prototype.raycastFirst = function ( ...args ) {
 			mesh, raycaster, ray,
 		] = args;
 
-		return convertRaycastIntersect( originalRaycastFirst.call( this, ray, mesh.material ), mesh, raycaster );
+		return convertRaycastIntersect$1( originalRaycastFirst.call( this, ray, mesh.material ), mesh, raycaster );
 
 	} else {
 
@@ -94511,6 +94510,32 @@ MeshBVH.prototype.refit = function ( ...args ) {
 	};
 
 } );
+
+// converts the given BVH raycast intersection to align with the three.js raycast
+// structure (include object, world space distance and point).
+function convertRaycastIntersect( hit, object, raycaster ) {
+
+	if ( hit === null ) {
+
+		return null;
+
+	}
+
+	hit.point.applyMatrix4( object.matrixWorld );
+	hit.distance = hit.point.distanceTo( raycaster.ray.origin );
+	hit.object = object;
+
+	if ( hit.distance < raycaster.near || hit.distance > raycaster.far ) {
+
+		return null;
+
+	} else {
+
+		return hit;
+
+	}
+
+}
 
 const ray = /* @__PURE__ */ new Ray();
 const tmpInverseMatrix = /* @__PURE__ */ new Matrix4();

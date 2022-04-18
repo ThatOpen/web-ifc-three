@@ -87495,7 +87495,6 @@ class ParserWorker {
         if (!this.parser)
             throw new Error(ErrorParserNotAvailable);
         const ifcModel = await this.parser.parse(data.args.buffer, data.args.coordinationMatrix);
-        ifcModel.geometry.computeVertexNormals();
         const serializedIfcModel = this.serializer.serializeIfcModel(ifcModel);
         this.cleanUpGeometries(ifcModel);
         data.result = { modelID: ifcModel.modelID };

@@ -16,7 +16,6 @@ export class ParserHandler implements ParserAPI {
     };
 
     API = WorkerAPIs.parser;
-    optionalCategories: OptionalCategories = {};
 
     constructor(private handler: IFCWorkerHandler,
                 private serializer: Serializer,
