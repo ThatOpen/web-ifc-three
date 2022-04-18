@@ -89936,6 +89936,7 @@ class ParserHandler {
       [IFCOPENINGELEMENT]: false
     };
     this.API = WorkerAPIs.parser;
+    this.optionalCategories = {};
   }
 
   async setupOptionalCategories(config) {

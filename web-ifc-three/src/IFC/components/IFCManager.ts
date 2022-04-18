@@ -5,7 +5,7 @@ import { PropertyManager } from './properties/PropertyManager';
 import { IfcElements } from './IFCElementsMap';
 import { TypeManager } from './TypeManager';
 import { SubsetConfig, IfcState, JSONObject } from '../BaseDefinitions';
-import {BufferGeometry, Material, Matrix4, Object3D, Scene} from 'three';
+import {BufferGeometry, Material, Matrix4, Scene} from 'three';
 import { IFCModel } from './IFCModel';
 import { BvhManager } from './BvhManager';
 import { LoaderSettings } from 'web-ifc';

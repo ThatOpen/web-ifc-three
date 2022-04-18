@@ -36,7 +36,7 @@ export interface ParserAPI {
 
     getAndClearErrors(_modelId: number): void;
 
-    setupOptionalCategories(config: OptionalCategories): void;
+    setupOptionalCategories(config: OptionalCategories): Promise<void>;
 
     optionalCategories: OptionalCategories;
 }
