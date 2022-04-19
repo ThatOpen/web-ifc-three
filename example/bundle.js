@@ -90327,6 +90327,7 @@ class IFCManager {
       }
     };
     this.BVH = new BvhManager();
+    this.typesMap = IfcTypesMap;
     this.parser = new IFCParser(this.state, this.BVH);
     this.subsets = new SubsetManager(this.state, this.BVH);
     this.utils = new IFCUtils(this.state);

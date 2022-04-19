@@ -14,6 +14,7 @@ import { PropertyManagerAPI } from './properties/BaseDefinitions';
 import { MemoryCleaner } from './MemoryCleaner';
 import { IFCUtils } from './IFCUtils';
 import {Data} from './sequence/Data'
+import { IfcTypesMap } from './IfcTypesMap';
 
 /**
  * Contains all the logic to work with the loaded IFC files (select, edit, etc).
@@ -26,7 +27,8 @@ export class IFCManager {
         worker: { active: false, path: '' }
     };
 
-    private BVH = new BvhManager();
+    BVH = new BvhManager();
+    typesMap: {[key: number]: string} = IfcTypesMap;
     parser: ParserAPI = new IFCParser(this.state, this.BVH);
     subsets = new SubsetManager(this.state, this.BVH);
     utils = new IFCUtils(this.state)
