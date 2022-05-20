@@ -13,7 +13,7 @@ import { IFCWorkerHandler } from '../web-workers/IFCWorkerHandler';
 import { PropertyManagerAPI } from './properties/BaseDefinitions';
 import { MemoryCleaner } from './MemoryCleaner';
 import { IFCUtils } from './IFCUtils';
-import {Data} from './sequence/Data'
+import { Data } from './sequence/Data'
 import { IfcTypesMap } from './IfcTypesMap';
 
 /**
@@ -354,12 +354,12 @@ export class IFCManager {
     * Returns the IFC class name of an instance if the optional parameter is not provided.
     * If an entit class is provided, it will check if an instance belongs to the class.
     * @modelID ID of the IFC model.
-    * @entityClass IFC Class name. 
+    * @entityClass IFC Class name.
     */
     async isA(entity: any, entity_class: string) {
         return this.utils.isA(entity, entity_class);
     }
-    
+
     async getSequenceData(modelID: number) {
         await this.sequenceData.load(modelID);
         return this.sequenceData;
@@ -370,7 +370,7 @@ export class IFCManager {
     * Returns the IFC objects filtered by IFC Type and wrapped with the entity_instance class.
     * If an IFC type class has subclasses, all entities of those subclasses are also returned.
     * @modelID ID of the IFC model.
-    * @entityClass IFC Class name. 
+    * @entityClass IFC Class name.
     */
     async byType(modelID: number, entityClass: string) {
         return this.utils.byType(modelID, entityClass);
@@ -389,7 +389,7 @@ export class IFCManager {
     * Returns the IFC objects filtered by IFC Type and wrapped with the entity_instance class.
     * If an IFC type class has subclasses, all entities of those subclasses are also returned.
     * @modelID ID of the IFC model.
-    * @entityClass IFC Class name. 
+    * @entityClass IFC Class name.
     */
     async idsByType(modelID: number, entityClass: string) {
         return this.utils.idsByType(modelID, entityClass);
