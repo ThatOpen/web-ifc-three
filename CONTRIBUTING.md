@@ -6,7 +6,7 @@ Here's some stuff we need help on:
 
 ### Docs
 
-* New tutorials of web-ifc-tree in the [official documentation](https://ifcjs.github.io/info/docs/Guide/web-ifc-three/Introduction).
+* New tutorials of web-ifc-three in the [official documentation](https://ifcjs.github.io/info/docs/Guide/web-ifc-three/Introduction).
 
 ### Performance
 
