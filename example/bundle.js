@@ -95691,7 +95691,7 @@ class IfcManager {
             [IFCOPENINGELEMENT]: false
         });
 
-        await this.ifcLoader.ifcManager.useWebWorkers(true, 'IFCWorker.js');
+        // await this.ifcLoader.ifcManager.useWebWorkers(true, 'IFCWorker.js');
         this.setupThreeMeshBVH();
     }
 
