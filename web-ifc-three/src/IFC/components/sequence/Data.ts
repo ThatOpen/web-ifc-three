@@ -71,9 +71,10 @@ export class Data {
             this.tasks[task.expressID] = {   
                 "Id": task.expressID,
                 "Name": task.Name.value,
+                "PredefinedType": ((task.PredefinedType) ? task.PredefinedType.value : ""),
                 "TaskTime": ((task.TaskTime) ? await this.utils.byId(modelID, task.TaskTime.value) : ""), 
-                "Identification": task.Identification.value,
-                "IsMilestone": task.IsMilestone.value,
+                "Identification": ((task.Identification) ? task.Identification.value : ""),
+                "IsMilestone": ((task.IsMilestone) ? task.IsMilestone.value : ""),
                 "IsPredecessorTo": [],
                 "IsSucessorFrom": [],
                 "Inputs": [],
@@ -100,12 +101,7 @@ export class Data {
                 let related_process = relSequence.RelatedProcess.value;
                 let relatingProcess = relSequence.RelatingProcess.value;
                 this.tasks[relatingProcess]["IsPredecessorTo"].push(relSequence.expressID)
-                //TO DO: Next lines should be refactored to provide access to expressID only.
-                let successorData = {
-                    "RelId": relSequence.expressID,
-                    "Rel": relSequence
-                }
-                this.tasks[related_process]["IsSucessorFrom"].push(successorData)
+                this.tasks[related_process]["IsSucessorFrom"].push(relSequence.expressID)
             }
         }
             
