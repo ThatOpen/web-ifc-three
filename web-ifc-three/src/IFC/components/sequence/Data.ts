@@ -2,16 +2,16 @@ import { IfcState } from '../../BaseDefinitions';
 import { IFCUtils } from '../IFCUtils'
 
 export class Data {
-    is_loaded = false;
-    work_plans: {[key: number]: any} = {}
+    isLoaded = false;
+    workPlans: {[key: number]: any} = {}
     workSchedules: {[key: number]: any} = {}
-    work_calendars: {[key: number]: any} = {}
-    work_times: {[key: number]: any} = {}
-    recurrence_patterns: {[key: number]: any} = {}
-    time_periods: {[key: number]: any} = {}
+    workCalendars: {[key: number]: any} = {}
+    workTimes: {[key: number]: any} = {}
+    recurrencePatterns: {[key: number]: any} = {}
+    timePeriods: {[key: number]: any} = {}
     tasks: {[key: number]: any} = {}
-    task_times: {[key: number]: any} = {}
-    lag_times: {[key: number]: any} = {}
+    taskTimes: {[key: number]: any} = {}
+    lagTimes: {[key: number]: any} = {}
     sequences: {[key: number]: any} = {}
     utils: any;
 
@@ -24,7 +24,11 @@ export class Data {
     // Currently only tasks are retrieved. 
     async load(modelID: number){
         await this.loadTasks(modelID)
-        this.loadWorkSchedules(modelID)
+        await this.loadWorkSchedules(modelID)
+        await this.loadWorkCalendars(modelID)
+        await this.loadWorkTimes(modelID)
+        await this.loadTimePeriods(modelID)
+        this.isLoaded = true
 
     }
 
@@ -51,7 +55,6 @@ export class Data {
 
     async loadWorkScheduleRelatedObjects(modelID: number){
         let relsControls = await this.utils.byType(modelID, "IfcRelAssignsToControl");
-        console.log("Rel Controls:", relsControls)
         for (let i = 0; i < relsControls.length; i++){
             let relControls = relsControls[i];
             let relatingControl = await this.utils.byId(modelID, relControls.RelatingControl.value);
@@ -70,7 +73,7 @@ export class Data {
             let task = tasks[i]
             this.tasks[task.expressID] = {   
                 "Id": task.expressID,
-                "Name": task.Name.value,
+                "Name": ((task.Name) ? task.Name.value : ""),
                 "PredefinedType": ((task.PredefinedType) ? task.PredefinedType.value : ""),
                 "TaskTime": ((task.TaskTime) ? await this.utils.byId(modelID, task.TaskTime.value) : ""), 
                 "Identification": ((task.Identification) ? task.Identification.value : ""),
@@ -84,12 +87,14 @@ export class Data {
                 "Nests": [],
                 "IsNestedBy": [],
                 "OperatesOn":[],
+                "HasAssignmentsWorkCalendars": [],
             }
         }
         await this.loadTaskSequence(modelID)
         await this.loadTaskOutputs(modelID)
         await this.loadTaskNesting(modelID)
         await this.loadTaskOperations(modelID)
+        await this.loadAssignementsWorkCalendar(modelID)
     }
 
     async loadTaskSequence(modelID: number){
@@ -111,9 +116,9 @@ export class Data {
         let rels_assigns_to_product = await this.utils.byType(modelID, "IfcRelAssignsToProduct");
         for (let i = 0; i < rels_assigns_to_product.length; i++){
             let relAssignsToProduct = rels_assigns_to_product[i]
-            let relatingProduct = await this.utils.byId(modelID, relAssignsToProduct.RelatingProduct.value);
             let relatedObject = await this.utils.byId(modelID, relAssignsToProduct.RelatedObjects[0].value); 
             if (this.utils.isA(relatedObject, "IfcTask")) {
+                let relatingProduct = await this.utils.byId(modelID, relAssignsToProduct.RelatingProduct.value);
                 this.tasks[relatedObject.expressID]["Outputs"].push(relatingProduct.expressID);
             }
         }
@@ -124,8 +129,8 @@ export class Data {
         for (let i = 0; i < rels_nests.length; i++){
             let relNests = rels_nests[i];
             let relating_object = await this.utils.byId(modelID, relNests.RelatingObject.value);
-            let relatedObjects = relNests.RelatedObjects;
             if (this.utils.isA(relating_object, "IfcTask")) {
+                let relatedObjects = relNests.RelatedObjects;
                 for (var object_index = 0; object_index < relatedObjects.length; object_index++) {
                     this.tasks[relating_object.expressID]["IsNestedBy"].push(relatedObjects[object_index].value);
                     this.tasks[relatedObjects[object_index].value]["Nests"].push(relating_object.expressID);
@@ -139,14 +144,68 @@ export class Data {
         for (let i = 0; i < relsAssignsToProcess.length; i++){
             let relAssignToProcess = relsAssignsToProcess[i];
             let relatingProcess = await this.utils.byId(modelID, relAssignToProcess.RelatingProcess.value);
-            let relatedObjects = relAssignToProcess.RelatedObjects;
             if (this.utils.isA(relatingProcess, "IfcTask")) {
+                let relatedObjects = relAssignToProcess.RelatedObjects;
                 for (var object_index = 0; object_index < relatedObjects.length; object_index++) {
                     this.tasks[relatingProcess.expressID]["OperatesOn"].push(relatedObjects[object_index].value);
-                    console.log(relatingProcess.expressID);
-                    console.log("Has Operations");
                 }
             }
         }
     }
+
+    async loadAssignementsWorkCalendar(modelID: number){
+        let relsAssignsToControl = await this.utils.byType(modelID, "IfcRelAssignsToControl");
+        for (let i = 0; i < relsAssignsToControl.length; i++){
+            let relAssignsToControl = relsAssignsToControl[i];
+            let relatingControl = await this.utils.byId(modelID, relAssignsToControl.RelatingControl.value);
+            if (this.utils.isA(relatingControl, "IfcWorkCalendar")) {
+                let relatedObjects = relAssignsToControl.RelatedObjects;
+                for (var object_index = 0; object_index < relatedObjects.length; object_index++) {
+                    this.tasks[relatedObjects[object_index].value]["HasAssignmentsWorkCalendars"].push(relatingControl.expressID);
+                }
+            }
+        }
+    }
+
+    async loadWorkCalendars(modelID: number){
+        let workCalendars = await this.utils.byType(modelID, "IfcWorkCalendar")
+        for (let i = 0; i < workCalendars.length; i++){
+            let workCalendar = workCalendars[i]
+            let workCalenderData = {   
+                "Id": workCalendar.expressID,
+                "Name": ((workCalendar.Name) ? workCalendar.Name.value : ""),
+                "Description": ((workCalendar.Description) ? workCalendar.Description.value : ""),
+                "WorkingTimes": ((workCalendar.WorkingTimes) ? workCalendar.WorkingTimes : []),
+                "ExceptionTimes": ((workCalendar.ExceptionTimes) ? workCalendar.ExceptionTimes : []),
+            }
+            this.workCalendars[workCalendar.expressID] = workCalenderData
+        }
+        // this.loadworkCalendarRelatedObjects(modelID)
+    }    
+
+    async loadWorkTimes(modelID: number){
+        let workTimes = await this.utils.byType(modelID, "IfcWorkTime")
+        for (let i = 0; i < workTimes.length; i++){
+            let workTime = workTimes[i]
+            let workTimeData = {   
+                "Name": ((workTime.Name) ? workTime.Name.value : ""),
+                "RecurrencePattern": ((workTime.RecurrencePattern) ? await this.utils.byId(modelID, workTime.RecurrencePattern.value) : ""), 
+                "Start": ((workTime.Start) ? new Date(workTime.Start.value) : ""),
+                "Finish": ((workTime.Finish) ? new Date(workTime.Finish.value) : ""),
+            }
+            this.workTimes[workTime.expressID] = workTimeData
+        }
+    }
+
+    async loadTimePeriods(modelID: number){
+        let timePeriods = await this.utils.byType(modelID, "IfcTimePeriod")
+        for (let i = 0; i < timePeriods.length; i++){
+            let timePeriod = timePeriods[i]
+            let workTimeData = {   
+                "StartTime": ((timePeriod.StartTime) ? new Date(timePeriod.StartTime.value) : ""),
+                "EndTime": ((timePeriod.EndTime) ? new Date(timePeriod.EndTime.value) : ""),
+            }
+            this.timePeriods[timePeriod.expressID] = workTimeData
+        }
+    }    
 }
