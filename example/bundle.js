@@ -25321,7 +25321,7 @@ function WebGLRenderer( parameters = {} ) {
 
 		_currentDrawBuffers[ 0 ] = 1029;
 
-		info = new WebGLInfo( _gl );
+		info = new WebGLInfo();
 		properties = new WebGLProperties();
 		textures = new WebGLTextures( _gl, extensions, state, properties, capabilities, utils, info );
 		cubemaps = new WebGLCubeMaps( _this );
@@ -44309,7 +44309,7 @@ var require_web_ifc_mt = __commonJS({
         }
         moduleOverrides = null;
         if (Module["arguments"])
-          ;
+          Module["arguments"];
         if (Module["thisProgram"])
           thisProgram = Module["thisProgram"];
         if (Module["quit"])
@@ -50217,7 +50217,7 @@ var require_web_ifc = __commonJS({
         }
         moduleOverrides = null;
         if (Module["arguments"])
-          ;
+          Module["arguments"];
         if (Module["thisProgram"])
           thisProgram = Module["thisProgram"];
         if (Module["quit"])
@@ -91060,23 +91060,27 @@ class Data {
 
   constructor(state) {
     this.state = state;
-    this.is_loaded = false;
-    this.work_plans = {};
+    this.isLoaded = false;
+    this.workPlans = {};
     this.workSchedules = {};
-    this.work_calendars = {};
-    this.work_times = {};
-    this.recurrence_patterns = {};
-    this.time_periods = {};
+    this.workCalendars = {};
+    this.workTimes = {};
+    this.recurrencePatterns = {};
+    this.timePeriods = {};
     this.tasks = {};
-    this.task_times = {};
-    this.lag_times = {};
+    this.taskTimes = {};
+    this.lagTimes = {};
     this.sequences = {};
     this.utils = new IFCUtils(this.state);
   }
 
   async load(modelID) {
     await this.loadTasks(modelID);
-    this.loadWorkSchedules(modelID);
+    await this.loadWorkSchedules(modelID);
+    await this.loadWorkCalendars(modelID);
+    await this.loadWorkTimes(modelID);
+    await this.loadTimePeriods(modelID);
+    this.isLoaded = true;
   }
 
   async loadWorkSchedules(modelID) {
@@ -91100,7 +91104,6 @@ class Data {
 
   async loadWorkScheduleRelatedObjects(modelID) {
     let relsControls = await this.utils.byType(modelID, "IfcRelAssignsToControl");
-    console.log("Rel Controls:", relsControls);
     for (let i = 0; i < relsControls.length; i++) {
       let relControls = relsControls[i];
       let relatingControl = await this.utils.byId(modelID, relControls.RelatingControl.value);
@@ -91119,10 +91122,11 @@ class Data {
       let task = tasks[i];
       this.tasks[task.expressID] = {
         "Id": task.expressID,
-        "Name": task.Name.value,
+        "Name": ((task.Name) ? task.Name.value : ""),
+        "PredefinedType": ((task.PredefinedType) ? task.PredefinedType.value : ""),
         "TaskTime": ((task.TaskTime) ? await this.utils.byId(modelID, task.TaskTime.value) : ""),
-        "Identification": task.Identification.value,
-        "IsMilestone": task.IsMilestone.value,
+        "Identification": ((task.Identification) ? task.Identification.value : ""),
+        "IsMilestone": ((task.IsMilestone) ? task.IsMilestone.value : ""),
         "IsPredecessorTo": [],
         "IsSucessorFrom": [],
         "Inputs": [],
@@ -91132,12 +91136,14 @@ class Data {
         "Nests": [],
         "IsNestedBy": [],
         "OperatesOn": [],
+        "HasAssignmentsWorkCalendars": [],
       };
     }
     await this.loadTaskSequence(modelID);
     await this.loadTaskOutputs(modelID);
     await this.loadTaskNesting(modelID);
     await this.loadTaskOperations(modelID);
+    await this.loadAssignementsWorkCalendar(modelID);
   }
 
   async loadTaskSequence(modelID) {
@@ -91149,11 +91155,7 @@ class Data {
         let related_process = relSequence.RelatedProcess.value;
         let relatingProcess = relSequence.RelatingProcess.value;
         this.tasks[relatingProcess]["IsPredecessorTo"].push(relSequence.expressID);
-        let successorData = {
-          "RelId": relSequence.expressID,
-          "Rel": relSequence
-        };
-        this.tasks[related_process]["IsSucessorFrom"].push(successorData);
+        this.tasks[related_process]["IsSucessorFrom"].push(relSequence.expressID);
       }
     }
   }
@@ -91162,9 +91164,9 @@ class Data {
     let rels_assigns_to_product = await this.utils.byType(modelID, "IfcRelAssignsToProduct");
     for (let i = 0; i < rels_assigns_to_product.length; i++) {
       let relAssignsToProduct = rels_assigns_to_product[i];
-      let relatingProduct = await this.utils.byId(modelID, relAssignsToProduct.RelatingProduct.value);
       let relatedObject = await this.utils.byId(modelID, relAssignsToProduct.RelatedObjects[0].value);
       if (this.utils.isA(relatedObject, "IfcTask")) {
+        let relatingProduct = await this.utils.byId(modelID, relAssignsToProduct.RelatingProduct.value);
         this.tasks[relatedObject.expressID]["Outputs"].push(relatingProduct.expressID);
       }
     }
@@ -91175,8 +91177,8 @@ class Data {
     for (let i = 0; i < rels_nests.length; i++) {
       let relNests = rels_nests[i];
       let relating_object = await this.utils.byId(modelID, relNests.RelatingObject.value);
-      let relatedObjects = relNests.RelatedObjects;
       if (this.utils.isA(relating_object, "IfcTask")) {
+        let relatedObjects = relNests.RelatedObjects;
         for (var object_index = 0; object_index < relatedObjects.length; object_index++) {
           this.tasks[relating_object.expressID]["IsNestedBy"].push(relatedObjects[object_index].value);
           this.tasks[relatedObjects[object_index].value]["Nests"].push(relating_object.expressID);
@@ -91190,14 +91192,67 @@ class Data {
     for (let i = 0; i < relsAssignsToProcess.length; i++) {
       let relAssignToProcess = relsAssignsToProcess[i];
       let relatingProcess = await this.utils.byId(modelID, relAssignToProcess.RelatingProcess.value);
-      let relatedObjects = relAssignToProcess.RelatedObjects;
       if (this.utils.isA(relatingProcess, "IfcTask")) {
+        let relatedObjects = relAssignToProcess.RelatedObjects;
         for (var object_index = 0; object_index < relatedObjects.length; object_index++) {
           this.tasks[relatingProcess.expressID]["OperatesOn"].push(relatedObjects[object_index].value);
-          console.log(relatingProcess.expressID);
-          console.log("Has Operations");
         }
       }
+    }
+  }
+
+  async loadAssignementsWorkCalendar(modelID) {
+    let relsAssignsToControl = await this.utils.byType(modelID, "IfcRelAssignsToControl");
+    for (let i = 0; i < relsAssignsToControl.length; i++) {
+      let relAssignsToControl = relsAssignsToControl[i];
+      let relatingControl = await this.utils.byId(modelID, relAssignsToControl.RelatingControl.value);
+      if (this.utils.isA(relatingControl, "IfcWorkCalendar")) {
+        let relatedObjects = relAssignsToControl.RelatedObjects;
+        for (var object_index = 0; object_index < relatedObjects.length; object_index++) {
+          this.tasks[relatedObjects[object_index].value]["HasAssignmentsWorkCalendars"].push(relatingControl.expressID);
+        }
+      }
+    }
+  }
+
+  async loadWorkCalendars(modelID) {
+    let workCalendars = await this.utils.byType(modelID, "IfcWorkCalendar");
+    for (let i = 0; i < workCalendars.length; i++) {
+      let workCalendar = workCalendars[i];
+      let workCalenderData = {
+        "Id": workCalendar.expressID,
+        "Name": ((workCalendar.Name) ? workCalendar.Name.value : ""),
+        "Description": ((workCalendar.Description) ? workCalendar.Description.value : ""),
+        "WorkingTimes": ((workCalendar.WorkingTimes) ? workCalendar.WorkingTimes : []),
+        "ExceptionTimes": ((workCalendar.ExceptionTimes) ? workCalendar.ExceptionTimes : []),
+      };
+      this.workCalendars[workCalendar.expressID] = workCalenderData;
+    }
+  }
+
+  async loadWorkTimes(modelID) {
+    let workTimes = await this.utils.byType(modelID, "IfcWorkTime");
+    for (let i = 0; i < workTimes.length; i++) {
+      let workTime = workTimes[i];
+      let workTimeData = {
+        "Name": ((workTime.Name) ? workTime.Name.value : ""),
+        "RecurrencePattern": ((workTime.RecurrencePattern) ? await this.utils.byId(modelID, workTime.RecurrencePattern.value) : ""),
+        "Start": ((workTime.Start) ? new Date(workTime.Start.value) : ""),
+        "Finish": ((workTime.Finish) ? new Date(workTime.Finish.value) : ""),
+      };
+      this.workTimes[workTime.expressID] = workTimeData;
+    }
+  }
+
+  async loadTimePeriods(modelID) {
+    let timePeriods = await this.utils.byType(modelID, "IfcTimePeriod");
+    for (let i = 0; i < timePeriods.length; i++) {
+      let timePeriod = timePeriods[i];
+      let workTimeData = {
+        "StartTime": ((timePeriod.StartTime) ? new Date(timePeriod.StartTime.value) : ""),
+        "EndTime": ((timePeriod.EndTime) ? new Date(timePeriod.EndTime.value) : ""),
+      };
+      this.timePeriods[timePeriod.expressID] = workTimeData;
     }
   }
 
@@ -92765,6 +92820,13 @@ const sphereIntersectTriangle = ( function () {
 
 } )();
 
+const DIST_EPSILON = 1e-15;
+function isNearZero( value ) {
+
+	return Math.abs( value ) < DIST_EPSILON;
+
+}
+
 class ExtendedTriangle extends Triangle {
 
 	constructor( ...args ) {
@@ -92777,7 +92839,7 @@ class ExtendedTriangle extends Triangle {
 		this.points = [ this.a, this.b, this.c ];
 		this.sphere = new Sphere();
 		this.plane = new Plane();
-		this.needsUpdate = false;
+		this.needsUpdate = true;
 
 	}
 
@@ -92992,20 +93054,27 @@ ExtendedTriangle.prototype.intersectsTriangle = ( function () {
 			let count1 = 0;
 			for ( let i = 0; i < 3; i ++ ) {
 
-				const p1 = points1[ i ];
-				const p2 = points1[ ( i + 1 ) % 3 ];
+				const p = points1[ i ];
+				const pNext = points1[ ( i + 1 ) % 3 ];
 
-				edge.start.copy( p1 );
-				edge.end.copy( p2 );
+				edge.start.copy( p );
+				edge.end.copy( pNext );
 				edge.delta( dir1 );
-				if ( plane2.normal.dot( dir1 ) === 0 && plane2.distanceToPoint( edge.start ) === 0 ) {
+
+				const targetPoint = found1 ? edge1.start : edge1.end;
+				const startIntersects = isNearZero( plane2.distanceToPoint( p ) );
+				if ( isNearZero( plane2.normal.dot( dir1 ) ) && startIntersects ) {
 
 					// if the edge lies on the plane then take the line
 					edge1.copy( edge );
 					count1 = 2;
 					break;
 
-				} else if ( plane2.intersectLine( edge, found1 ? edge1.start : edge1.end ) ) {
+				}
+
+				// check if the start point is near the plane because "intersectLine" is not robust to that case
+				const doesIntersect = plane2.intersectLine( edge, targetPoint ) || startIntersects;
+				if ( doesIntersect && ! isNearZero( targetPoint.distanceTo( pNext ) ) ) {
 
 					count1 ++;
 					if ( found1 ) {
@@ -93020,7 +93089,18 @@ ExtendedTriangle.prototype.intersectsTriangle = ( function () {
 
 			}
 
-			if ( count1 !== 2 ) {
+			if ( count1 === 1 && this.containsPoint( edge1.start ) ) {
+
+				if ( target ) {
+
+					target.start.copy( edge1.start );
+					target.end.copy( edge1.start );
+
+				}
+
+				return true;
+
+			} else if ( count1 !== 2 ) {
 
 				return false;
 
@@ -93032,20 +93112,27 @@ ExtendedTriangle.prototype.intersectsTriangle = ( function () {
 			let count2 = 0;
 			for ( let i = 0; i < 3; i ++ ) {
 
-				const p1 = points2[ i ];
-				const p2 = points2[ ( i + 1 ) % 3 ];
+				const p = points2[ i ];
+				const pNext = points2[ ( i + 1 ) % 3 ];
 
-				edge.start.copy( p1 );
-				edge.end.copy( p2 );
+				edge.start.copy( p );
+				edge.end.copy( pNext );
 				edge.delta( dir2 );
-				if ( plane1.normal.dot( dir2 ) === 0 && plane1.distanceToPoint( edge.start ) === 0 ) {
+
+				const targetPoint = found2 ? edge2.start : edge2.end;
+				const startIntersects = isNearZero( plane1.distanceToPoint( p ) );
+				if ( isNearZero( plane1.normal.dot( dir2 ) ) && startIntersects ) {
 
 					// if the edge lies on the plane then take the line
 					edge2.copy( edge );
 					count2 = 2;
 					break;
 
-				} else if ( plane1.intersectLine( edge, found2 ? edge2.start : edge2.end ) ) {
+				}
+
+				// check if the start point is near the plane because "intersectLine" is not robust to that case
+				const doesIntersect = plane1.intersectLine( edge, targetPoint ) || startIntersects;
+				if ( doesIntersect && ! isNearZero( targetPoint.distanceTo( pNext ) ) ) {
 
 					count2 ++;
 					if ( found2 ) {
@@ -93060,7 +93147,18 @@ ExtendedTriangle.prototype.intersectsTriangle = ( function () {
 
 			}
 
-			if ( count2 !== 2 ) {
+			if ( count2 === 1 && this.containsPoint( edge2.start ) ) {
+
+				if ( target ) {
+
+					target.start.copy( edge2.start );
+					target.end.copy( edge2.start );
+
+				}
+
+				return true;
+
+			} else if ( count2 !== 2 ) {
 
 				return false;
 
@@ -93085,6 +93183,7 @@ ExtendedTriangle.prototype.intersectsTriangle = ( function () {
 			const e2 = edge2.end.dot( dir1 );
 			const separated1 = e1 < s2;
 			const separated2 = s1 < e2;
+
 			if ( s1 !== e2 && s2 !== e1 && separated1 === separated2 ) {
 
 				return false;
@@ -95071,7 +95170,7 @@ class MeshBVH {
 
 		}
 
-		this.getBoundingBox( aabb2 );
+		otherBvh.getBoundingBox( aabb2 );
 		aabb2.applyMatrix4( matrixToLocal );
 		const result = this.shapecast( {
 
