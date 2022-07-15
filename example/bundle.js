@@ -88198,7 +88198,6 @@ class IFCParser {
     this.state = state;
     this.BVH = BVH;
     this.loadedModels = 0;
-    this.items = {};
     this.optionalCategories = {
       [IFCSPACE]: true,
       [IFCOPENINGELEMENT]: false
@@ -88257,7 +88256,6 @@ class IFCParser {
       this.updateLoadingState();
       this.streamMesh(modelID, mesh);
     });
-    console.log(this.items);
     this.notifyLoadingEnded();
     const geometries = [];
     const materials = [];
@@ -88313,29 +88311,11 @@ class IFCParser {
   streamMesh(modelID, mesh) {
     const placedGeometries = mesh.geometries;
     const size = placedGeometries.size();
-    let geometryID = '';
-    let firstMatrix = new Matrix4();
     for (let i = 0; i < size; i++) {
       const placedGeometry = placedGeometries.get(i);
-      geometryID += placedGeometry.geometryExpressID;
       let itemMesh = this.getPlacedGeometry(modelID, mesh.expressID, placedGeometry);
       let geom = itemMesh.geometry.applyMatrix4(itemMesh.matrix);
       this.storeGeometryByMaterial(placedGeometry.color, geom);
-      if (!firstMatrix)
-        firstMatrix = itemMesh.matrix;
-    }
-    if (!this.items[geometryID]) {
-      this.items[geometryID] = {
-        data: [{
-          id: mesh.expressID,
-          matrix: firstMatrix
-        }]
-      };
-    } else {
-      this.items[geometryID].data.push({
-        id: mesh.expressID,
-        matrix: firstMatrix
-      });
     }
   }
 
