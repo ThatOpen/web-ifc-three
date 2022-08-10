@@ -14,11 +14,17 @@ html, body {
     outline: none;
 }
 
-#openFileDialog {
+#input-container {
     z-index: 1;
     position: fixed;
-    top: 1rem;
     left: 7rem;
+    display: flex;
+    flex-direction: column;
+    top: 1rem;
+}
+
+#input-container input {
+   margin-top: 1rem;
 }
 
 #close-button {

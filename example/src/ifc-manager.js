@@ -1,7 +1,8 @@
-import { Matrix4 } from 'three';
-import { IFCLoader } from 'web-ifc-three/dist/IFCLoader';
-import { acceleratedRaycast, computeBoundsTree, disposeBoundsTree } from 'three-mesh-bvh';
-import { IFCWALLSTANDARDCASE, IFCSLAB, IFCWINDOW, IFCSPACE, IFCOPENINGELEMENT } from 'web-ifc';
+import {Matrix4} from 'three';
+import {IFCLoader} from 'web-ifc-three/dist/IFCLoader';
+import {acceleratedRaycast, computeBoundsTree, disposeBoundsTree} from 'three-mesh-bvh';
+import {IFCWALLSTANDARDCASE, IFCSLAB, IFCWINDOW, IFCSPACE, IFCOPENINGELEMENT} from 'web-ifc';
+import {downloadZip} from "client-zip";
 
 export class IfcManager {
     constructor(scene, ifcModels) {
@@ -16,8 +17,8 @@ export class IfcManager {
 
     async editSubset(type) {
         const ids = await this.ifcLoader.ifcManager.getAllItemsOfType(0, type, false);
-        if(this.remove) this.ifcLoader.ifcManager.removeFromSubset(0, ids);
-        else this.ifcLoader.ifcManager.createSubset({modelID: 0, ids, applyBVH: false, removePrevious: false })
+        if (this.remove) this.ifcLoader.ifcManager.removeFromSubset(0, ids);
+        else this.ifcLoader.ifcManager.createSubset({modelID: 0, ids, applyBVH: false, removePrevious: false})
     }
 
     setupThreeMeshBVH() {
@@ -75,10 +76,12 @@ export class IfcManager {
             USE_FAST_BOOLS: false
         });
 
-        const ifcModel = await this.ifcLoader.loadAsync(ifcURL);
-        // console.log(ifcModel);
+        const useFragments = document.getElementById('useFragment');
 
-        if(firstModel){
+        this.ifcLoader.ifcManager.useFragments = useFragments.checked;
+        const ifcModel = await this.ifcLoader.loadAsync(ifcURL);
+
+        if (firstModel) {
             const matrixArr = await this.ifcLoader.ifcManager.ifcAPI.GetCoordinationMatrix(ifcModel.modelID);
             const matrix = new Matrix4().fromArray(matrixArr);
             this.ifcLoader.ifcManager.setupCoordinationMatrix(matrix);
@@ -87,8 +90,36 @@ export class IfcManager {
         this.ifcModels.push(ifcModel);
         this.scene.add(ifcModel);
 
+        if (useFragments.checked) {
+            await this.downloadFragment(ifcModel);
+        }
+
         const stop = window.performance.now()
 
-        console.log(`Time Taken to load = ${(stop - start)/1000} seconds`);
+        console.log(`Time Taken to load = ${(stop - start) / 1000} seconds`);
+    }
+
+    async downloadFragment(model) {
+
+        const files = [];
+        for (const frag of model.fragments) {
+            const file = await frag.export();
+            files.push(file.geometry, file.data);
+        }
+
+        files.push(new File([JSON.stringify(model.levelRelationships)], 'levels-relationship.json'));
+        files.push(new File([JSON.stringify(model.itemTypes)], 'model-types.json'));
+        files.push(new File([JSON.stringify(model.allTypes)], 'all-types.json'));
+        files.push(new File([JSON.stringify(model.floorsProperties)], 'levels-properties.json'));
+
+        // get the ZIP stream in a Blob
+        const blob = await downloadZip(files).blob();
+
+        // make and click a temporary link to download the Blob
+        const link = document.createElement("a");
+        link.href = URL.createObjectURL(blob);
+        link.download = "test.zip";
+        link.click();
+        link.remove();
     }
 }
