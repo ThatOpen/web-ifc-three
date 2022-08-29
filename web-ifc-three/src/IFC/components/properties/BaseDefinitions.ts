@@ -1,4 +1,5 @@
 import { BufferGeometry } from 'three';
+import {PropertySerializer} from "./PropertySerializer";
 
 export interface PropertyAPI {
     getItemProperties(modelID: number, elementID: number, recursive: boolean): Promise<any>;
@@ -17,4 +18,5 @@ export interface PropertyAPI {
 
 export interface PropertyManagerAPI extends PropertyAPI {
     getExpressId(geometry: BufferGeometry, faceIndex: number): number;
+    serializer?: PropertySerializer;
 }

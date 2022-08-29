@@ -44290,6 +44290,13 @@ var require_web_ifc_mt = __commonJS({
             err(text);
           }
         }
+        var tempRet0 = 0;
+        var setTempRet0 = function(value) {
+          tempRet0 = value;
+        };
+        var getTempRet0 = function() {
+          return tempRet0;
+        };
         var wasmBinary;
         if (Module["wasmBinary"])
           wasmBinary = Module["wasmBinary"];
@@ -44711,9 +44718,9 @@ var require_web_ifc_mt = __commonJS({
           function receiveInstance(instance, module2) {
             var exports3 = instance.exports;
             Module["asm"] = exports3;
-            wasmTable = Module["asm"]["ta"];
-            addOnInit(Module["asm"]["oa"]);
-            PThread.tlsInitFunctions.push(Module["asm"]["sa"]);
+            wasmTable = Module["asm"]["db"];
+            addOnInit(Module["asm"]["ab"]);
+            PThread.tlsInitFunctions.push(Module["asm"]["fb"]);
             wasmModule = module2;
             if (!ENVIRONMENT_IS_PTHREAD) {
               var numWorkersToLoad = PThread.unusedWorkers.length;
@@ -44768,9 +44775,9 @@ var require_web_ifc_mt = __commonJS({
         }
         var tempDouble;
         var tempI64;
-        var ASM_CONSTS = { 44848: function() {
+        var ASM_CONSTS = { 56684: function() {
           throw "Canceled!";
-        }, 44866: function($0, $1) {
+        }, 56702: function($0, $1) {
           setTimeout(function() {
             __emscripten_do_dispatch_to_thread($0, $1);
           }, 0);
@@ -45097,11 +45104,6 @@ var require_web_ifc_mt = __commonJS({
           if (ENVIRONMENT_IS_PTHREAD)
             return _emscripten_proxy_to_main_thread_js(1, 1, func, arg);
         }
-        function ___cxa_thread_atexit(routine, arg) {
-          PThread.threadExitHandlers.push(function() {
-            wasmTable.get(routine)(arg);
-          });
-        }
         function ExceptionInfo(excPtr) {
           this.excPtr = excPtr;
           this.ptr = excPtr - 16;
@@ -45149,10 +45151,182 @@ var require_web_ifc_mt = __commonJS({
             return prev === 1;
           };
         }
+        function CatchInfo(ptr) {
+          this.free = function() {
+            _free(this.ptr);
+            this.ptr = 0;
+          };
+          this.set_base_ptr = function(basePtr) {
+            GROWABLE_HEAP_I32()[this.ptr >>> 2] = basePtr;
+          };
+          this.get_base_ptr = function() {
+            return GROWABLE_HEAP_I32()[this.ptr >>> 2];
+          };
+          this.set_adjusted_ptr = function(adjustedPtr) {
+            GROWABLE_HEAP_I32()[this.ptr + 4 >>> 2] = adjustedPtr;
+          };
+          this.get_adjusted_ptr_addr = function() {
+            return this.ptr + 4;
+          };
+          this.get_adjusted_ptr = function() {
+            return GROWABLE_HEAP_I32()[this.ptr + 4 >>> 2];
+          };
+          this.get_exception_ptr = function() {
+            var isPointer = ___cxa_is_pointer_type(this.get_exception_info().get_type());
+            if (isPointer) {
+              return GROWABLE_HEAP_I32()[this.get_base_ptr() >>> 2];
+            }
+            var adjusted = this.get_adjusted_ptr();
+            if (adjusted !== 0)
+              return adjusted;
+            return this.get_base_ptr();
+          };
+          this.get_exception_info = function() {
+            return new ExceptionInfo(this.get_base_ptr());
+          };
+          if (ptr === void 0) {
+            this.ptr = _malloc(8);
+            this.set_adjusted_ptr(0);
+          } else {
+            this.ptr = ptr;
+          }
+        }
+        var exceptionCaught = [];
+        function exception_addRef(info) {
+          info.add_ref();
+        }
+        var uncaughtExceptionCount = 0;
+        function ___cxa_begin_catch(ptr) {
+          var catchInfo = new CatchInfo(ptr);
+          var info = catchInfo.get_exception_info();
+          if (!info.get_caught()) {
+            info.set_caught(true);
+            uncaughtExceptionCount--;
+          }
+          info.set_rethrown(false);
+          exceptionCaught.push(catchInfo);
+          exception_addRef(info);
+          return catchInfo.get_exception_ptr();
+        }
+        var exceptionLast = 0;
+        function ___cxa_free_exception(ptr) {
+          return _free(new ExceptionInfo(ptr).ptr);
+        }
+        function exception_decRef(info) {
+          if (info.release_ref() && !info.get_rethrown()) {
+            var destructor = info.get_destructor();
+            if (destructor) {
+              wasmTable.get(destructor)(info.excPtr);
+            }
+            ___cxa_free_exception(info.excPtr);
+          }
+        }
+        function ___cxa_end_catch() {
+          _setThrew(0);
+          var catchInfo = exceptionCaught.pop();
+          exception_decRef(catchInfo.get_exception_info());
+          catchInfo.free();
+          exceptionLast = 0;
+        }
+        function ___resumeException(catchInfoPtr) {
+          var catchInfo = new CatchInfo(catchInfoPtr);
+          var ptr = catchInfo.get_base_ptr();
+          if (!exceptionLast) {
+            exceptionLast = ptr;
+          }
+          catchInfo.free();
+          throw ptr;
+        }
+        function ___cxa_find_matching_catch_2() {
+          var thrown = exceptionLast;
+          if (!thrown) {
+            setTempRet0(0);
+            return 0 | 0;
+          }
+          var info = new ExceptionInfo(thrown);
+          var thrownType = info.get_type();
+          var catchInfo = new CatchInfo();
+          catchInfo.set_base_ptr(thrown);
+          catchInfo.set_adjusted_ptr(thrown);
+          if (!thrownType) {
+            setTempRet0(0);
+            return catchInfo.ptr | 0;
+          }
+          var typeArray = Array.prototype.slice.call(arguments);
+          for (var i = 0; i < typeArray.length; i++) {
+            var caughtType = typeArray[i];
+            if (caughtType === 0 || caughtType === thrownType) {
+              break;
+            }
+            if (___cxa_can_catch(caughtType, thrownType, catchInfo.get_adjusted_ptr_addr())) {
+              setTempRet0(caughtType);
+              return catchInfo.ptr | 0;
+            }
+          }
+          setTempRet0(thrownType);
+          return catchInfo.ptr | 0;
+        }
+        function ___cxa_find_matching_catch_3() {
+          var thrown = exceptionLast;
+          if (!thrown) {
+            setTempRet0(0);
+            return 0 | 0;
+          }
+          var info = new ExceptionInfo(thrown);
+          var thrownType = info.get_type();
+          var catchInfo = new CatchInfo();
+          catchInfo.set_base_ptr(thrown);
+          catchInfo.set_adjusted_ptr(thrown);
+          if (!thrownType) {
+            setTempRet0(0);
+            return catchInfo.ptr | 0;
+          }
+          var typeArray = Array.prototype.slice.call(arguments);
+          for (var i = 0; i < typeArray.length; i++) {
+            var caughtType = typeArray[i];
+            if (caughtType === 0 || caughtType === thrownType) {
+              break;
+            }
+            if (___cxa_can_catch(caughtType, thrownType, catchInfo.get_adjusted_ptr_addr())) {
+              setTempRet0(caughtType);
+              return catchInfo.ptr | 0;
+            }
+          }
+          setTempRet0(thrownType);
+          return catchInfo.ptr | 0;
+        }
+        function ___cxa_rethrow() {
+          var catchInfo = exceptionCaught.pop();
+          if (!catchInfo) {
+            abort("no exception to throw");
+          }
+          var info = catchInfo.get_exception_info();
+          var ptr = catchInfo.get_base_ptr();
+          if (!info.get_rethrown()) {
+            exceptionCaught.push(catchInfo);
+            info.set_rethrown(true);
+            info.set_caught(false);
+            uncaughtExceptionCount++;
+          } else {
+            catchInfo.free();
+          }
+          exceptionLast = ptr;
+          throw ptr;
+        }
+        function ___cxa_thread_atexit(routine, arg) {
+          PThread.threadExitHandlers.push(function() {
+            wasmTable.get(routine)(arg);
+          });
+        }
         function ___cxa_throw(ptr, type, destructor) {
           var info = new ExceptionInfo(ptr);
           info.init(type, destructor);
+          exceptionLast = ptr;
+          uncaughtExceptionCount++;
           throw ptr;
+        }
+        function ___cxa_uncaught_exceptions() {
+          return uncaughtExceptionCount;
         }
         var PATH = { splitPath: function(filename) {
           var splitPathRe = /^(\/?|)([\s\S]*?)((?:\.{1,2}|[^\/]+?|)(\.[^.\/]*|))(?:[\/]*)$/;
@@ -49438,6 +49612,12 @@ var require_web_ifc_mt = __commonJS({
             return e.errno;
           }
         }
+        function _getTempRet0() {
+          return getTempRet0();
+        }
+        function _llvm_eh_typeid_for(type) {
+          return type;
+        }
         function spawnThread(threadParams) {
           if (ENVIRONMENT_IS_PTHREAD)
             throw "Internal Error! spawnThread() can only ever be called from main application thread!";
@@ -49528,6 +49708,7 @@ var require_web_ifc_mt = __commonJS({
           return spawnThread(threadParams);
         }
         function _setTempRet0(val) {
+          setTempRet0(val);
         }
         function __isLeapYear(year) {
           return year % 4 === 0 && (year % 100 !== 0 || year % 400 === 0);
@@ -49806,97 +49987,439 @@ var require_web_ifc_mt = __commonJS({
             u8array.length = numBytesWritten;
           return u8array;
         }
-        var asmLibraryArg = { "l": ___assert_fail, "B": ___cxa_allocate_exception, "ka": ___cxa_thread_atexit, "A": ___cxa_throw, "D": ___sys_fcntl64, "V": ___sys_ioctl, "W": ___sys_open, "ma": __embind_finalize_value_array, "s": __embind_finalize_value_object, "O": __embind_register_bigint, "ia": __embind_register_bool, "v": __embind_register_class, "u": __embind_register_class_constructor, "c": __embind_register_class_function, "ha": __embind_register_emval, "la": __embind_register_enum, "y": __embind_register_enum_value, "J": __embind_register_float, "f": __embind_register_function, "p": __embind_register_integer, "k": __embind_register_memory_view, "K": __embind_register_std_string, "z": __embind_register_std_wstring, "na": __embind_register_value_array, "h": __embind_register_value_array_element, "t": __embind_register_value_object, "e": __embind_register_value_object_field, "ja": __embind_register_void, "ea": __emscripten_notify_thread_queue, "n": __emval_as, "L": __emval_call, "b": __emval_decref, "U": __emval_get_global, "o": __emval_get_property, "j": __emval_incref, "ca": __emval_instanceof, "M": __emval_is_number, "C": __emval_new_array, "g": __emval_new_cstring, "w": __emval_new_object, "m": __emval_run_destructors, "i": __emval_set_property, "d": __emval_take_value, "I": _abort, "T": _clock_gettime, "G": _emscripten_asm_const_int, "_": _emscripten_check_blocking_allowed, "F": _emscripten_conditional_set_current_thread_status, "r": _emscripten_futex_wait, "q": _emscripten_futex_wake, "x": _emscripten_get_now, "R": _emscripten_memcpy_big, "$": _emscripten_receive_on_main_thread_js, "S": _emscripten_resize_heap, "aa": _emscripten_set_canvas_element_size, "E": _emscripten_set_current_thread_status, "ba": _emscripten_webgl_create_context, "Y": _environ_get, "Z": _environ_sizes_get, "H": _fd_close, "ga": _fd_read, "N": _fd_seek, "fa": _fd_write, "Q": initPthreadsJS, "a": wasmMemory || Module["wasmMemory"], "da": _pthread_create, "P": _setTempRet0, "X": _strftime_l };
+        var asmLibraryArg = { "z": ___assert_fail, "n": ___cxa_allocate_exception, "v": ___cxa_begin_catch, "y": ___cxa_end_catch, "c": ___cxa_find_matching_catch_2, "m": ___cxa_find_matching_catch_3, "C": ___cxa_free_exception, "ba": ___cxa_rethrow, "La": ___cxa_thread_atexit, "o": ___cxa_throw, "ta": ___cxa_uncaught_exceptions, "i": ___resumeException, "da": ___sys_fcntl64, "ua": ___sys_ioctl, "va": ___sys_open, "Oa": __embind_finalize_value_array, "Ra": __embind_finalize_value_object, "_a": __embind_register_bigint, "Ja": __embind_register_bool, "O": __embind_register_class, "N": __embind_register_class_constructor, "q": __embind_register_class_function, "Ia": __embind_register_emval, "Ma": __embind_register_enum, "T": __embind_register_enum_value, "ja": __embind_register_float, "t": __embind_register_function, "B": __embind_register_integer, "x": __embind_register_memory_view, "ka": __embind_register_std_string, "Y": __embind_register_std_wstring, "Pa": __embind_register_value_array, "Na": __embind_register_value_array_element, "M": __embind_register_value_object, "Qa": __embind_register_value_object_field, "Ka": __embind_register_void, "Ca": __emscripten_notify_thread_queue, "U": __emval_as, "la": __emval_call, "xa": __emval_decref, "$a": __emval_get_global, "Ua": __emval_get_property, "aa": __emval_incref, "pa": __emval_instanceof, "Xa": __emval_is_number, "Wa": __emval_new_array, "Z": __emval_new_cstring, "Va": __emval_new_object, "Ta": __emval_run_destructors, "Sa": __emval_set_property, "D": __emval_take_value, "ia": _abort, "ca": _clock_gettime, "ga": _emscripten_asm_const_int, "wa": _emscripten_check_blocking_allowed, "fa": _emscripten_conditional_set_current_thread_status, "K": _emscripten_futex_wait, "J": _emscripten_futex_wake, "S": _emscripten_get_now, "ra": _emscripten_memcpy_big, "ya": _emscripten_receive_on_main_thread_js, "sa": _emscripten_resize_heap, "za": _emscripten_set_canvas_element_size, "ea": _emscripten_set_current_thread_status, "Aa": _emscripten_webgl_create_context, "Ea": _environ_get, "Fa": _environ_sizes_get, "ha": _fd_close, "Ha": _fd_read, "Za": _fd_seek, "Ga": _fd_write, "b": _getTempRet0, "qa": initPthreadsJS, "I": invoke_diii, "E": invoke_i, "d": invoke_ii, "Q": invoke_iid, "j": invoke_iii, "k": invoke_iiii, "R": invoke_iiiii, "na": invoke_iiiiid, "G": invoke_iiiiii, "A": invoke_iiiiiii, "_": invoke_iiiiiiii, "P": invoke_iiiiiiiii, "W": invoke_iiiiiiiiiiii, "Ya": invoke_j, "g": invoke_v, "f": invoke_vi, "L": invoke_viddi, "H": invoke_viffiid, "h": invoke_vii, "s": invoke_viidd, "e": invoke_viii, "l": invoke_viiii, "$": invoke_viiiid, "X": invoke_viiiidii, "F": invoke_viiiii, "w": invoke_viiiiii, "r": invoke_viiiiiii, "u": invoke_viiiiiiiii, "p": invoke_viiiiiiiiii, "V": invoke_viiiiiiiiiiiiiii, "oa": _llvm_eh_typeid_for, "a": wasmMemory || Module["wasmMemory"], "Ba": _pthread_create, "ma": _setTempRet0, "Da": _strftime_l };
         createWasm();
         Module["___wasm_call_ctors"] = function() {
-          return (Module["___wasm_call_ctors"] = Module["asm"]["oa"]).apply(null, arguments);
+          return (Module["___wasm_call_ctors"] = Module["asm"]["ab"]).apply(null, arguments);
         };
         Module["_main"] = function() {
-          return (Module["_main"] = Module["asm"]["pa"]).apply(null, arguments);
+          return (Module["_main"] = Module["asm"]["bb"]).apply(null, arguments);
         };
         var _malloc = Module["_malloc"] = function() {
-          return (_malloc = Module["_malloc"] = Module["asm"]["qa"]).apply(null, arguments);
+          return (_malloc = Module["_malloc"] = Module["asm"]["cb"]).apply(null, arguments);
         };
         var _free = Module["_free"] = function() {
-          return (_free = Module["_free"] = Module["asm"]["ra"]).apply(null, arguments);
+          return (_free = Module["_free"] = Module["asm"]["eb"]).apply(null, arguments);
         };
         Module["_emscripten_tls_init"] = function() {
-          return (Module["_emscripten_tls_init"] = Module["asm"]["sa"]).apply(null, arguments);
+          return (Module["_emscripten_tls_init"] = Module["asm"]["fb"]).apply(null, arguments);
         };
         var ___getTypeName = Module["___getTypeName"] = function() {
-          return (___getTypeName = Module["___getTypeName"] = Module["asm"]["ua"]).apply(null, arguments);
+          return (___getTypeName = Module["___getTypeName"] = Module["asm"]["gb"]).apply(null, arguments);
         };
         Module["___embind_register_native_and_builtin_types"] = function() {
-          return (Module["___embind_register_native_and_builtin_types"] = Module["asm"]["va"]).apply(null, arguments);
+          return (Module["___embind_register_native_and_builtin_types"] = Module["asm"]["hb"]).apply(null, arguments);
         };
         Module["_emscripten_current_thread_process_queued_calls"] = function() {
-          return (Module["_emscripten_current_thread_process_queued_calls"] = Module["asm"]["wa"]).apply(null, arguments);
+          return (Module["_emscripten_current_thread_process_queued_calls"] = Module["asm"]["ib"]).apply(null, arguments);
         };
         var _emscripten_register_main_browser_thread_id = Module["_emscripten_register_main_browser_thread_id"] = function() {
-          return (_emscripten_register_main_browser_thread_id = Module["_emscripten_register_main_browser_thread_id"] = Module["asm"]["xa"]).apply(null, arguments);
+          return (_emscripten_register_main_browser_thread_id = Module["_emscripten_register_main_browser_thread_id"] = Module["asm"]["jb"]).apply(null, arguments);
         };
         var __emscripten_do_dispatch_to_thread = Module["__emscripten_do_dispatch_to_thread"] = function() {
-          return (__emscripten_do_dispatch_to_thread = Module["__emscripten_do_dispatch_to_thread"] = Module["asm"]["ya"]).apply(null, arguments);
+          return (__emscripten_do_dispatch_to_thread = Module["__emscripten_do_dispatch_to_thread"] = Module["asm"]["kb"]).apply(null, arguments);
         };
         var _emscripten_sync_run_in_main_thread_4 = Module["_emscripten_sync_run_in_main_thread_4"] = function() {
-          return (_emscripten_sync_run_in_main_thread_4 = Module["_emscripten_sync_run_in_main_thread_4"] = Module["asm"]["za"]).apply(null, arguments);
+          return (_emscripten_sync_run_in_main_thread_4 = Module["_emscripten_sync_run_in_main_thread_4"] = Module["asm"]["lb"]).apply(null, arguments);
         };
         var _emscripten_main_thread_process_queued_calls = Module["_emscripten_main_thread_process_queued_calls"] = function() {
-          return (_emscripten_main_thread_process_queued_calls = Module["_emscripten_main_thread_process_queued_calls"] = Module["asm"]["Aa"]).apply(null, arguments);
+          return (_emscripten_main_thread_process_queued_calls = Module["_emscripten_main_thread_process_queued_calls"] = Module["asm"]["mb"]).apply(null, arguments);
         };
         var _emscripten_run_in_main_runtime_thread_js = Module["_emscripten_run_in_main_runtime_thread_js"] = function() {
-          return (_emscripten_run_in_main_runtime_thread_js = Module["_emscripten_run_in_main_runtime_thread_js"] = Module["asm"]["Ba"]).apply(null, arguments);
+          return (_emscripten_run_in_main_runtime_thread_js = Module["_emscripten_run_in_main_runtime_thread_js"] = Module["asm"]["nb"]).apply(null, arguments);
         };
         var __emscripten_call_on_thread = Module["__emscripten_call_on_thread"] = function() {
-          return (__emscripten_call_on_thread = Module["__emscripten_call_on_thread"] = Module["asm"]["Ca"]).apply(null, arguments);
+          return (__emscripten_call_on_thread = Module["__emscripten_call_on_thread"] = Module["asm"]["ob"]).apply(null, arguments);
         };
         var __emscripten_thread_init = Module["__emscripten_thread_init"] = function() {
-          return (__emscripten_thread_init = Module["__emscripten_thread_init"] = Module["asm"]["Da"]).apply(null, arguments);
+          return (__emscripten_thread_init = Module["__emscripten_thread_init"] = Module["asm"]["pb"]).apply(null, arguments);
         };
         var _emscripten_get_global_libc = Module["_emscripten_get_global_libc"] = function() {
-          return (_emscripten_get_global_libc = Module["_emscripten_get_global_libc"] = Module["asm"]["Ea"]).apply(null, arguments);
+          return (_emscripten_get_global_libc = Module["_emscripten_get_global_libc"] = Module["asm"]["qb"]).apply(null, arguments);
         };
         var ___errno_location = Module["___errno_location"] = function() {
-          return (___errno_location = Module["___errno_location"] = Module["asm"]["Fa"]).apply(null, arguments);
+          return (___errno_location = Module["___errno_location"] = Module["asm"]["rb"]).apply(null, arguments);
         };
         var _pthread_self = Module["_pthread_self"] = function() {
-          return (_pthread_self = Module["_pthread_self"] = Module["asm"]["Ga"]).apply(null, arguments);
+          return (_pthread_self = Module["_pthread_self"] = Module["asm"]["sb"]).apply(null, arguments);
         };
         var ___pthread_tsd_run_dtors = Module["___pthread_tsd_run_dtors"] = function() {
-          return (___pthread_tsd_run_dtors = Module["___pthread_tsd_run_dtors"] = Module["asm"]["Ha"]).apply(null, arguments);
+          return (___pthread_tsd_run_dtors = Module["___pthread_tsd_run_dtors"] = Module["asm"]["tb"]).apply(null, arguments);
         };
         var stackSave = Module["stackSave"] = function() {
-          return (stackSave = Module["stackSave"] = Module["asm"]["Ia"]).apply(null, arguments);
+          return (stackSave = Module["stackSave"] = Module["asm"]["ub"]).apply(null, arguments);
         };
         var stackRestore = Module["stackRestore"] = function() {
-          return (stackRestore = Module["stackRestore"] = Module["asm"]["Ja"]).apply(null, arguments);
+          return (stackRestore = Module["stackRestore"] = Module["asm"]["vb"]).apply(null, arguments);
         };
         var stackAlloc = Module["stackAlloc"] = function() {
-          return (stackAlloc = Module["stackAlloc"] = Module["asm"]["Ka"]).apply(null, arguments);
+          return (stackAlloc = Module["stackAlloc"] = Module["asm"]["wb"]).apply(null, arguments);
         };
         var _emscripten_stack_set_limits = Module["_emscripten_stack_set_limits"] = function() {
-          return (_emscripten_stack_set_limits = Module["_emscripten_stack_set_limits"] = Module["asm"]["La"]).apply(null, arguments);
+          return (_emscripten_stack_set_limits = Module["_emscripten_stack_set_limits"] = Module["asm"]["xb"]).apply(null, arguments);
+        };
+        var _setThrew = Module["_setThrew"] = function() {
+          return (_setThrew = Module["_setThrew"] = Module["asm"]["yb"]).apply(null, arguments);
+        };
+        var ___cxa_can_catch = Module["___cxa_can_catch"] = function() {
+          return (___cxa_can_catch = Module["___cxa_can_catch"] = Module["asm"]["zb"]).apply(null, arguments);
+        };
+        var ___cxa_is_pointer_type = Module["___cxa_is_pointer_type"] = function() {
+          return (___cxa_is_pointer_type = Module["___cxa_is_pointer_type"] = Module["asm"]["Ab"]).apply(null, arguments);
         };
         var _memalign = Module["_memalign"] = function() {
-          return (_memalign = Module["_memalign"] = Module["asm"]["Ma"]).apply(null, arguments);
+          return (_memalign = Module["_memalign"] = Module["asm"]["Bb"]).apply(null, arguments);
         };
         Module["dynCall_jiji"] = function() {
-          return (Module["dynCall_jiji"] = Module["asm"]["Na"]).apply(null, arguments);
+          return (Module["dynCall_jiji"] = Module["asm"]["Cb"]).apply(null, arguments);
+        };
+        var dynCall_j = Module["dynCall_j"] = function() {
+          return (dynCall_j = Module["dynCall_j"] = Module["asm"]["Db"]).apply(null, arguments);
         };
         Module["dynCall_viijii"] = function() {
-          return (Module["dynCall_viijii"] = Module["asm"]["Oa"]).apply(null, arguments);
+          return (Module["dynCall_viijii"] = Module["asm"]["Eb"]).apply(null, arguments);
         };
         Module["dynCall_iiiiij"] = function() {
-          return (Module["dynCall_iiiiij"] = Module["asm"]["Pa"]).apply(null, arguments);
+          return (Module["dynCall_iiiiij"] = Module["asm"]["Fb"]).apply(null, arguments);
         };
         Module["dynCall_iiiiijj"] = function() {
-          return (Module["dynCall_iiiiijj"] = Module["asm"]["Qa"]).apply(null, arguments);
+          return (Module["dynCall_iiiiijj"] = Module["asm"]["Gb"]).apply(null, arguments);
         };
         Module["dynCall_iiiiiijj"] = function() {
-          return (Module["dynCall_iiiiiijj"] = Module["asm"]["Ra"]).apply(null, arguments);
+          return (Module["dynCall_iiiiiijj"] = Module["asm"]["Hb"]).apply(null, arguments);
         };
-        var __emscripten_allow_main_runtime_queued_calls = Module["__emscripten_allow_main_runtime_queued_calls"] = 44840;
-        var __emscripten_main_thread_futex = Module["__emscripten_main_thread_futex"] = 48292;
+        var __emscripten_allow_main_runtime_queued_calls = Module["__emscripten_allow_main_runtime_queued_calls"] = 56672;
+        var __emscripten_main_thread_futex = Module["__emscripten_main_thread_futex"] = 60132;
+        function invoke_ii(index, a1) {
+          var sp = stackSave();
+          try {
+            return wasmTable.get(index)(a1);
+          } catch (e) {
+            stackRestore(sp);
+            if (e !== e + 0 && e !== "longjmp")
+              throw e;
+            _setThrew(1, 0);
+          }
+        }
+        function invoke_viiiiiiiiii(index, a1, a2, a3, a4, a5, a6, a7, a8, a9, a10) {
+          var sp = stackSave();
+          try {
+            wasmTable.get(index)(a1, a2, a3, a4, a5, a6, a7, a8, a9, a10);
+          } catch (e) {
+            stackRestore(sp);
+            if (e !== e + 0 && e !== "longjmp")
+              throw e;
+            _setThrew(1, 0);
+          }
+        }
+        function invoke_vi(index, a1) {
+          var sp = stackSave();
+          try {
+            wasmTable.get(index)(a1);
+          } catch (e) {
+            stackRestore(sp);
+            if (e !== e + 0 && e !== "longjmp")
+              throw e;
+            _setThrew(1, 0);
+          }
+        }
+        function invoke_viiiiiiiii(index, a1, a2, a3, a4, a5, a6, a7, a8, a9) {
+          var sp = stackSave();
+          try {
+            wasmTable.get(index)(a1, a2, a3, a4, a5, a6, a7, a8, a9);
+          } catch (e) {
+            stackRestore(sp);
+            if (e !== e + 0 && e !== "longjmp")
+              throw e;
+            _setThrew(1, 0);
+          }
+        }
+        function invoke_v(index) {
+          var sp = stackSave();
+          try {
+            wasmTable.get(index)();
+          } catch (e) {
+            stackRestore(sp);
+            if (e !== e + 0 && e !== "longjmp")
+              throw e;
+            _setThrew(1, 0);
+          }
+        }
+        function invoke_viii(index, a1, a2, a3) {
+          var sp = stackSave();
+          try {
+            wasmTable.get(index)(a1, a2, a3);
+          } catch (e) {
+            stackRestore(sp);
+            if (e !== e + 0 && e !== "longjmp")
+              throw e;
+            _setThrew(1, 0);
+          }
+        }
+        function invoke_viiii(index, a1, a2, a3, a4) {
+          var sp = stackSave();
+          try {
+            wasmTable.get(index)(a1, a2, a3, a4);
+          } catch (e) {
+            stackRestore(sp);
+            if (e !== e + 0 && e !== "longjmp")
+              throw e;
+            _setThrew(1, 0);
+          }
+        }
+        function invoke_iii(index, a1, a2) {
+          var sp = stackSave();
+          try {
+            return wasmTable.get(index)(a1, a2);
+          } catch (e) {
+            stackRestore(sp);
+            if (e !== e + 0 && e !== "longjmp")
+              throw e;
+            _setThrew(1, 0);
+          }
+        }
+        function invoke_vii(index, a1, a2) {
+          var sp = stackSave();
+          try {
+            wasmTable.get(index)(a1, a2);
+          } catch (e) {
+            stackRestore(sp);
+            if (e !== e + 0 && e !== "longjmp")
+              throw e;
+            _setThrew(1, 0);
+          }
+        }
+        function invoke_iiiii(index, a1, a2, a3, a4) {
+          var sp = stackSave();
+          try {
+            return wasmTable.get(index)(a1, a2, a3, a4);
+          } catch (e) {
+            stackRestore(sp);
+            if (e !== e + 0 && e !== "longjmp")
+              throw e;
+            _setThrew(1, 0);
+          }
+        }
+        function invoke_diii(index, a1, a2, a3) {
+          var sp = stackSave();
+          try {
+            return wasmTable.get(index)(a1, a2, a3);
+          } catch (e) {
+            stackRestore(sp);
+            if (e !== e + 0 && e !== "longjmp")
+              throw e;
+            _setThrew(1, 0);
+          }
+        }
+        function invoke_i(index) {
+          var sp = stackSave();
+          try {
+            return wasmTable.get(index)();
+          } catch (e) {
+            stackRestore(sp);
+            if (e !== e + 0 && e !== "longjmp")
+              throw e;
+            _setThrew(1, 0);
+          }
+        }
+        function invoke_iiii(index, a1, a2, a3) {
+          var sp = stackSave();
+          try {
+            return wasmTable.get(index)(a1, a2, a3);
+          } catch (e) {
+            stackRestore(sp);
+            if (e !== e + 0 && e !== "longjmp")
+              throw e;
+            _setThrew(1, 0);
+          }
+        }
+        function invoke_iid(index, a1, a2) {
+          var sp = stackSave();
+          try {
+            return wasmTable.get(index)(a1, a2);
+          } catch (e) {
+            stackRestore(sp);
+            if (e !== e + 0 && e !== "longjmp")
+              throw e;
+            _setThrew(1, 0);
+          }
+        }
+        function invoke_iiiiiii(index, a1, a2, a3, a4, a5, a6) {
+          var sp = stackSave();
+          try {
+            return wasmTable.get(index)(a1, a2, a3, a4, a5, a6);
+          } catch (e) {
+            stackRestore(sp);
+            if (e !== e + 0 && e !== "longjmp")
+              throw e;
+            _setThrew(1, 0);
+          }
+        }
+        function invoke_viiiiii(index, a1, a2, a3, a4, a5, a6) {
+          var sp = stackSave();
+          try {
+            wasmTable.get(index)(a1, a2, a3, a4, a5, a6);
+          } catch (e) {
+            stackRestore(sp);
+            if (e !== e + 0 && e !== "longjmp")
+              throw e;
+            _setThrew(1, 0);
+          }
+        }
+        function invoke_viiiidii(index, a1, a2, a3, a4, a5, a6, a7) {
+          var sp = stackSave();
+          try {
+            wasmTable.get(index)(a1, a2, a3, a4, a5, a6, a7);
+          } catch (e) {
+            stackRestore(sp);
+            if (e !== e + 0 && e !== "longjmp")
+              throw e;
+            _setThrew(1, 0);
+          }
+        }
+        function invoke_viiiiiii(index, a1, a2, a3, a4, a5, a6, a7) {
+          var sp = stackSave();
+          try {
+            wasmTable.get(index)(a1, a2, a3, a4, a5, a6, a7);
+          } catch (e) {
+            stackRestore(sp);
+            if (e !== e + 0 && e !== "longjmp")
+              throw e;
+            _setThrew(1, 0);
+          }
+        }
+        function invoke_viffiid(index, a1, a2, a3, a4, a5, a6) {
+          var sp = stackSave();
+          try {
+            wasmTable.get(index)(a1, a2, a3, a4, a5, a6);
+          } catch (e) {
+            stackRestore(sp);
+            if (e !== e + 0 && e !== "longjmp")
+              throw e;
+            _setThrew(1, 0);
+          }
+        }
+        function invoke_viddi(index, a1, a2, a3, a4) {
+          var sp = stackSave();
+          try {
+            wasmTable.get(index)(a1, a2, a3, a4);
+          } catch (e) {
+            stackRestore(sp);
+            if (e !== e + 0 && e !== "longjmp")
+              throw e;
+            _setThrew(1, 0);
+          }
+        }
+        function invoke_iiiiii(index, a1, a2, a3, a4, a5) {
+          var sp = stackSave();
+          try {
+            return wasmTable.get(index)(a1, a2, a3, a4, a5);
+          } catch (e) {
+            stackRestore(sp);
+            if (e !== e + 0 && e !== "longjmp")
+              throw e;
+            _setThrew(1, 0);
+          }
+        }
+        function invoke_viiiii(index, a1, a2, a3, a4, a5) {
+          var sp = stackSave();
+          try {
+            wasmTable.get(index)(a1, a2, a3, a4, a5);
+          } catch (e) {
+            stackRestore(sp);
+            if (e !== e + 0 && e !== "longjmp")
+              throw e;
+            _setThrew(1, 0);
+          }
+        }
+        function invoke_viidd(index, a1, a2, a3, a4) {
+          var sp = stackSave();
+          try {
+            wasmTable.get(index)(a1, a2, a3, a4);
+          } catch (e) {
+            stackRestore(sp);
+            if (e !== e + 0 && e !== "longjmp")
+              throw e;
+            _setThrew(1, 0);
+          }
+        }
+        function invoke_viiiid(index, a1, a2, a3, a4, a5) {
+          var sp = stackSave();
+          try {
+            wasmTable.get(index)(a1, a2, a3, a4, a5);
+          } catch (e) {
+            stackRestore(sp);
+            if (e !== e + 0 && e !== "longjmp")
+              throw e;
+            _setThrew(1, 0);
+          }
+        }
+        function invoke_iiiiiiiii(index, a1, a2, a3, a4, a5, a6, a7, a8) {
+          var sp = stackSave();
+          try {
+            return wasmTable.get(index)(a1, a2, a3, a4, a5, a6, a7, a8);
+          } catch (e) {
+            stackRestore(sp);
+            if (e !== e + 0 && e !== "longjmp")
+              throw e;
+            _setThrew(1, 0);
+          }
+        }
+        function invoke_iiiiiiii(index, a1, a2, a3, a4, a5, a6, a7) {
+          var sp = stackSave();
+          try {
+            return wasmTable.get(index)(a1, a2, a3, a4, a5, a6, a7);
+          } catch (e) {
+            stackRestore(sp);
+            if (e !== e + 0 && e !== "longjmp")
+              throw e;
+            _setThrew(1, 0);
+          }
+        }
+        function invoke_iiiiiiiiiiii(index, a1, a2, a3, a4, a5, a6, a7, a8, a9, a10, a11) {
+          var sp = stackSave();
+          try {
+            return wasmTable.get(index)(a1, a2, a3, a4, a5, a6, a7, a8, a9, a10, a11);
+          } catch (e) {
+            stackRestore(sp);
+            if (e !== e + 0 && e !== "longjmp")
+              throw e;
+            _setThrew(1, 0);
+          }
+        }
+        function invoke_viiiiiiiiiiiiiii(index, a1, a2, a3, a4, a5, a6, a7, a8, a9, a10, a11, a12, a13, a14, a15) {
+          var sp = stackSave();
+          try {
+            wasmTable.get(index)(a1, a2, a3, a4, a5, a6, a7, a8, a9, a10, a11, a12, a13, a14, a15);
+          } catch (e) {
+            stackRestore(sp);
+            if (e !== e + 0 && e !== "longjmp")
+              throw e;
+            _setThrew(1, 0);
+          }
+        }
+        function invoke_iiiiid(index, a1, a2, a3, a4, a5) {
+          var sp = stackSave();
+          try {
+            return wasmTable.get(index)(a1, a2, a3, a4, a5);
+          } catch (e) {
+            stackRestore(sp);
+            if (e !== e + 0 && e !== "longjmp")
+              throw e;
+            _setThrew(1, 0);
+          }
+        }
+        function invoke_j(index) {
+          var sp = stackSave();
+          try {
+            return dynCall_j(index);
+          } catch (e) {
+            stackRestore(sp);
+            if (e !== e + 0 && e !== "longjmp")
+              throw e;
+            _setThrew(1, 0);
+          }
+        }
         Module["addRunDependency"] = addRunDependency;
         Module["removeRunDependency"] = removeRunDependency;
         Module["FS_createPath"] = FS.createPath;
@@ -50184,6 +50707,13 @@ var require_web_ifc = __commonJS({
           thisProgram = Module["thisProgram"];
         if (Module["quit"])
           quit_ = Module["quit"];
+        var tempRet0 = 0;
+        var setTempRet0 = function(value) {
+          tempRet0 = value;
+        };
+        var getTempRet0 = function() {
+          return tempRet0;
+        };
         var wasmBinary;
         if (Module["wasmBinary"])
           wasmBinary = Module["wasmBinary"];
@@ -50560,10 +51090,10 @@ var require_web_ifc = __commonJS({
           function receiveInstance(instance, module2) {
             var exports3 = instance.exports;
             Module["asm"] = exports3;
-            wasmMemory = Module["asm"]["$"];
+            wasmMemory = Module["asm"]["Na"];
             updateGlobalBufferAndViews(wasmMemory.buffer);
-            wasmTable = Module["asm"]["ha"];
-            addOnInit(Module["asm"]["aa"]);
+            wasmTable = Module["asm"]["Ra"];
+            addOnInit(Module["asm"]["Oa"]);
             removeRunDependency();
           }
           addRunDependency();
@@ -50681,10 +51211,177 @@ var require_web_ifc = __commonJS({
             return prev === 1;
           };
         }
+        function CatchInfo(ptr) {
+          this.free = function() {
+            _free(this.ptr);
+            this.ptr = 0;
+          };
+          this.set_base_ptr = function(basePtr) {
+            HEAP32[this.ptr >>> 2] = basePtr;
+          };
+          this.get_base_ptr = function() {
+            return HEAP32[this.ptr >>> 2];
+          };
+          this.set_adjusted_ptr = function(adjustedPtr) {
+            HEAP32[this.ptr + 4 >>> 2] = adjustedPtr;
+          };
+          this.get_adjusted_ptr_addr = function() {
+            return this.ptr + 4;
+          };
+          this.get_adjusted_ptr = function() {
+            return HEAP32[this.ptr + 4 >>> 2];
+          };
+          this.get_exception_ptr = function() {
+            var isPointer = ___cxa_is_pointer_type(this.get_exception_info().get_type());
+            if (isPointer) {
+              return HEAP32[this.get_base_ptr() >>> 2];
+            }
+            var adjusted = this.get_adjusted_ptr();
+            if (adjusted !== 0)
+              return adjusted;
+            return this.get_base_ptr();
+          };
+          this.get_exception_info = function() {
+            return new ExceptionInfo(this.get_base_ptr());
+          };
+          if (ptr === void 0) {
+            this.ptr = _malloc(8);
+            this.set_adjusted_ptr(0);
+          } else {
+            this.ptr = ptr;
+          }
+        }
+        var exceptionCaught = [];
+        function exception_addRef(info) {
+          info.add_ref();
+        }
+        var uncaughtExceptionCount = 0;
+        function ___cxa_begin_catch(ptr) {
+          var catchInfo = new CatchInfo(ptr);
+          var info = catchInfo.get_exception_info();
+          if (!info.get_caught()) {
+            info.set_caught(true);
+            uncaughtExceptionCount--;
+          }
+          info.set_rethrown(false);
+          exceptionCaught.push(catchInfo);
+          exception_addRef(info);
+          return catchInfo.get_exception_ptr();
+        }
+        var exceptionLast = 0;
+        function ___cxa_free_exception(ptr) {
+          return _free(new ExceptionInfo(ptr).ptr);
+        }
+        function exception_decRef(info) {
+          if (info.release_ref() && !info.get_rethrown()) {
+            var destructor = info.get_destructor();
+            if (destructor) {
+              wasmTable.get(destructor)(info.excPtr);
+            }
+            ___cxa_free_exception(info.excPtr);
+          }
+        }
+        function ___cxa_end_catch() {
+          _setThrew(0);
+          var catchInfo = exceptionCaught.pop();
+          exception_decRef(catchInfo.get_exception_info());
+          catchInfo.free();
+          exceptionLast = 0;
+        }
+        function ___resumeException(catchInfoPtr) {
+          var catchInfo = new CatchInfo(catchInfoPtr);
+          var ptr = catchInfo.get_base_ptr();
+          if (!exceptionLast) {
+            exceptionLast = ptr;
+          }
+          catchInfo.free();
+          throw ptr;
+        }
+        function ___cxa_find_matching_catch_2() {
+          var thrown = exceptionLast;
+          if (!thrown) {
+            setTempRet0(0);
+            return 0 | 0;
+          }
+          var info = new ExceptionInfo(thrown);
+          var thrownType = info.get_type();
+          var catchInfo = new CatchInfo();
+          catchInfo.set_base_ptr(thrown);
+          catchInfo.set_adjusted_ptr(thrown);
+          if (!thrownType) {
+            setTempRet0(0);
+            return catchInfo.ptr | 0;
+          }
+          var typeArray = Array.prototype.slice.call(arguments);
+          for (var i = 0; i < typeArray.length; i++) {
+            var caughtType = typeArray[i];
+            if (caughtType === 0 || caughtType === thrownType) {
+              break;
+            }
+            if (___cxa_can_catch(caughtType, thrownType, catchInfo.get_adjusted_ptr_addr())) {
+              setTempRet0(caughtType);
+              return catchInfo.ptr | 0;
+            }
+          }
+          setTempRet0(thrownType);
+          return catchInfo.ptr | 0;
+        }
+        function ___cxa_find_matching_catch_3() {
+          var thrown = exceptionLast;
+          if (!thrown) {
+            setTempRet0(0);
+            return 0 | 0;
+          }
+          var info = new ExceptionInfo(thrown);
+          var thrownType = info.get_type();
+          var catchInfo = new CatchInfo();
+          catchInfo.set_base_ptr(thrown);
+          catchInfo.set_adjusted_ptr(thrown);
+          if (!thrownType) {
+            setTempRet0(0);
+            return catchInfo.ptr | 0;
+          }
+          var typeArray = Array.prototype.slice.call(arguments);
+          for (var i = 0; i < typeArray.length; i++) {
+            var caughtType = typeArray[i];
+            if (caughtType === 0 || caughtType === thrownType) {
+              break;
+            }
+            if (___cxa_can_catch(caughtType, thrownType, catchInfo.get_adjusted_ptr_addr())) {
+              setTempRet0(caughtType);
+              return catchInfo.ptr | 0;
+            }
+          }
+          setTempRet0(thrownType);
+          return catchInfo.ptr | 0;
+        }
+        function ___cxa_rethrow() {
+          var catchInfo = exceptionCaught.pop();
+          if (!catchInfo) {
+            abort("no exception to throw");
+          }
+          var info = catchInfo.get_exception_info();
+          var ptr = catchInfo.get_base_ptr();
+          if (!info.get_rethrown()) {
+            exceptionCaught.push(catchInfo);
+            info.set_rethrown(true);
+            info.set_caught(false);
+            uncaughtExceptionCount++;
+          } else {
+            catchInfo.free();
+          }
+          exceptionLast = ptr;
+          throw ptr;
+        }
         function ___cxa_throw(ptr, type, destructor) {
           var info = new ExceptionInfo(ptr);
           info.init(type, destructor);
+          exceptionLast = ptr;
+          uncaughtExceptionCount++;
           throw ptr;
+        }
+        function ___cxa_uncaught_exceptions() {
+          return uncaughtExceptionCount;
         }
         function setErrNo(value) {
           HEAP32[___errno_location() >>> 2] = value;
@@ -54537,7 +55234,14 @@ var require_web_ifc = __commonJS({
             return e.errno;
           }
         }
+        function _getTempRet0() {
+          return getTempRet0();
+        }
+        function _llvm_eh_typeid_for(type) {
+          return type;
+        }
         function _setTempRet0(val) {
+          setTempRet0(val);
         }
         function __isLeapYear(year) {
           return year % 4 === 0 && (year % 100 !== 0 || year % 400 === 0);
@@ -54812,44 +55516,392 @@ var require_web_ifc = __commonJS({
             u8array.length = numBytesWritten;
           return u8array;
         }
-        var asmLibraryArg = { "y": ___assert_fail, "x": ___cxa_allocate_exception, "w": ___cxa_throw, "A": ___sys_fcntl64, "O": ___sys_ioctl, "P": ___sys_open, "Z": __embind_finalize_value_array, "o": __embind_finalize_value_object, "J": __embind_register_bigint, "W": __embind_register_bool, "r": __embind_register_class, "q": __embind_register_class_constructor, "b": __embind_register_class_function, "V": __embind_register_emval, "Y": __embind_register_enum, "t": __embind_register_enum_value, "D": __embind_register_float, "e": __embind_register_function, "n": __embind_register_integer, "j": __embind_register_memory_view, "E": __embind_register_std_string, "v": __embind_register_std_wstring, "_": __embind_register_value_array, "g": __embind_register_value_array_element, "p": __embind_register_value_object, "d": __embind_register_value_object_field, "X": __embind_register_void, "l": __emval_as, "F": __emval_call, "a": __emval_decref, "H": __emval_get_global, "m": __emval_get_property, "i": __emval_incref, "L": __emval_instanceof, "G": __emval_is_number, "z": __emval_new_array, "f": __emval_new_cstring, "s": __emval_new_object, "k": __emval_run_destructors, "h": __emval_set_property, "c": __emval_take_value, "C": _abort, "N": _clock_gettime, "M": _emscripten_memcpy_big, "u": _emscripten_resize_heap, "R": _environ_get, "S": _environ_sizes_get, "B": _fd_close, "U": _fd_read, "I": _fd_seek, "T": _fd_write, "K": _setTempRet0, "Q": _strftime_l };
+        var asmLibraryArg = { "ga": ___assert_fail, "m": ___cxa_allocate_exception, "u": ___cxa_begin_catch, "x": ___cxa_end_catch, "b": ___cxa_find_matching_catch_2, "l": ___cxa_find_matching_catch_3, "A": ___cxa_free_exception, "$": ___cxa_rethrow, "n": ___cxa_throw, "pa": ___cxa_uncaught_exceptions, "h": ___resumeException, "ba": ___sys_fcntl64, "qa": ___sys_ioctl, "ra": ___sys_open, "Ca": __embind_finalize_value_array, "Fa": __embind_finalize_value_object, "ka": __embind_register_bigint, "ya": __embind_register_bool, "K": __embind_register_class, "J": __embind_register_class_constructor, "p": __embind_register_class_function, "xa": __embind_register_emval, "Aa": __embind_register_enum, "Q": __embind_register_enum_value, "ea": __embind_register_float, "s": __embind_register_function, "z": __embind_register_integer, "w": __embind_register_memory_view, "fa": __embind_register_std_string, "U": __embind_register_std_wstring, "Da": __embind_register_value_array, "Ba": __embind_register_value_array_element, "I": __embind_register_value_object, "Ea": __embind_register_value_object_field, "za": __embind_register_void, "R": __emval_as, "ha": __emval_call, "na": __emval_decref, "Ma": __emval_get_global, "Ia": __emval_get_property, "_": __emval_incref, "la": __emval_instanceof, "La": __emval_is_number, "Ka": __emval_new_array, "V": __emval_new_cstring, "Ja": __emval_new_object, "Ha": __emval_run_destructors, "Ga": __emval_set_property, "B": __emval_take_value, "da": _abort, "aa": _clock_gettime, "oa": _emscripten_memcpy_big, "T": _emscripten_resize_heap, "ta": _environ_get, "ua": _environ_sizes_get, "ca": _fd_close, "wa": _fd_read, "ja": _fd_seek, "va": _fd_write, "a": _getTempRet0, "G": invoke_diii, "C": invoke_i, "c": invoke_ii, "O": invoke_iid, "i": invoke_iii, "j": invoke_iiii, "P": invoke_iiiii, "X": invoke_iiiiid, "E": invoke_iiiiii, "y": invoke_iiiiiii, "Y": invoke_iiiiiiii, "N": invoke_iiiiiiiii, "M": invoke_iiiiiiiiiiii, "ia": invoke_j, "f": invoke_v, "e": invoke_vi, "H": invoke_viddi, "F": invoke_viffiid, "g": invoke_vii, "r": invoke_viidd, "d": invoke_viii, "k": invoke_viiii, "Z": invoke_viiiid, "S": invoke_viiiidii, "D": invoke_viiiii, "v": invoke_viiiiii, "q": invoke_viiiiiii, "t": invoke_viiiiiiiii, "o": invoke_viiiiiiiiii, "L": invoke_viiiiiiiiiiiiiii, "ma": _llvm_eh_typeid_for, "W": _setTempRet0, "sa": _strftime_l };
         createWasm();
         Module["___wasm_call_ctors"] = function() {
-          return (Module["___wasm_call_ctors"] = Module["asm"]["aa"]).apply(null, arguments);
+          return (Module["___wasm_call_ctors"] = Module["asm"]["Oa"]).apply(null, arguments);
         };
         Module["_main"] = function() {
-          return (Module["_main"] = Module["asm"]["ba"]).apply(null, arguments);
+          return (Module["_main"] = Module["asm"]["Pa"]).apply(null, arguments);
         };
         var _malloc = Module["_malloc"] = function() {
-          return (_malloc = Module["_malloc"] = Module["asm"]["ca"]).apply(null, arguments);
+          return (_malloc = Module["_malloc"] = Module["asm"]["Qa"]).apply(null, arguments);
         };
         var _free = Module["_free"] = function() {
-          return (_free = Module["_free"] = Module["asm"]["da"]).apply(null, arguments);
+          return (_free = Module["_free"] = Module["asm"]["Sa"]).apply(null, arguments);
         };
         var ___getTypeName = Module["___getTypeName"] = function() {
-          return (___getTypeName = Module["___getTypeName"] = Module["asm"]["ea"]).apply(null, arguments);
+          return (___getTypeName = Module["___getTypeName"] = Module["asm"]["Ta"]).apply(null, arguments);
         };
         Module["___embind_register_native_and_builtin_types"] = function() {
-          return (Module["___embind_register_native_and_builtin_types"] = Module["asm"]["fa"]).apply(null, arguments);
+          return (Module["___embind_register_native_and_builtin_types"] = Module["asm"]["Ua"]).apply(null, arguments);
         };
         var ___errno_location = Module["___errno_location"] = function() {
-          return (___errno_location = Module["___errno_location"] = Module["asm"]["ga"]).apply(null, arguments);
+          return (___errno_location = Module["___errno_location"] = Module["asm"]["Va"]).apply(null, arguments);
+        };
+        var stackSave = Module["stackSave"] = function() {
+          return (stackSave = Module["stackSave"] = Module["asm"]["Wa"]).apply(null, arguments);
+        };
+        var stackRestore = Module["stackRestore"] = function() {
+          return (stackRestore = Module["stackRestore"] = Module["asm"]["Xa"]).apply(null, arguments);
+        };
+        var _setThrew = Module["_setThrew"] = function() {
+          return (_setThrew = Module["_setThrew"] = Module["asm"]["Ya"]).apply(null, arguments);
+        };
+        var ___cxa_can_catch = Module["___cxa_can_catch"] = function() {
+          return (___cxa_can_catch = Module["___cxa_can_catch"] = Module["asm"]["Za"]).apply(null, arguments);
+        };
+        var ___cxa_is_pointer_type = Module["___cxa_is_pointer_type"] = function() {
+          return (___cxa_is_pointer_type = Module["___cxa_is_pointer_type"] = Module["asm"]["_a"]).apply(null, arguments);
         };
         Module["dynCall_jiji"] = function() {
-          return (Module["dynCall_jiji"] = Module["asm"]["ia"]).apply(null, arguments);
+          return (Module["dynCall_jiji"] = Module["asm"]["$a"]).apply(null, arguments);
+        };
+        var dynCall_j = Module["dynCall_j"] = function() {
+          return (dynCall_j = Module["dynCall_j"] = Module["asm"]["ab"]).apply(null, arguments);
         };
         Module["dynCall_viijii"] = function() {
-          return (Module["dynCall_viijii"] = Module["asm"]["ja"]).apply(null, arguments);
+          return (Module["dynCall_viijii"] = Module["asm"]["bb"]).apply(null, arguments);
         };
         Module["dynCall_iiiiij"] = function() {
-          return (Module["dynCall_iiiiij"] = Module["asm"]["ka"]).apply(null, arguments);
+          return (Module["dynCall_iiiiij"] = Module["asm"]["cb"]).apply(null, arguments);
         };
         Module["dynCall_iiiiijj"] = function() {
-          return (Module["dynCall_iiiiijj"] = Module["asm"]["la"]).apply(null, arguments);
+          return (Module["dynCall_iiiiijj"] = Module["asm"]["db"]).apply(null, arguments);
         };
         Module["dynCall_iiiiiijj"] = function() {
-          return (Module["dynCall_iiiiiijj"] = Module["asm"]["ma"]).apply(null, arguments);
+          return (Module["dynCall_iiiiiijj"] = Module["asm"]["eb"]).apply(null, arguments);
         };
+        function invoke_ii(index, a1) {
+          var sp = stackSave();
+          try {
+            return wasmTable.get(index)(a1);
+          } catch (e) {
+            stackRestore(sp);
+            if (e !== e + 0 && e !== "longjmp")
+              throw e;
+            _setThrew(1, 0);
+          }
+        }
+        function invoke_viiiiiiiiii(index, a1, a2, a3, a4, a5, a6, a7, a8, a9, a10) {
+          var sp = stackSave();
+          try {
+            wasmTable.get(index)(a1, a2, a3, a4, a5, a6, a7, a8, a9, a10);
+          } catch (e) {
+            stackRestore(sp);
+            if (e !== e + 0 && e !== "longjmp")
+              throw e;
+            _setThrew(1, 0);
+          }
+        }
+        function invoke_vi(index, a1) {
+          var sp = stackSave();
+          try {
+            wasmTable.get(index)(a1);
+          } catch (e) {
+            stackRestore(sp);
+            if (e !== e + 0 && e !== "longjmp")
+              throw e;
+            _setThrew(1, 0);
+          }
+        }
+        function invoke_viiiiiiiii(index, a1, a2, a3, a4, a5, a6, a7, a8, a9) {
+          var sp = stackSave();
+          try {
+            wasmTable.get(index)(a1, a2, a3, a4, a5, a6, a7, a8, a9);
+          } catch (e) {
+            stackRestore(sp);
+            if (e !== e + 0 && e !== "longjmp")
+              throw e;
+            _setThrew(1, 0);
+          }
+        }
+        function invoke_v(index) {
+          var sp = stackSave();
+          try {
+            wasmTable.get(index)();
+          } catch (e) {
+            stackRestore(sp);
+            if (e !== e + 0 && e !== "longjmp")
+              throw e;
+            _setThrew(1, 0);
+          }
+        }
+        function invoke_viii(index, a1, a2, a3) {
+          var sp = stackSave();
+          try {
+            wasmTable.get(index)(a1, a2, a3);
+          } catch (e) {
+            stackRestore(sp);
+            if (e !== e + 0 && e !== "longjmp")
+              throw e;
+            _setThrew(1, 0);
+          }
+        }
+        function invoke_viiii(index, a1, a2, a3, a4) {
+          var sp = stackSave();
+          try {
+            wasmTable.get(index)(a1, a2, a3, a4);
+          } catch (e) {
+            stackRestore(sp);
+            if (e !== e + 0 && e !== "longjmp")
+              throw e;
+            _setThrew(1, 0);
+          }
+        }
+        function invoke_iii(index, a1, a2) {
+          var sp = stackSave();
+          try {
+            return wasmTable.get(index)(a1, a2);
+          } catch (e) {
+            stackRestore(sp);
+            if (e !== e + 0 && e !== "longjmp")
+              throw e;
+            _setThrew(1, 0);
+          }
+        }
+        function invoke_vii(index, a1, a2) {
+          var sp = stackSave();
+          try {
+            wasmTable.get(index)(a1, a2);
+          } catch (e) {
+            stackRestore(sp);
+            if (e !== e + 0 && e !== "longjmp")
+              throw e;
+            _setThrew(1, 0);
+          }
+        }
+        function invoke_iiiii(index, a1, a2, a3, a4) {
+          var sp = stackSave();
+          try {
+            return wasmTable.get(index)(a1, a2, a3, a4);
+          } catch (e) {
+            stackRestore(sp);
+            if (e !== e + 0 && e !== "longjmp")
+              throw e;
+            _setThrew(1, 0);
+          }
+        }
+        function invoke_diii(index, a1, a2, a3) {
+          var sp = stackSave();
+          try {
+            return wasmTable.get(index)(a1, a2, a3);
+          } catch (e) {
+            stackRestore(sp);
+            if (e !== e + 0 && e !== "longjmp")
+              throw e;
+            _setThrew(1, 0);
+          }
+        }
+        function invoke_i(index) {
+          var sp = stackSave();
+          try {
+            return wasmTable.get(index)();
+          } catch (e) {
+            stackRestore(sp);
+            if (e !== e + 0 && e !== "longjmp")
+              throw e;
+            _setThrew(1, 0);
+          }
+        }
+        function invoke_iiii(index, a1, a2, a3) {
+          var sp = stackSave();
+          try {
+            return wasmTable.get(index)(a1, a2, a3);
+          } catch (e) {
+            stackRestore(sp);
+            if (e !== e + 0 && e !== "longjmp")
+              throw e;
+            _setThrew(1, 0);
+          }
+        }
+        function invoke_iid(index, a1, a2) {
+          var sp = stackSave();
+          try {
+            return wasmTable.get(index)(a1, a2);
+          } catch (e) {
+            stackRestore(sp);
+            if (e !== e + 0 && e !== "longjmp")
+              throw e;
+            _setThrew(1, 0);
+          }
+        }
+        function invoke_iiiiiii(index, a1, a2, a3, a4, a5, a6) {
+          var sp = stackSave();
+          try {
+            return wasmTable.get(index)(a1, a2, a3, a4, a5, a6);
+          } catch (e) {
+            stackRestore(sp);
+            if (e !== e + 0 && e !== "longjmp")
+              throw e;
+            _setThrew(1, 0);
+          }
+        }
+        function invoke_viiiiii(index, a1, a2, a3, a4, a5, a6) {
+          var sp = stackSave();
+          try {
+            wasmTable.get(index)(a1, a2, a3, a4, a5, a6);
+          } catch (e) {
+            stackRestore(sp);
+            if (e !== e + 0 && e !== "longjmp")
+              throw e;
+            _setThrew(1, 0);
+          }
+        }
+        function invoke_viiiidii(index, a1, a2, a3, a4, a5, a6, a7) {
+          var sp = stackSave();
+          try {
+            wasmTable.get(index)(a1, a2, a3, a4, a5, a6, a7);
+          } catch (e) {
+            stackRestore(sp);
+            if (e !== e + 0 && e !== "longjmp")
+              throw e;
+            _setThrew(1, 0);
+          }
+        }
+        function invoke_viiiiiii(index, a1, a2, a3, a4, a5, a6, a7) {
+          var sp = stackSave();
+          try {
+            wasmTable.get(index)(a1, a2, a3, a4, a5, a6, a7);
+          } catch (e) {
+            stackRestore(sp);
+            if (e !== e + 0 && e !== "longjmp")
+              throw e;
+            _setThrew(1, 0);
+          }
+        }
+        function invoke_viffiid(index, a1, a2, a3, a4, a5, a6) {
+          var sp = stackSave();
+          try {
+            wasmTable.get(index)(a1, a2, a3, a4, a5, a6);
+          } catch (e) {
+            stackRestore(sp);
+            if (e !== e + 0 && e !== "longjmp")
+              throw e;
+            _setThrew(1, 0);
+          }
+        }
+        function invoke_viddi(index, a1, a2, a3, a4) {
+          var sp = stackSave();
+          try {
+            wasmTable.get(index)(a1, a2, a3, a4);
+          } catch (e) {
+            stackRestore(sp);
+            if (e !== e + 0 && e !== "longjmp")
+              throw e;
+            _setThrew(1, 0);
+          }
+        }
+        function invoke_iiiiii(index, a1, a2, a3, a4, a5) {
+          var sp = stackSave();
+          try {
+            return wasmTable.get(index)(a1, a2, a3, a4, a5);
+          } catch (e) {
+            stackRestore(sp);
+            if (e !== e + 0 && e !== "longjmp")
+              throw e;
+            _setThrew(1, 0);
+          }
+        }
+        function invoke_viiiii(index, a1, a2, a3, a4, a5) {
+          var sp = stackSave();
+          try {
+            wasmTable.get(index)(a1, a2, a3, a4, a5);
+          } catch (e) {
+            stackRestore(sp);
+            if (e !== e + 0 && e !== "longjmp")
+              throw e;
+            _setThrew(1, 0);
+          }
+        }
+        function invoke_viidd(index, a1, a2, a3, a4) {
+          var sp = stackSave();
+          try {
+            wasmTable.get(index)(a1, a2, a3, a4);
+          } catch (e) {
+            stackRestore(sp);
+            if (e !== e + 0 && e !== "longjmp")
+              throw e;
+            _setThrew(1, 0);
+          }
+        }
+        function invoke_viiiid(index, a1, a2, a3, a4, a5) {
+          var sp = stackSave();
+          try {
+            wasmTable.get(index)(a1, a2, a3, a4, a5);
+          } catch (e) {
+            stackRestore(sp);
+            if (e !== e + 0 && e !== "longjmp")
+              throw e;
+            _setThrew(1, 0);
+          }
+        }
+        function invoke_iiiiiiiii(index, a1, a2, a3, a4, a5, a6, a7, a8) {
+          var sp = stackSave();
+          try {
+            return wasmTable.get(index)(a1, a2, a3, a4, a5, a6, a7, a8);
+          } catch (e) {
+            stackRestore(sp);
+            if (e !== e + 0 && e !== "longjmp")
+              throw e;
+            _setThrew(1, 0);
+          }
+        }
+        function invoke_iiiiiiii(index, a1, a2, a3, a4, a5, a6, a7) {
+          var sp = stackSave();
+          try {
+            return wasmTable.get(index)(a1, a2, a3, a4, a5, a6, a7);
+          } catch (e) {
+            stackRestore(sp);
+            if (e !== e + 0 && e !== "longjmp")
+              throw e;
+            _setThrew(1, 0);
+          }
+        }
+        function invoke_iiiiiiiiiiii(index, a1, a2, a3, a4, a5, a6, a7, a8, a9, a10, a11) {
+          var sp = stackSave();
+          try {
+            return wasmTable.get(index)(a1, a2, a3, a4, a5, a6, a7, a8, a9, a10, a11);
+          } catch (e) {
+            stackRestore(sp);
+            if (e !== e + 0 && e !== "longjmp")
+              throw e;
+            _setThrew(1, 0);
+          }
+        }
+        function invoke_viiiiiiiiiiiiiii(index, a1, a2, a3, a4, a5, a6, a7, a8, a9, a10, a11, a12, a13, a14, a15) {
+          var sp = stackSave();
+          try {
+            wasmTable.get(index)(a1, a2, a3, a4, a5, a6, a7, a8, a9, a10, a11, a12, a13, a14, a15);
+          } catch (e) {
+            stackRestore(sp);
+            if (e !== e + 0 && e !== "longjmp")
+              throw e;
+            _setThrew(1, 0);
+          }
+        }
+        function invoke_iiiiid(index, a1, a2, a3, a4, a5) {
+          var sp = stackSave();
+          try {
+            return wasmTable.get(index)(a1, a2, a3, a4, a5);
+          } catch (e) {
+            stackRestore(sp);
+            if (e !== e + 0 && e !== "longjmp")
+              throw e;
+            _setThrew(1, 0);
+          }
+        }
+        function invoke_j(index) {
+          var sp = stackSave();
+          try {
+            return dynCall_j(index);
+          } catch (e) {
+            stackRestore(sp);
+            if (e !== e + 0 && e !== "longjmp")
+              throw e;
+            _setThrew(1, 0);
+          }
+        }
         Module["addRunDependency"] = addRunDependency;
         Module["removeRunDependency"] = removeRunDependency;
         Module["FS_createPath"] = FS.createPath;
@@ -87698,6 +88750,10 @@ var IfcAPI2 = class {
         }
       }
     });
+    if (lineObject.expressID == void 0 || lineObject.type == void 0 || lineObject.ToType === void 0) {
+      console.warn("Line object cannot be serialized: ", lineObject);
+      return;
+    }
     let rawLineData = {
       ID: lineObject.expressID,
       type: lineObject.type,
@@ -94178,6 +95234,140 @@ class JSONPropertyManager extends BasePropertyManager {
 
 }
 
+const geometryTypes = new Set([
+  1123145078, 574549367, 1675464909, 2059837836, 3798115385, 32440307, 3125803723, 3207858831,
+  2740243338, 2624227202, 4240577450, 3615266464, 3724593414, 220341763, 477187591, 1878645084,
+  1300840506, 3303107099, 1607154358, 1878645084, 846575682, 1351298697, 2417041796, 3049322572,
+  3331915920, 1416205885, 776857604, 3285139300, 3958052878, 2827736869, 2732653382, 673634403,
+  3448662350, 4142052618, 2924175390, 803316827, 2556980723, 1809719519, 2205249479, 807026263,
+  3737207727, 1660063152, 2347385850, 3940055652, 2705031697, 3732776249, 2485617015, 2611217952,
+  1704287377, 2937912522, 2770003689, 1281925730, 1484403080, 3448662350, 4142052618, 3800577675,
+  4006246654, 3590301190, 1383045692, 2775532180, 2047409740, 370225590, 3593883385, 2665983363,
+  4124623270, 812098782, 3649129432, 987898635, 1105321065, 3510044353, 1635779807, 2603310189,
+  3406155212, 1310608509, 4261334040, 2736907675, 3649129432, 1136057603, 1260505505, 4182860854,
+  2713105998, 2898889636, 59481748, 3749851601, 3486308946, 3150382593, 1062206242, 3264961684,
+  15328376, 1485152156, 370225590, 1981873012, 2859738748, 45288368, 2614616156, 2732653382,
+  775493141, 2147822146, 2601014836, 2629017746, 1186437898, 2367409068, 1213902940, 3632507154,
+  3900360178, 476780140, 1472233963, 2804161546, 3008276851, 738692330, 374418227, 315944413,
+  3905492369, 3570813810, 2571569899, 178912537, 2294589976, 1437953363, 2133299955, 572779678,
+  3092502836, 388784114, 2624227202, 1425443689, 3057273783, 2347385850, 1682466193, 2519244187,
+  2839578677, 3958567839, 2513912981, 2830218821, 427810014
+]);
+
+class PropertySerializer {
+
+  constructor(webIfc) {
+    this.webIfc = webIfc;
+  }
+
+  dispose() {
+    this.webIfc = null;
+  }
+
+  async serializeAllProperties(modelID, maxSize, event) {
+    const blobs = [];
+    await this.getPropertiesAsBlobs(modelID, blobs, maxSize, event);
+    return blobs;
+  }
+
+  async getPropertiesAsBlobs(modelID, blobs, maxSize, event) {
+    const geometriesIDs = await this.getAllGeometriesIDs(modelID);
+    let properties = await this.initializePropertiesObject(modelID);
+    const allLinesIDs = await this.webIfc.GetAllLines(modelID);
+    const linesCount = allLinesIDs.size();
+    let lastEvent = 0.1;
+    let counter = 0;
+    for (let i = 0; i < linesCount; i++) {
+      const id = allLinesIDs.get(i);
+      if (!geometriesIDs.has(id)) {
+        await this.getItemProperty(modelID, id, properties);
+        counter++;
+      }
+      if (maxSize && counter > maxSize) {
+        blobs.push(new Blob([JSON.stringify(properties)], {
+          type: 'application/json'
+        }));
+        properties = {};
+        counter = 0;
+      }
+      if (event && i / linesCount > lastEvent) {
+        event(i, linesCount);
+        lastEvent += 0.1;
+      }
+    }
+    blobs.push(new Blob([JSON.stringify(properties)], {
+      type: 'application/json'
+    }));
+  }
+
+  async getItemProperty(modelID, id, properties) {
+    try {
+      const props = await this.webIfc.GetLine(modelID, id);
+      if (props.type) {
+        props.type = IfcTypesMap[props.type];
+      }
+      this.formatItemProperties(props);
+      properties[id] = props;
+    } catch (e) {
+      console.log(`There was a problem getting the properties of the item with ID ${id}`);
+    }
+  }
+
+  formatItemProperties(props) {
+    Object.keys(props).forEach((key) => {
+      const value = props[key];
+      if (value && value.value !== undefined)
+        props[key] = value.value;
+      else if (Array.isArray(value))
+        props[key] = value.map((item) => {
+          if (item && item.value)
+            return item.value;
+          return item;
+        });
+    });
+  }
+
+  async initializePropertiesObject(modelID) {
+    return {
+      coordinationMatrix: await this.webIfc.GetCoordinationMatrix(modelID),
+      globalHeight: await this.getBuildingHeight(modelID)
+    };
+  }
+
+  async getBuildingHeight(modelID) {
+    const building = await this.getBuilding(modelID);
+    let placement;
+    const siteReference = building.ObjectPlacement.PlacementRelTo;
+    if (siteReference)
+      placement = siteReference.RelativePlacement.Location;
+    else
+      placement = building.ObjectPlacement.RelativePlacement.Location;
+    const transform = placement.Coordinates.map((coord) => coord.value);
+    return transform[2];
+  }
+
+  async getBuilding(modelID) {
+    const allBuildingsIDs = await this.webIfc.GetLineIDsWithType(modelID, IFCBUILDING);
+    const buildingID = allBuildingsIDs.get(0);
+    return this.webIfc.GetLine(modelID, buildingID, true);
+  }
+
+  async getAllGeometriesIDs(modelID) {
+    const geometriesIDs = new Set();
+    const geomTypesArray = Array.from(geometryTypes);
+    for (let i = 0; i < geomTypesArray.length; i++) {
+      const category = geomTypesArray[i];
+      const ids = await this.webIfc.GetLineIDsWithType(modelID, category);
+      const idsSize = ids.size();
+      for (let j = 0; j < idsSize; j++) {
+        geometriesIDs.add(ids.get(j));
+      }
+    }
+    return geometriesIDs;
+  }
+
+}
+
 class PropertyManager {
 
   constructor(state) {
@@ -94185,6 +95375,7 @@ class PropertyManager {
     this.webIfcProps = new WebIfcPropertyManager(state);
     this.jsonProps = new JSONPropertyManager(state);
     this.currentProps = this.webIfcProps;
+    this.serializer = new PropertySerializer(this.state.api);
   }
 
   getExpressId(geometry, faceIndex) {
@@ -103433,19 +104624,26 @@ class IfcManager {
             files.push(file.geometry, file.data);
         }
 
+        const serializer = this.ifcLoader.ifcManager.properties.serializer;
+        const propertyBlob = await serializer.serializeAllProperties(model.modelID);
+        const propertyFile = new File(propertyBlob, "properties.json");
+
         files.push(new File([JSON.stringify(model.levelRelationships)], 'levels-relationship.json'));
         files.push(new File([JSON.stringify(model.itemTypes)], 'model-types.json'));
         files.push(new File([JSON.stringify(model.allTypes)], 'all-types.json'));
         files.push(new File([JSON.stringify(model.floorsProperties)], 'levels-properties.json'));
 
-        // get the ZIP stream in a Blob
         const blob = await D(files).blob();
-
-        // make and click a temporary link to download the Blob
         const link = document.createElement("a");
+
         link.href = URL.createObjectURL(blob);
         link.download = "test.zip";
         link.click();
+
+        link.href = URL.createObjectURL(propertyFile);
+        link.download = "properties.json";
+        link.click();
+
         link.remove();
     }
 }

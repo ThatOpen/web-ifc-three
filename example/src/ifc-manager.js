@@ -107,19 +107,26 @@ export class IfcManager {
             files.push(file.geometry, file.data);
         }
 
+        const serializer = this.ifcLoader.ifcManager.properties.serializer;
+        const propertyBlob = await serializer.serializeAllProperties(model.modelID);
+        const propertyFile = new File(propertyBlob, "properties.json");
+
         files.push(new File([JSON.stringify(model.levelRelationships)], 'levels-relationship.json'));
         files.push(new File([JSON.stringify(model.itemTypes)], 'model-types.json'));
         files.push(new File([JSON.stringify(model.allTypes)], 'all-types.json'));
         files.push(new File([JSON.stringify(model.floorsProperties)], 'levels-properties.json'));
 
-        // get the ZIP stream in a Blob
         const blob = await downloadZip(files).blob();
-
-        // make and click a temporary link to download the Blob
         const link = document.createElement("a");
+
         link.href = URL.createObjectURL(blob);
         link.download = "test.zip";
         link.click();
+
+        link.href = URL.createObjectURL(propertyFile);
+        link.download = "properties.json";
+        link.click();
+
         link.remove();
     }
 }

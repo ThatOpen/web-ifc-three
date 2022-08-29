@@ -6,11 +6,14 @@ import { BufferGeometry } from 'three';
 import { WebIfcPropertyManager } from './WebIfcPropertyManager';
 import { JSONPropertyManager } from './JSONPropertyManager';
 import { PropertyManagerAPI, PropertyAPI } from './BaseDefinitions';
+import {PropertySerializer} from "./PropertySerializer";
 
 /**
  * Contains the logic to get the properties of the items within an IFC model.
  */
 export class PropertyManager implements PropertyManagerAPI {
+    serializer?: PropertySerializer;
+
     private readonly webIfcProps: WebIfcPropertyManager;
     private readonly jsonProps: JSONPropertyManager;
     private currentProps: PropertyAPI;
@@ -19,6 +22,7 @@ export class PropertyManager implements PropertyManagerAPI {
         this.webIfcProps = new WebIfcPropertyManager(state);
         this.jsonProps = new JSONPropertyManager(state);
         this.currentProps = this.webIfcProps;
+        this.serializer = new PropertySerializer(this.state.api);
     }
 
     getExpressId(geometry: BufferGeometry, faceIndex: number) {

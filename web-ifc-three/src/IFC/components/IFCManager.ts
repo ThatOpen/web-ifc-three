@@ -15,7 +15,7 @@ import { MemoryCleaner } from './MemoryCleaner';
 import { IFCUtils } from './IFCUtils';
 import { Data } from './sequence/Data'
 import { IfcTypesMap } from './IfcTypesMap';
-import {FragmentParser} from "./FragmentParser";
+import {FragmentParser} from "./fragment/FragmentParser";
 
 /**
  * Contains all the logic to work with the loaded IFC files (select, edit, etc).
