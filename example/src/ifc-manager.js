@@ -73,7 +73,7 @@ export class IfcManager {
 
         await this.ifcLoader.ifcManager.applyWebIfcConfig({
             COORDINATE_TO_ORIGIN: firstModel,
-            USE_FAST_BOOLS: false
+            USE_FAST_BOOLS: true
         });
 
         const useFragments = document.getElementById('useFragment');

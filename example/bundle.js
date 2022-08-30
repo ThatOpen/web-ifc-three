@@ -103705,7 +103705,7 @@ class Fragment {
     if (this.blocks.count > 1) {
       this.blocks.reset();
     } else {
-      const hiddenInstances = Object.keys(this.hiddenInstances).map((id) => parseInt(id, 10));
+      const hiddenInstances = Object.keys(this.hiddenInstances);
       this.makeInstancesVisible(hiddenInstances);
       this.hiddenInstances = {};
     }
@@ -103892,7 +103892,7 @@ class Fragment {
   }
 
   filterHiddenItems(itemIDs, hidden) {
-    const hiddenItems = Object.keys(this.hiddenInstances).map((item) => parseInt(item, 10));
+    const hiddenItems = Object.keys(this.hiddenInstances);
     return itemIDs.filter((item) => hidden ? hiddenItems.includes(item) : !hiddenItems.includes(item));
   }
 
@@ -104028,7 +104028,7 @@ class FragmentParser {
         for (let i = 0; i < size; i++) {
           const instance = data.instances[i];
           fragment.setInstance(i, {
-            ids: [instance.id],
+            ids: [instance.id.toString()],
             transform: instance.matrix
           });
         }
@@ -104089,7 +104089,7 @@ class FragmentParser {
         const merged = GeometryUtils.merge(geometries);
         merged.setAttribute('blockID', new BufferAttribute$1(buffer, 1));
         const mergedFragment = new Fragment(merged, mats, 1);
-        const ids = Array. from (itemsIDs);
+        const ids = Array. from (itemsIDs).map(id => id.toString());
         mergedFragment.setInstance(0, {
           ids,
           transform: new Matrix4()
@@ -104590,7 +104590,7 @@ class IfcManager {
 
         await this.ifcLoader.ifcManager.applyWebIfcConfig({
             COORDINATE_TO_ORIGIN: firstModel,
-            USE_FAST_BOOLS: false
+            USE_FAST_BOOLS: true
         });
 
         const useFragments = document.getElementById('useFragment');

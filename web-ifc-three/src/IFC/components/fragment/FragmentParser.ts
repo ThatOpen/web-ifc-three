@@ -221,7 +221,7 @@ export class FragmentParser {
                 for (let i = 0; i < size; i++) {
                     const instance = data.instances[i];
                     fragment.setInstance(i, {
-                        ids: [instance.id],
+                        ids: [instance.id.toString()],
                         transform: instance.matrix
                     })
                 }
@@ -293,7 +293,7 @@ export class FragmentParser {
                 const merged = GeometryUtils.merge(geometries);
                 merged.setAttribute('blockID', new BufferAttribute(buffer, 1));
                 const mergedFragment = new Fragment(merged, mats, 1);
-                const ids = Array.from(itemsIDs);
+                const ids = Array.from(itemsIDs).map(id => id.toString());
 
                 mergedFragment.setInstance(0, {ids, transform: new Matrix4()});
                 model.fragments.push(mergedFragment);
