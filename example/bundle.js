@@ -42510,6 +42510,8 @@ class ItemSelector {
 
     previousObject = null;
 
+    //Highlighting for used objects & Set opacity (50%) for unused objects
+
     highlightModel(removePrevious) {
     debugger;
         let vPass = document.getElementById(HiddenPassID);
