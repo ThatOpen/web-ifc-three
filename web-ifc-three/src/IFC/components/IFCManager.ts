@@ -2,7 +2,6 @@ import * as WebIFC from 'web-ifc';
 import { IFCParser, ParserAPI, ParserProgress } from './IFCParser';
 import { SubsetManager } from './subsets/SubsetManager';
 import { PropertyManager } from './properties/PropertyManager';
-import { IfcElements } from './IFCElementsMap';
 import { TypeManager } from './TypeManager';
 import { SubsetConfig, IfcState, JSONObject } from '../BaseDefinitions';
 import {BufferGeometry, Material, Matrix4, Scene} from 'three';
@@ -29,7 +28,6 @@ export class IFCManager {
     };
 
     BVH = new BvhManager();
-    typesMap: {[key: number]: string} = IfcTypesMap;
     parser: ParserAPI = new IFCParser(this.state, this.BVH);
     subsets = new SubsetManager(this.state, this.BVH);
     utils = new IFCUtils(this.state);
@@ -281,7 +279,7 @@ export class IFCManager {
      */
     getIfcType(modelID: number, id: number) {
         const typeID = this.state.models[modelID].types[id];
-        return IfcElements[typeID];
+        return IfcTypesMap[typeID];
     }
 
     /**
