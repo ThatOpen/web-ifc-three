@@ -144,7 +144,7 @@ export class WebIfcHandler implements WebIfcAPI {
         return this.handler.request(this.API, WorkerActions.GetFlatMesh, { modelID, expressID });
     }
 
-    async SetWasmPath(path: string): Promise<void> {
-        return this.handler.request(this.API, WorkerActions.SetWasmPath, { path });
+    async SetWasmPath(path: string, absolute?: boolean): Promise<void> {
+        return this.handler.request(this.API, WorkerActions.SetWasmPath, { path, absolute });
     }
 }

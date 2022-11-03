@@ -132,7 +132,7 @@ export class WebIfcWorker implements WebIfcWorkerAPI {
     }
 
     SetWasmPath(data: IfcEventData) {
-        this.webIFC.SetWasmPath(data.args.path);
+        this.webIFC.SetWasmPath(data.args.path, data.args.absolute);
         this.worker.post(data);
     }
 

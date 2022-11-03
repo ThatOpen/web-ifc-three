@@ -204,5 +204,5 @@ export interface WebIfcAPI {
      */
     GetFlatMesh(modelID: number, expressID: number): FlatMesh | Promise<FlatMesh>;
 
-    SetWasmPath(path: string): void | Promise<void>;
+    SetWasmPath(path: string, absolute?: boolean): void | Promise<void>;
 }

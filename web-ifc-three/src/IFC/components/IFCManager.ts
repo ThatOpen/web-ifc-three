@@ -80,7 +80,10 @@ export class IFCManager {
      * @path Relative path to web-ifc.wasm.
      */
     async setWasmPath(path: string) {
-        this.state.api.SetWasmPath(path);
+        // If the path starts with a slash, it is considered an absolute path.
+        const isAbsolutePath = path.indexOf('/') === 0
+
+        this.state.api.SetWasmPath(path, isAbsolutePath);
         this.state.wasmPath = path;
     }
 
