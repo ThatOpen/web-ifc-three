@@ -36,6 +36,7 @@
   },
   "devDependencies": {
     "@rollup/plugin-commonjs": "^22.0.2",
+    "@rollup/plugin-node-resolve": "^13.0.6",
     "cpy-cli": "^3.1.1"
   }
 }
