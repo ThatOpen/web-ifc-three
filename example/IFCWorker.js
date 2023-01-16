@@ -88726,11 +88726,11 @@ const geometryTypes = new Set([
 ]);
 
 class PropertySerializer {
-    constructor(webIfc) {
-        this.webIfc = webIfc;
-    }
     dispose() {
         this.webIfc = null;
+    }
+    constructor(webIfc) {
+        this.webIfc = webIfc;
     }
     async serializeAllProperties(modelID, maxSize, event) {
         const blobs = [];
