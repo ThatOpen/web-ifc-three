@@ -203,9 +203,7 @@ export class IFCManager {
             const { geometry, material } = mesh;
             if (scene) scene.remove(mesh);
             geometry?.dispose();
-            geometry = null;
             Array.isArray(material) ? material.forEach(m => m.dispose()) : material?.dispose();
-            material = null;
             delete this.state.models[modelID];
         } catch(e) {
             console.warn(`Close IFCModel ${modelID} failed`);
