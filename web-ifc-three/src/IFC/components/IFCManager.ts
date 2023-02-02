@@ -197,9 +197,17 @@ export class IFCManager {
      * @scene Scene where the model is (if it's located in a scene).
      */
     close(modelID: number, scene?: Scene) {
-        this.state.api.CloseModel(modelID);
-        if (scene) scene.remove(this.state.models[modelID].mesh);
-        delete this.state.models[modelID];
+        try {
+            this.state.api.CloseModel(modelID);
+            const mesh = this.state.models[modelID].mesh;
+            const { geometry, material } = mesh;
+            if (scene) scene.remove(mesh);
+            geometry?.dispose();
+            Array.isArray(material) ? material.forEach(m => m.dispose()) : material?.dispose();
+            delete this.state.models[modelID];
+        } catch(e) {
+            console.warn(`Close IFCModel ${modelID} failed`);
+        }
     }
 
     /**
