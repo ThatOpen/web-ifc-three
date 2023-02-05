@@ -14,7 +14,6 @@ import { MemoryCleaner } from './MemoryCleaner';
 import { IFCUtils } from './IFCUtils';
 import { Data } from './sequence/Data'
 import { IfcTypesMap } from './IfcTypesMap';
-import {FragmentParser} from "./fragment/FragmentParser";
 
 /**
  * Contains all the logic to work with the loaded IFC files (select, edit, etc).
@@ -35,7 +34,6 @@ export class IFCManager {
     properties: PropertyManagerAPI = new PropertyManager(this.state);
     types = new TypeManager(this.state);
 
-    fragments = new FragmentParser(this.state, this.properties, this.types, this.BVH);
     useFragments = false;
 
     private cleaner = new MemoryCleaner(this.state);
@@ -51,12 +49,7 @@ export class IFCManager {
     // SETUP - all the logic regarding the configuration of web-ifc-three
 
     async parse(buffer: ArrayBuffer) {
-        let model: IFCModel;
-        if(this.useFragments) {
-            model = await this.fragments.parse(buffer, this.state.coordinationMatrix?.toArray()) as IFCModel;
-        } else {
-            model = await this.parser.parse(buffer, this.state.coordinationMatrix?.toArray()) as IFCModel;
-        }
+        let model = await this.parser.parse(buffer, this.state.coordinationMatrix?.toArray()) as IFCModel;
         model.setIFCManager(this);
         // this.state.useJSON ? await this.disposeMemory() : await this.types.getAllTypes(this.worker);
         await this.types.getAllTypes(this.worker);

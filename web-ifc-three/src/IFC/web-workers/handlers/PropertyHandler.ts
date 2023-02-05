@@ -1,7 +1,7 @@
-import { PropertyAPI, PropertyManagerAPI } from '../../components/properties/BaseDefinitions';
+import { PropertyManagerAPI } from '../../components/properties/BaseDefinitions';
 import { IFCWorkerHandler } from '../IFCWorkerHandler';
 import { WorkerActions, WorkerAPIs } from '../BaseDefinitions';
-import { BufferGeometry } from 'three';
+import { BufferAttribute, BufferGeometry } from 'three';
 import { IdAttrName } from '../../BaseDefinitions';
 
 export class PropertyHandler implements PropertyManagerAPI {
@@ -14,7 +14,8 @@ export class PropertyHandler implements PropertyManagerAPI {
     getExpressId(geometry: BufferGeometry, faceIndex: number) {
         if (!geometry.index) throw new Error('Geometry does not have index information.');
         const geoIndex = geometry.index.array;
-        return geometry.attributes[IdAttrName].getX(geoIndex[3 * faceIndex]);
+        const bufferAttr = geometry.attributes[IdAttrName] as BufferAttribute;
+        return bufferAttr.getX(geoIndex[3 * faceIndex]);
     }
 
     getAllItemsOfType(modelID: number, type: number, verbose: boolean): Promise<any[]> {
