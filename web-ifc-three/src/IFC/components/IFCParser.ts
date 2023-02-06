@@ -215,7 +215,10 @@ export class IFCParser implements ParserAPI {
             return;
         }
 
-        const col = new Color(color.x, color.y, color.z);
+        // Assume RGB components are in sRGB-Rec709-D65 colorspace, and specify
+        // this so three.js can convert if THREE.ColorManagement APIs are enabled.
+        // TODO: https://github.com/three-types/three-ts-types/issues/342
+        const col = new Color().setRGB(color.x, color.y, color.z, 'srgb');
         const material = new MeshLambertMaterial({ color: col, side: DoubleSide });
         material.transparent = color.w !== 1;
         if (material.transparent) material.opacity = color.w;
