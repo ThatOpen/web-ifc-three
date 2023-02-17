@@ -76,9 +76,6 @@ export class IfcManager {
             USE_FAST_BOOLS: true
         });
 
-        const useFragments = document.getElementById('useFragment');
-
-        this.ifcLoader.ifcManager.useFragments = useFragments.checked;
         const ifcModel = await this.ifcLoader.loadAsync(ifcURL);
 
         if (firstModel) {
@@ -89,10 +86,6 @@ export class IfcManager {
 
         this.ifcModels.push(ifcModel);
         this.scene.add(ifcModel);
-
-        if (useFragments.checked) {
-            await this.downloadFragment(ifcModel);
-        }
 
         const stop = window.performance.now()
 

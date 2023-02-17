@@ -2,7 +2,7 @@ import {
     IdAttrName
 } from '../../BaseDefinitions';
 import { IfcState } from '../../BaseDefinitions';
-import { BufferGeometry } from 'three';
+import { BufferAttribute, BufferGeometry } from 'three';
 import { WebIfcPropertyManager } from './WebIfcPropertyManager';
 import { JSONPropertyManager } from './JSONPropertyManager';
 import { PropertyManagerAPI, PropertyAPI } from './BaseDefinitions';
@@ -28,7 +28,8 @@ export class PropertyManager implements PropertyManagerAPI {
     getExpressId(geometry: BufferGeometry, faceIndex: number) {
         if (!geometry.index) throw new Error('Geometry does not have index information.');
         const geoIndex = geometry.index.array;
-        return geometry.attributes[IdAttrName].getX(geoIndex[3 * faceIndex]);
+        const bufferAttr = geometry.attributes[IdAttrName] as BufferAttribute;
+        return bufferAttr.getX(geoIndex[3 * faceIndex]);
     }
 
     async getItemProperties(modelID: number, elementID: number, recursive = false) {

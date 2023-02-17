@@ -1,5 +1,4 @@
 import { BufferAttribute, BufferGeometry } from 'three';
-import { IFCModel } from '../../components/IFCModel';
 
 export class SerializedGeometry {
     position: ArrayLike<number>;
@@ -9,9 +8,9 @@ export class SerializedGeometry {
     groups: { start: number, count: number, materialIndex?: number }[];
 
     constructor(geometry: BufferGeometry) {
-        this.position = geometry.attributes.position?.array || [];
-        this.normal = geometry.attributes.normal?.array || [];
-        this.expressID = geometry.attributes.expressID?.array || [];
+        this.position = (geometry.attributes.position as BufferAttribute)?.array || [];
+        this.normal = (geometry.attributes.normal as BufferAttribute)?.array || [];
+        this.expressID = (geometry.attributes.expressID as BufferAttribute)?.array || [];
         this.index = geometry.index?.array || [];
         this.groups = geometry.groups;
     }

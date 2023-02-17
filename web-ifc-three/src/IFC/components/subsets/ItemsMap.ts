@@ -88,7 +88,8 @@ export class ItemsMap {
 
         for (let i = materialStart; i <= materialEnd; i++) {
             const index = geometry.index.array[i];
-            const expressID = geometry.attributes.expressID.array[index];
+            const bufferAttr = geometry.attributes.expressID as BufferAttribute;
+            const expressID = bufferAttr.array[index];
 
             // First iteration
             if (prevExpressID === -1) {
