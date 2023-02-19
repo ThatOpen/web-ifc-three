@@ -1,4 +1,3 @@
-import { IfcTypesMap } from '../IfcTypesMap';
 import { JSONObject, pName } from '../../BaseDefinitions';
 import { BasePropertyManager } from './BasePropertyManager';
 import { IFCPROJECT } from 'web-ifc';
@@ -21,7 +20,7 @@ export class JSONPropertyManager extends BasePropertyManager implements Property
 
     async getAllItemsOfType(modelID: number, type: number, verbose: boolean) {
         const data = this.state.models[modelID].jsonData;
-        const typeName = IfcTypesMap[type];
+        const typeName = await this.state.api.GetNameFromTypeCode(type);
         if (!typeName) {
             throw new Error(`Type not found: ${type}`);
         }

@@ -1,6 +1,5 @@
-import {IFCBUILDING, IfcContext} from 'web-ifc';
+import {IFCBUILDING} from 'web-ifc';
 import {WebIfcAPI} from "../../BaseDefinitions";
-import {IfcTypesMap} from "../IfcTypesMap";
 import {geometryTypes} from "./GeometryTypes";
 
 export class PropertySerializer {
@@ -67,7 +66,7 @@ export class PropertySerializer {
     try {
       const props = await this.webIfc!.GetLine(modelID, id);
       if (props.type) {
-        props.type = IfcTypesMap[props.type];
+        props.type = this.webIfc!.GetNameFromTypeCode(props.type);
       }
       this.formatItemProperties(props);
       properties[id] = props;

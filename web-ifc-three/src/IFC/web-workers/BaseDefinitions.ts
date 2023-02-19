@@ -44,6 +44,9 @@ export enum WorkerActions {
     LoadAllGeometry = 'LoadAllGeometry',
     GetFlatMesh = 'GetFlatMesh',
     SetWasmPath = 'SetWasmPath',
+    GetNameFromTypeCode = 'GetNameFromTypeCode',
+    GetIfcEntityList = 'GetIfcEntityList',
+    GetTypeCodeFromName ='GetTypeCodeFromName',
 
     // Parser
     parse = 'parse',

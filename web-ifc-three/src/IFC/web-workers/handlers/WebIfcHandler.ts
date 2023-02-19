@@ -6,7 +6,7 @@ import {
     WorkerActions,
     WorkerAPIs
 } from '../BaseDefinitions';
-import { FlatMesh, IfcGeometry, LoaderError, LoaderSettings, RawLineData, Vector } from 'web-ifc';
+import { FlatMesh, IfcGeometry, LoaderError, LoaderSettings, RawLineData, Vector, NewIfcModel} from 'web-ifc';
 import { IFCWorkerHandler } from '../IFCWorkerHandler';
 import { Serializer } from '../serializer/Serializer';
 
@@ -23,12 +23,12 @@ export class WebIfcHandler implements WebIfcAPI {
         return this.handler.request(this.API, WorkerActions.Init);
     }
 
-    async OpenModel(data: string | Uint8Array, settings?: LoaderSettings): Promise<number> {
+    async OpenModel(data:  string | Uint8Array, settings?: LoaderSettings): Promise<number> {
         return this.handler.request(this.API, WorkerActions.OpenModel, { data, settings });
     }
 
-    async CreateModel(settings?: LoaderSettings): Promise<number> {
-        return this.handler.request(this.API, WorkerActions.CreateModel, { settings });
+    async CreateModel(model: NewIfcModel, settings?: LoaderSettings): Promise<number> {
+        return this.handler.request(this.API, WorkerActions.CreateModel, { model, settings });
     }
 
     async ExportFileAsIFC(modelID: number): Promise<Uint8Array> {
@@ -51,6 +51,18 @@ export class WebIfcHandler implements WebIfcAPI {
             return this.serializer.reconstructVector(vector);
         }
         return this.handler.request(this.API, WorkerActions.GetAndClearErrors, { modelID });
+    }
+
+    async GetNameFromTypeCode(type:number): Promise<string> {
+        return this.handler.request(this.API, WorkerActions.GetNameFromTypeCode, { type });
+    } 
+
+    async GetIfcEntityList(modelID: number) : Promise<number[]> {
+        return this.handler.request(this.API, WorkerActions.GetIfcEntityList, { modelID });
+    }
+
+    async GetTypeCodeFromName(modelID: number,typeName:string): Promise<number> {
+         return this.handler.request(this.API, WorkerActions.GetTypeCodeFromName, { modelID,typeName });
     }
 
     async WriteLine(modelID: number, lineObject: any): Promise<void> {

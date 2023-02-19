@@ -13,7 +13,6 @@ import { PropertyManagerAPI } from './properties/BaseDefinitions';
 import { MemoryCleaner } from './MemoryCleaner';
 import { IFCUtils } from './IFCUtils';
 import { Data } from './sequence/Data'
-import { IfcTypesMap } from './IfcTypesMap';
 
 /**
  * Contains all the logic to work with the loaded IFC files (select, edit, etc).
@@ -280,7 +279,7 @@ export class IFCManager {
      */
     getIfcType(modelID: number, id: number) {
         const typeID = this.state.models[modelID].types[id];
-        return IfcTypesMap[typeID];
+        return this.state.api.GetNameFromTypeCode(typeID);
     }
 
     /**
