@@ -142,6 +142,9 @@ export interface WebIfcWorkerAPI extends BaseWorkerAPI {
     [WorkerActions.LoadAllGeometry]: IfcWorkerEventHandler;
     [WorkerActions.GetFlatMesh]: IfcWorkerEventHandler;
     [WorkerActions.SetWasmPath]: IfcWorkerEventHandler;
+    [WorkerActions.GetNameFromTypeCode]: IfcWorkerEventHandler;
+    [WorkerActions.GetIfcEntityList]: IfcWorkerEventHandler;
+    [WorkerActions.GetTypeCodeFromName]: IfcWorkerEventHandler;
 }
 
 export interface SerializedVector {

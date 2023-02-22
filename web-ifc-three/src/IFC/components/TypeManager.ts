@@ -24,7 +24,7 @@ export class TypeManager {
 
     async getAllTypesOfModel(modelID: number, worker?: IFCWorkerHandler) {
         const result = {};
-        const elements = Object.keys(this.state.api.GetIfcEntityList(modelID)).map((e) => parseInt(e));
+        const elements = await this.state.api.GetIfcEntityList(modelID);
         for(let i = 0; i < elements.length; i++) {
             const element = elements[i];
             const lines = await this.state.api.GetLineIDsWithType(modelID, element);
