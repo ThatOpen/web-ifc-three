@@ -5,6 +5,7 @@ import { mergeBufferGeometries } from 'three/examples/jsm/utils/BufferGeometryUt
 import {
     FlatMesh,
     IfcGeometry,
+    IfcAlignment,
     IFCRELAGGREGATES, IFCRELASSOCIATESMATERIAL,
     IFCRELCONTAINEDINSPATIALSTRUCTURE,
     IFCRELDEFINESBYPROPERTIES,
@@ -86,6 +87,15 @@ export interface pName {
     key: string;
 }
 
+export interface NewIfcModel {
+    schema: string;
+    name?: string;
+    description?: string[];
+    authors?: string[];
+    organizations?: string[];
+    authorization?: string;
+}
+
 export const PropsNames = {
     aggregates: {
         name: IFCRELAGGREGATES,
@@ -139,7 +149,7 @@ export interface WebIfcAPI {
      * Creates a new model and returns a modelID number
      * @data Settings settings for generating data the model
      */
-    CreateModel(settings?: LoaderSettings): number | Promise<number>;
+    CreateModel(model: NewIfcModel, settings?: LoaderSettings): number | Promise<number>;
 
     ExportFileAsIFC(modelID: number): Uint8Array | Promise<Uint8Array>;
 
@@ -165,6 +175,8 @@ export interface WebIfcAPI {
     GetLineIDsWithType(modelID: number, type: number): Vector<number> | Promise<Vector<number>>;
 
     GetAllLines(modelID: Number): Vector<number> | Promise<Vector<number>>;
+
+    GetAllAlignments(modelID: Number): Vector<IfcAlignment> | Promise<Vector<IfcAlignment>>;
 
     SetGeometryTransformation(modelID: number, transformationMatrix: Array<number>): void | Promise<void>;
 
