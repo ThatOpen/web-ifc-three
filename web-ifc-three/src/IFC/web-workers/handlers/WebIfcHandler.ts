@@ -8,7 +8,6 @@ import {
     WorkerAPIs
 } from '../BaseDefinitions';
 
-
 import { NewIfcModel, FlatMesh, IfcAlignment, IfcGeometry, LoaderError, LoaderSettings, RawLineData, Vector } from 'web-ifc';
 import { IFCWorkerHandler } from '../IFCWorkerHandler';
 import { Serializer } from '../serializer/Serializer';
