@@ -1,4 +1,4 @@
-import {IFCBUILDING} from 'web-ifc';
+import {IFCBUILDING, IfcContext} from 'web-ifc';
 import {WebIfcAPI} from "../../BaseDefinitions";
 import {geometryTypes} from "./GeometryTypes";
 
