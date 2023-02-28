@@ -2,7 +2,6 @@ import { BasePropertyManager } from './BasePropertyManager';
 import { IFCPROJECT } from 'web-ifc';
 import { pName } from '../../BaseDefinitions';
 import { PropertyAPI } from './BaseDefinitions';
-import { IfcElements } from '../IFCElementsMap';
 
 export class WebIfcPropertyManager extends BasePropertyManager  implements PropertyAPI {
     async getItemProperties(modelID: number, id: number, recursive = false) {
@@ -41,7 +40,7 @@ export class WebIfcPropertyManager extends BasePropertyManager  implements Prope
 
     protected override getNodeType(modelID: number, id: number) {
         const typeID = this.state.models[modelID].types[id];
-        return IfcElements[typeID];
+        return this.state.api.GetNameFromTypeCode(typeID);
     }
 
     protected override async getChunks(modelID: number, chunks: any, propNames: pName) {

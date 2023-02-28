@@ -44,6 +44,9 @@ export enum WorkerActions {
     LoadAllGeometry = 'LoadAllGeometry',
     GetFlatMesh = 'GetFlatMesh',
     SetWasmPath = 'SetWasmPath',
+    GetNameFromTypeCode = 'GetNameFromTypeCode',
+    GetIfcEntityList = 'GetIfcEntityList',
+    GetTypeCodeFromName ='GetTypeCodeFromName',
 
     // Parser
     parse = 'parse',
@@ -139,6 +142,9 @@ export interface WebIfcWorkerAPI extends BaseWorkerAPI {
     [WorkerActions.LoadAllGeometry]: IfcWorkerEventHandler;
     [WorkerActions.GetFlatMesh]: IfcWorkerEventHandler;
     [WorkerActions.SetWasmPath]: IfcWorkerEventHandler;
+    [WorkerActions.GetNameFromTypeCode]: IfcWorkerEventHandler;
+    [WorkerActions.GetIfcEntityList]: IfcWorkerEventHandler;
+    [WorkerActions.GetTypeCodeFromName]: IfcWorkerEventHandler;
 }
 
 export interface SerializedVector {

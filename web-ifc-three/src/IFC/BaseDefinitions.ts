@@ -5,10 +5,11 @@ import { mergeBufferGeometries } from 'three/examples/jsm/utils/BufferGeometryUt
 import {
     FlatMesh,
     IfcGeometry,
+    IfcAlignment,
     IFCRELAGGREGATES, IFCRELASSOCIATESMATERIAL,
     IFCRELCONTAINEDINSPATIALSTRUCTURE,
     IFCRELDEFINESBYPROPERTIES,
-    IFCRELDEFINESBYTYPE, LoaderError, LoaderSettings, RawLineData, Vector
+    IFCRELDEFINESBYTYPE, LoaderError, LoaderSettings, RawLineData, Vector, NewIfcModel
 } from 'web-ifc';
 import {ParserProgress} from "./components/IFCParser";
 
@@ -86,6 +87,15 @@ export interface pName {
     key: string;
 }
 
+export interface NewIfcModel {
+    schema: string;
+    name?: string;
+    description?: string[];
+    authors?: string[];
+    organizations?: string[];
+    authorization?: string;
+}
+
 export const PropsNames = {
     aggregates: {
         name: IFCRELAGGREGATES,
@@ -139,7 +149,7 @@ export interface WebIfcAPI {
      * Creates a new model and returns a modelID number
      * @data Settings settings for generating data the model
      */
-    CreateModel(settings?: LoaderSettings): number | Promise<number>;
+    CreateModel(model: NewIfcModel, settings?: LoaderSettings): number | Promise<number>;
 
     ExportFileAsIFC(modelID: number): Uint8Array | Promise<Uint8Array>;
 
@@ -166,6 +176,8 @@ export interface WebIfcAPI {
 
     GetAllLines(modelID: Number): Vector<number> | Promise<Vector<number>>;
 
+    GetAllAlignments(modelID: Number): Vector<IfcAlignment> | Promise<Vector<IfcAlignment>>;
+
     SetGeometryTransformation(modelID: number, transformationMatrix: Array<number>): void | Promise<void>;
 
     GetCoordinationMatrix(modelID: number): Array<number> | Promise<Array<number>>;
@@ -173,6 +185,12 @@ export interface WebIfcAPI {
     GetVertexArray(ptr: number, size: number): Float32Array | Promise<Float32Array>;
 
     GetIndexArray(ptr: number, size: number): Uint32Array | Promise<Uint32Array>;
+
+    GetNameFromTypeCode(type:number): string | Promise<string>;
+
+    GetTypeCodeFromName(modelID: number,typeName:string): number | Promise<number>;
+
+    GetIfcEntityList(modelID: number) : Array<number> | Promise<Array<number>>;
 
     getSubArray(heap: any, startPtr: any, sizeBytes: any): any | Promise<any>;
 
