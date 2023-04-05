@@ -51,7 +51,12 @@ export class IFCManager {
         let model = await this.parser.parse(buffer, this.state.coordinationMatrix?.toArray()) as IFCModel;
         model.setIFCManager(this);
         // this.state.useJSON ? await this.disposeMemory() : await this.types.getAllTypes(this.worker);
-        await this.types.getAllTypes(this.worker);
+        // TODO: refactor this
+        try {
+            await this.types.getAllTypes(this.worker);
+        } catch (e) {
+            console.log("Could not get all types of model.");
+        }
         return model;
     }
 
