@@ -37,6 +37,10 @@ export class WebIfcHandler implements WebIfcAPI {
         return this.handler.request(this.API, WorkerActions.ExportFileAsIFC, { modelID });
     }
 
+    async GetHeaderLine(modelID: number, headerType: number): Promise<any> {
+        return this.handler.request(this.API, WorkerActions.getHeaderLine, { modelID, headerType });
+    }
+
     async GetGeometry(modelID: number, geometryExpressID: number): Promise<IfcGeometry> {
         this.handler.serializeHandlers[this.handler.requestID] = (geom: SerializedIfcGeometry) => {
             return this.serializer.reconstructIfcGeometry(geom);

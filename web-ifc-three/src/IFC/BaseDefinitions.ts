@@ -144,6 +144,8 @@ export interface WebIfcAPI {
      */
     OpenModel(data: string | Uint8Array, settings?: LoaderSettings): number | Promise<number>;
 
+    GetHeaderLine(modelID: number, headerType: number): any | Promise<any>;
+
     /**
      * Creates a new model and returns a modelID number
      * @data Settings settings for generating data the model

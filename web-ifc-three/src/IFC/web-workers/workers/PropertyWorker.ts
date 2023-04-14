@@ -21,6 +21,14 @@ export class PropertyWorker implements PropertyWorkerAPI {
         }
     }
 
+    async getHeaderLine(data: IfcEventData): Promise<void> {
+        this.initializeProperties();
+        if (!this.properties) throw new Error(ErrorPropertiesNotAvailable);
+        const args = data.args;
+        data.result = await this.properties.getHeaderLine(args.modelID, args.headerType);
+        this.worker.post(data);
+    }
+
     async getAllItemsOfType(data: IfcEventData): Promise<void> {
         this.initializeProperties();
         if (!this.properties) throw new Error(ErrorPropertiesNotAvailable);

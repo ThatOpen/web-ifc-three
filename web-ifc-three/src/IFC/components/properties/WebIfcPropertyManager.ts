@@ -8,6 +8,10 @@ export class WebIfcPropertyManager extends BasePropertyManager  implements Prope
         return this.state.api.GetLine(modelID, id, recursive);
     }
 
+    async getHeaderLine(modelID: number, headerType: number) {
+        return this.state.api.GetHeaderLine(modelID, headerType);
+    }
+
     async getSpatialStructure(modelID: number, includeProperties?: boolean) {
         const chunks = await this.getSpatialTreeChunks(modelID);
         const allLines = await this.state.api.GetLineIDsWithType(modelID, IFCPROJECT);

@@ -60,7 +60,8 @@ export enum WorkerActions {
     getMaterialsProperties = 'getMaterialsProperties',
     getPropertySets = 'getPropertySets',
     getSpatialStructure = 'getSpatialStructure',
-    getTypeProperties = 'getTypeProperties',    
+    getTypeProperties = 'getTypeProperties',
+    getHeaderLine = 'getHeaderLine',
 }
 
 export enum WorkerAPIs {

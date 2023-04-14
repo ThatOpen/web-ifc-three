@@ -9,6 +9,10 @@ export class JSONPropertyManager extends BasePropertyManager implements Property
         return { ...this.state.models[modelID].jsonData[id] };
     }
 
+    async getHeaderLine(modelID: number) {
+        return {};
+    }
+
     async getSpatialStructure(modelID: number, includeProperties?: boolean) {
         const chunks = await this.getSpatialTreeChunks(modelID);
         const projectsIDs = await this.getAllItemsOfType(modelID, IFCPROJECT, false);

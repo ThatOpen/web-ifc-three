@@ -32,6 +32,11 @@ export class PropertyManager implements PropertyManagerAPI {
         return bufferAttr.getX(geoIndex[3 * faceIndex]);
     }
 
+    async getHeaderLine(modelID: number, headerType: number) {
+        this.updateCurrentProps();
+        return this.currentProps.getHeaderLine(modelID, headerType);
+    }
+
     async getItemProperties(modelID: number, elementID: number, recursive = false) {
         this.updateCurrentProps();
         return this.currentProps.getItemProperties(modelID, elementID, recursive);

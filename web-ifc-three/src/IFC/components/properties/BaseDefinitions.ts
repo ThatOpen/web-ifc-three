@@ -14,6 +14,8 @@ export interface PropertyAPI {
 
     getSpatialStructure(modelID: number, includeProperties?: boolean): Promise<any>;
 
+    getHeaderLine(modelID: number, headerType: number): Promise<any>;
+
 }
 
 export interface PropertyManagerAPI extends PropertyAPI {
