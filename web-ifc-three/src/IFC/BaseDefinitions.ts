@@ -187,7 +187,7 @@ export interface WebIfcAPI {
 
     GetNameFromTypeCode(type:number): string | Promise<string>;
 
-    GetTypeCodeFromName(modelID: number,typeName:string): number | Promise<number>;
+    GetTypeCodeFromName(typeName:string): number | Promise<number>;
 
     GetIfcEntityList(modelID: number) : Array<number> | Promise<Array<number>>;
 

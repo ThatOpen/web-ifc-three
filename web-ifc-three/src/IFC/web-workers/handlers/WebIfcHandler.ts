@@ -67,8 +67,8 @@ export class WebIfcHandler implements WebIfcAPI {
         return this.handler.request(this.API, WorkerActions.GetIfcEntityList, { modelID });
     }
 
-    async GetTypeCodeFromName(modelID: number,typeName:string): Promise<number> {
-         return this.handler.request(this.API, WorkerActions.GetTypeCodeFromName, { modelID,typeName });
+    async GetTypeCodeFromName(typeName:string): Promise<number> {
+         return this.handler.request(this.API, WorkerActions.GetTypeCodeFromName, { typeName });
     }
 
     async WriteLine(modelID: number, lineObject: any): Promise<void> {
