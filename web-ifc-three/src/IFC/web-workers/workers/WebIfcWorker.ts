@@ -187,7 +187,7 @@ export class WebIfcWorker implements WebIfcWorkerAPI {
     }
 
     GetTypeCodeFromName(data: IfcEventData) {
-        data.result=this.webIFC.GetTypeCodeFromName(data.args.modelID,data.args.typeName);
+        data.result=this.webIFC.GetTypeCodeFromName(data.args.typeName);
         this.worker.post(data);
     }
 

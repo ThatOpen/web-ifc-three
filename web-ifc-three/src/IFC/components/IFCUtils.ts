@@ -24,7 +24,7 @@ export class IFCUtils {
     }
 
     async idsByType(modelID: number, entity_class: string){
-        let entities_ids = await this.state.api.GetLineIDsWithType(modelID, Number(this.state.api.GetTypeCodeFromName(modelID,entity_class.toUpperCase())));
+        let entities_ids = await this.state.api.GetLineIDsWithType(modelID, Number(this.state.api.GetTypeCodeFromName(entity_class.toUpperCase())));
         return entities_ids
     }
 
