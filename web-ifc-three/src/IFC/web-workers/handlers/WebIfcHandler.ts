@@ -7,7 +7,7 @@ import {
     WorkerActions,
     WorkerAPIs
 } from '../BaseDefinitions';
-import { NewIfcModel, FlatMesh, IfcAlignment, IfcGeometry, LoaderError, LoaderSettings, RawLineData, Vector } from 'web-ifc';
+import { NewIfcModel, FlatMesh, IfcAlignment, IfcGeometry, LoaderError, LoaderSettings, RawLineData, Vector, IfcCrossSection } from 'web-ifc';
 import { IFCWorkerHandler } from '../IFCWorkerHandler';
 import { Serializer } from '../serializer/Serializer';
 
@@ -78,6 +78,13 @@ export class WebIfcHandler implements WebIfcAPI {
     }
 
     async GetAllLines(modelID: number): Promise<Vector<number>> {
+        this.handler.serializeHandlers[this.handler.requestID] = (vector: SerializedVector) => {
+            return this.serializer.reconstructVector(vector);
+        }
+        return this.handler.request(this.API, WorkerActions.GetAllLines, { modelID });
+    }
+
+    async GetAllCrossSections(modelID: number): Promise<Vector<IfcCrossSection>> {
         this.handler.serializeHandlers[this.handler.requestID] = (vector: SerializedVector) => {
             return this.serializer.reconstructVector(vector);
         }

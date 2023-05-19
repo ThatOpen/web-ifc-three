@@ -6,6 +6,7 @@ import {
     FlatMesh,
     IfcGeometry,
     IfcAlignment,
+    IfcCrossSection,
     IFCRELAGGREGATES, IFCRELASSOCIATESMATERIAL,
     IFCRELCONTAINEDINSPATIALSTRUCTURE,
     IFCRELDEFINESBYPROPERTIES,
@@ -175,6 +176,8 @@ export interface WebIfcAPI {
     GetLineIDsWithType(modelID: number, type: number): Vector<number> | Promise<Vector<number>>;
 
     GetAllLines(modelID: Number): Vector<number> | Promise<Vector<number>>;
+
+    GetAllCrossSections(modelID: Number): Vector<IfcCrossSection> | Promise<Vector<IfcCrossSection>>;
 
     GetAllAlignments(modelID: Number): Vector<IfcAlignment> | Promise<Vector<IfcAlignment>>;
 
