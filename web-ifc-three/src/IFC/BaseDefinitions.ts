@@ -146,6 +146,8 @@ export interface WebIfcAPI {
      */
     OpenModel(data: string | Uint8Array, settings?: LoaderSettings): number | Promise<number>;
 
+    GetHeaderLine(modelID: number, headerType: number): any | Promise<any>;
+
     /**
      * Creates a new model and returns a modelID number
      * @data Settings settings for generating data the model
@@ -188,6 +190,12 @@ export interface WebIfcAPI {
     GetVertexArray(ptr: number, size: number): Float32Array | Promise<Float32Array>;
 
     GetIndexArray(ptr: number, size: number): Uint32Array | Promise<Uint32Array>;
+
+    GetNameFromTypeCode(type:number): string | Promise<string>;
+
+    GetTypeCodeFromName(typeName:string): number | Promise<number>;
+
+    GetIfcEntityList(modelID: number) : Array<number> | Promise<Array<number>>;
 
     getSubArray(heap: any, startPtr: any, sizeBytes: any): any | Promise<any>;
 

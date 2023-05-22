@@ -18,6 +18,10 @@ export class PropertyHandler implements PropertyManagerAPI {
         return bufferAttr.getX(geoIndex[3 * faceIndex]);
     }
 
+    getHeaderLine(modelID: number, headerType: number): Promise<any[]> {
+        return this.handler.request(this.API, WorkerActions.getHeaderLine, { modelID, headerType });
+    }
+
     getAllItemsOfType(modelID: number, type: number, verbose: boolean): Promise<any[]> {
         return this.handler.request(this.API, WorkerActions.getAllItemsOfType, { modelID, type, verbose });
     }

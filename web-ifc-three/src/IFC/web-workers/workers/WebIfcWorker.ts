@@ -176,6 +176,21 @@ export class WebIfcWorker implements WebIfcWorkerAPI {
         this.worker.post(data);
     }
 
+    GetNameFromTypeCode(data: IfcEventData) {
+        data.result=this.webIFC.GetNameFromTypeCode(data.args.modelID);
+        this.worker.post(data);
+    }
+
+    GetIfcEntityList(data: IfcEventData) {
+        data.result=this.webIFC.GetIfcEntityList(data.args.modelID);
+        this.worker.post(data);
+    }
+
+    GetTypeCodeFromName(data: IfcEventData) {
+        data.result=this.webIFC.GetTypeCodeFromName(data.args.typeName);
+        this.worker.post(data);
+    }
+
     private nullifyWebIfc() {
         // @ts-ignore
         this.webIFC = null;

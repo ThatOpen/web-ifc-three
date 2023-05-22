@@ -13,7 +13,6 @@ import { PropertyManagerAPI } from './properties/BaseDefinitions';
 import { MemoryCleaner } from './MemoryCleaner';
 import { IFCUtils } from './IFCUtils';
 import { Data } from './sequence/Data'
-import { IfcTypesMap } from './IfcTypesMap';
 
 /**
  * Contains all the logic to work with the loaded IFC files (select, edit, etc).
@@ -52,7 +51,12 @@ export class IFCManager {
         let model = await this.parser.parse(buffer, this.state.coordinationMatrix?.toArray()) as IFCModel;
         model.setIFCManager(this);
         // this.state.useJSON ? await this.disposeMemory() : await this.types.getAllTypes(this.worker);
-        await this.types.getAllTypes(this.worker);
+        // TODO: refactor this
+        try {
+            await this.types.getAllTypes(this.worker);
+        } catch (e) {
+            console.log("Could not get all types of model.");
+        }
         return model;
     }
 
@@ -280,7 +284,7 @@ export class IFCManager {
      */
     getIfcType(modelID: number, id: number) {
         const typeID = this.state.models[modelID].types[id];
-        return IfcTypesMap[typeID];
+        return this.state.api.GetNameFromTypeCode(typeID);
     }
 
     /**
