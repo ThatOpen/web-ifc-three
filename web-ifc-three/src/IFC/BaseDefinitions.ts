@@ -179,7 +179,9 @@ export interface WebIfcAPI {
 
     GetAllLines(modelID: Number): Vector<number> | Promise<Vector<number>>;
 
-    GetAllCrossSections(modelID: Number): Vector<IfcCrossSection> | Promise<Vector<IfcCrossSection>>;
+    GetAllCrossSections2D(modelID: Number): Vector<IfcCrossSection> | Promise<Vector<IfcCrossSection>>;
+
+    GetAllCrossSections3D(modelID: Number): Vector<IfcCrossSection> | Promise<Vector<IfcCrossSection>>;
 
     GetAllAlignments(modelID: Number): Vector<IfcAlignment> | Promise<Vector<IfcAlignment>>;
 

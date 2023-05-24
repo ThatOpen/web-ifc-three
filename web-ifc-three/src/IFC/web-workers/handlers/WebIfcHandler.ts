@@ -100,7 +100,14 @@ export class WebIfcHandler implements WebIfcAPI {
         return this.handler.request(this.API, WorkerActions.GetAllLines, { modelID });
     }
 
-    async GetAllCrossSections(modelID: number): Promise<Vector<IfcCrossSection>> {
+    async GetAllCrossSections2D(modelID: number): Promise<Vector<IfcCrossSection>> {
+        this.handler.serializeHandlers[this.handler.requestID] = (vector: SerializedVector) => {
+            return this.serializer.reconstructVector(vector);
+        }
+        return this.handler.request(this.API, WorkerActions.GetAllLines, { modelID });
+    }
+
+    async GetAllCrossSections3D(modelID: number): Promise<Vector<IfcCrossSection>> {
         this.handler.serializeHandlers[this.handler.requestID] = (vector: SerializedVector) => {
             return this.serializer.reconstructVector(vector);
         }
