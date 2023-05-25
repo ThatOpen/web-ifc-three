@@ -25,17 +25,17 @@
   "scripts": {
     "build": "rollup -c && npm run copy-files",
     "watch": "rollup -c -w",
-    "copy-files": "cpy ../node_modules/web-ifc/web-ifc.wasm . && cpy ../node_modules/web-ifc/web-ifc-mt.wasm . && cpy ../web-ifc-three/dist/IFCWorker.js . && cpy ../web-ifc-three/dist/IFCWorker.js.map ."
+    "serve": "ws -p 8080",
+    "copy-files": "cpy ../node_modules/web-ifc/web-ifc.wasm . && cpy ../node_modules/web-ifc/web-ifc-mt.wasm . && cpy ../web-ifc-three/dist/IFCWorker.js . && cpy ../node_modules/web-ifc/web-ifc-mt.worker.js . && cpy ../web-ifc-three/dist/IFCWorker.js.map ."
   },
   "dependencies": {
     "client-zip": "^2.2.2",
     "stats.js": "^0.17.0",
-    "three": "0.149",
-    "web-ifc": "0.0.39",
-    "web-ifc-three": "0.0.125"
+    "three": "0.149"
   },
   "devDependencies": {
     "@rollup/plugin-commonjs": "^22.0.2",
-    "cpy-cli": "^3.1.1"
+    "cpy-cli": "^3.1.1",
+    "local-web-server": "^5.2.1"
   }
 }
