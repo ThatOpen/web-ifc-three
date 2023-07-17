@@ -4,3 +4,9 @@ yarn.lock
 .idea
 .vscode
 web-ifc-three/dist
+
+## Ignore build artifacts
+*.map
+*.wasm
+example/IFCWorker.js
+example/web-ifc-mt.worker.js
