@@ -74,9 +74,10 @@ export class IFCManager {
      *
      * @path Relative path to web-ifc.wasm.
      */
-    async setWasmPath(path: string) {
-        this.state.api.SetWasmPath(path);
+    async setWasmPath(path: string, absolute?: boolean) {
+        this.state.api.SetWasmPath(path, absolute);
         this.state.wasmPath = path;
+        this.state.absolute = absolute;
     }
 
     /**
@@ -137,7 +138,8 @@ export class IFCManager {
             this.state.worker.path = path;
             await this.initializeWorkers();
             const wasm = this.state.wasmPath;
-            if(wasm) await this.setWasmPath(wasm);
+            const absolute = this.state.absolute;
+            if(wasm) await this.setWasmPath(wasm, absolute);
         } else {
             this.state.api = new WebIFC.IfcAPI();
         }
