@@ -233,20 +233,92 @@ export class IFCParser implements ParserAPI {
     private ifcGeometryToBuffer(expressID: number, vertexData: Float32Array, indexData: Uint32Array) {
         const geometry = new BufferGeometry();
 
-        const posFloats = new Float32Array(vertexData.length / 2);
-        const normFloats = new Float32Array(vertexData.length / 2);
-        const idAttribute = new Uint32Array(vertexData.length / 6);
+        const numVertices = vertexData.length / 6;
 
-        for (let i = 0; i < vertexData.length; i += 6) {
-            posFloats[i / 2] = vertexData[i];
-            posFloats[i / 2 + 1] = vertexData[i + 1];
-            posFloats[i / 2 + 2] = vertexData[i + 2];
+        // First pass: identify valid vertices (no NaN in position) and build index mapping
+        const validFlags = new Uint8Array(numVertices);
+        let validCount = 0;
+        for (let i = 0; i < numVertices; i++) {
+            const x = vertexData[i * 6];
+            const y = vertexData[i * 6 + 1];
+            const z = vertexData[i * 6 + 2];
+            if (Number.isFinite(x) && Number.isFinite(y) && Number.isFinite(z)) {
+                validFlags[i] = 1;
+                validCount++;
+            }
+        }
 
-            normFloats[i / 2] = vertexData[i + 3];
-            normFloats[i / 2 + 1] = vertexData[i + 4];
-            normFloats[i / 2 + 2] = vertexData[i + 5];
+        // If all vertices are valid, use the fast path (no filtering)
+        if (validCount === numVertices) {
+            const posFloats = new Float32Array(vertexData.length / 2);
+            const normFloats = new Float32Array(vertexData.length / 2);
+            const idAttribute = new Uint32Array(vertexData.length / 6);
 
-            idAttribute[i / 6] = expressID;
+            for (let i = 0; i < vertexData.length; i += 6) {
+                posFloats[i / 2] = vertexData[i];
+                posFloats[i / 2 + 1] = vertexData[i + 1];
+                posFloats[i / 2 + 2] = vertexData[i + 2];
+
+                normFloats[i / 2] = vertexData[i + 3];
+                normFloats[i / 2 + 1] = vertexData[i + 4];
+                normFloats[i / 2 + 2] = vertexData[i + 5];
+
+                idAttribute[i / 6] = expressID;
+            }
+
+            geometry.setAttribute(
+                'position',
+                new BufferAttribute(posFloats, 3));
+            geometry.setAttribute(
+                'normal',
+                new BufferAttribute(normFloats, 3));
+            geometry.setAttribute(
+                'expressID',
+                new BufferAttribute(idAttribute, 1));
+
+            geometry.setIndex(new BufferAttribute(indexData, 1));
+            return geometry;
+        }
+
+        // Some vertices have NaN positions — filter them out
+        // Build remapping: old index -> new index
+        const indexRemap = new Uint32Array(numVertices);
+        let nextNewIndex = 0;
+        for (let i = 0; i < numVertices; i++) {
+            if (validFlags[i]) {
+                indexRemap[i] = nextNewIndex++;
+            }
+        }
+
+        const posFloats = new Float32Array(validCount * 3);
+        const normFloats = new Float32Array(validCount * 3);
+        const idAttribute = new Uint32Array(validCount);
+
+        let newVertIdx = 0;
+        for (let i = 0; i < numVertices; i++) {
+            if (!validFlags[i]) continue;
+            posFloats[newVertIdx * 3] = vertexData[i * 6];
+            posFloats[newVertIdx * 3 + 1] = vertexData[i * 6 + 1];
+            posFloats[newVertIdx * 3 + 2] = vertexData[i * 6 + 2];
+
+            normFloats[newVertIdx * 3] = vertexData[i * 6 + 3];
+            normFloats[newVertIdx * 3 + 1] = vertexData[i * 6 + 4];
+            normFloats[newVertIdx * 3 + 2] = vertexData[i * 6 + 5];
+
+            idAttribute[newVertIdx] = expressID;
+            newVertIdx++;
+        }
+
+        // Remap indices to use new vertex indices, discarding triangles with invalid vertices
+        const filteredIndices: number[] = [];
+        for (let i = 0; i < indexData.length; i += 3) {
+            const a = indexRemap[indexData[i]];
+            const b = indexRemap[indexData[i + 1]];
+            const c = indexRemap[indexData[i + 2]];
+            // Only include the triangle if all three vertices are valid
+            if (validFlags[indexData[i]] && validFlags[indexData[i + 1]] && validFlags[indexData[i + 2]]) {
+                filteredIndices.push(a, b, c);
+            }
         }
 
         geometry.setAttribute(
@@ -259,7 +331,7 @@ export class IFCParser implements ParserAPI {
             'expressID',
             new BufferAttribute(idAttribute, 1));
 
-        geometry.setIndex(new BufferAttribute(indexData, 1));
+        geometry.setIndex(new BufferAttribute(new Uint32Array(filteredIndices), 1));
         return geometry;
     }
 
