@@ -222,4 +222,10 @@ export interface WebIfcAPI {
     GetFlatMesh(modelID: number, expressID: number): FlatMesh | Promise<FlatMesh>;
 
     SetWasmPath(path: string): void | Promise<void>;
+
+    /**
+     * Creates a map between element ExpressIDs and GlobalIDs.
+     * Each element has two entries, (ExpressID -> GlobalID) and (GlobalID -> ExpressID).
+     */
+    CreateIfcGuidToExpressIdMapping(modelID: number): void | Promise<void>;
 }
