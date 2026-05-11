@@ -191,6 +191,11 @@ export class WebIfcWorker implements WebIfcWorkerAPI {
         this.worker.post(data);
     }
 
+    CreateIfcGuidToExpressIdMapping(data: IfcEventData) {
+        this.webIFC.CreateIfcGuidToExpressIdMapping(data.args.modelID);
+        this.worker.post(data);
+    }
+
     private nullifyWebIfc() {
         // @ts-ignore
         this.webIFC = null;

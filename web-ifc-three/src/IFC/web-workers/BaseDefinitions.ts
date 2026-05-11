@@ -47,6 +47,7 @@ export enum WorkerActions {
     GetNameFromTypeCode = 'GetNameFromTypeCode',
     GetIfcEntityList = 'GetIfcEntityList',
     GetTypeCodeFromName ='GetTypeCodeFromName',
+    CreateIfcGuidToExpressIdMapping = 'CreateIfcGuidToExpressIdMapping',
 
     // Parser
     parse = 'parse',
@@ -146,6 +147,7 @@ export interface WebIfcWorkerAPI extends BaseWorkerAPI {
     [WorkerActions.GetNameFromTypeCode]: IfcWorkerEventHandler;
     [WorkerActions.GetIfcEntityList]: IfcWorkerEventHandler;
     [WorkerActions.GetTypeCodeFromName]: IfcWorkerEventHandler;
+    [WorkerActions.CreateIfcGuidToExpressIdMapping]: IfcWorkerEventHandler;
 }
 
 export interface SerializedVector {

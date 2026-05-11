@@ -71,6 +71,10 @@ export class WebIfcHandler implements WebIfcAPI {
          return this.handler.request(this.API, WorkerActions.GetTypeCodeFromName, { typeName });
     }
 
+    async CreateIfcGuidToExpressIdMapping(modelID: number): Promise<void> {
+        return this.handler.request(this.API, WorkerActions.CreateIfcGuidToExpressIdMapping, { modelID });
+    }
+
     async WriteLine(modelID: number, lineObject: any): Promise<void> {
         return this.handler.request(this.API, WorkerActions.WriteLine, { modelID, lineObject });
     }
