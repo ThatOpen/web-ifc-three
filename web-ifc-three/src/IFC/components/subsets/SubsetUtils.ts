@@ -1,5 +1,21 @@
 export class SubsetUtils {
 
+    static getAllIndicesByMaterial(ids: number[], items: any) {
+        const indicesByMaterial: number[][] = [];
+        for (const expressID of ids) {
+            const entry = items.map.get(expressID);
+            if (!entry) continue;
+            for (const materialID of Object.keys(entry)) {
+                const materialIndex = Number(materialID);
+                const value = entry[materialIndex];
+                if (!value) continue;
+                if (!indicesByMaterial[materialIndex]) indicesByMaterial[materialIndex] = [];
+                SubsetUtils.getIndexChunk(value, indicesByMaterial[materialIndex], materialIndex, items, true);
+            }
+        }
+        return indicesByMaterial;
+    }
+
     // If flatten, all indices are in the same array; otherwise, indices are split in subarrays by material
     static getAllIndicesOfGroup(modelID: number, ids: number[], materialIndex: number, items: any, flatten = true) {
         const indicesByGroup: any = [];
