@@ -73,17 +73,15 @@ export class SubsetCreator {
     private constructSubsetByMaterial(config: SubsetConfig, subsetID: string) {
         const model = this.state.models[config.modelID].mesh;
         const newIndices = { count: 0 };
+        const indicesByMaterial = SubsetUtils.getAllIndicesByMaterial(config.ids, this.items.map[config.modelID]);
         for (let i = 0; i < model.geometry.groups.length; i++) {
-            this.insertNewIndices(config, subsetID, i, newIndices);
+            this.insertNewIndices(config, subsetID, i, newIndices, indicesByMaterial[i] || []);
         }
     }
 
     // If this subset has original materials, insert indices in correct position and update groups
     // Otherwise, just insert indices at any position
-    private insertNewIndices(config: SubsetConfig, subsetID: string, materialIndex: number, newIndices: any) {
-        const items = this.items.map[config.modelID];
-        const indicesOfOneMaterial = SubsetUtils.getAllIndicesOfGroup(config.modelID, config.ids, materialIndex, items) as number[];
-
+    private insertNewIndices(config: SubsetConfig, subsetID: string, materialIndex: number, newIndices: any, indicesOfOneMaterial: number[]) {
         if (!config.material) {
             this.insertIndicesAtGroup(subsetID, indicesOfOneMaterial, materialIndex, newIndices);
         } else {
