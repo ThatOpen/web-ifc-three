@@ -116,6 +116,7 @@ export interface ParserWorkerAPI extends BaseWorkerAPI {
 }
 
 export interface WebIfcWorkerAPI extends BaseWorkerAPI {
+    [WorkerActions.getHeaderLine]: IfcWorkerEventHandler;
     [WorkerActions.Init]: IfcWorkerEventHandler;
     [WorkerActions.Close]: IfcWorkerEventHandler;
     [WorkerActions.DisposeWebIfc]: IfcWorkerEventHandler;

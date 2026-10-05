@@ -78,6 +78,11 @@ export class WebIfcWorker implements WebIfcWorkerAPI {
         this.worker.post(data);
     }
 
+    getHeaderLine(data: IfcEventData) {
+        data.result = this.webIFC.GetHeaderLine(data.args.modelID, data.args.headerType);
+        this.worker.post(data);
+    }
+
     GetIndexArray(data: IfcEventData) {
         data.result = this.webIFC.GetIndexArray(data.args.ptr, data.args.size);
         this.worker.post(data);
@@ -177,7 +182,7 @@ export class WebIfcWorker implements WebIfcWorkerAPI {
     }
 
     GetNameFromTypeCode(data: IfcEventData) {
-        data.result=this.webIFC.GetNameFromTypeCode(data.args.modelID);
+        data.result=this.webIFC.GetNameFromTypeCode(data.args.type);
         this.worker.post(data);
     }
 
