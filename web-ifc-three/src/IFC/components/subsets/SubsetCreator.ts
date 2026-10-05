@@ -60,6 +60,7 @@ export class SubsetCreator {
     private filterIndices(config: SubsetConfig, subsetID: string) {
         const geometry = this.subsets[subsetID].mesh.geometry as IndexedGeometry;
         if (config.removePrevious) {
+            this.subsets[subsetID].ids.clear();
             geometry.setIndex([]);
             this.resetGroups(geometry);
             return;
